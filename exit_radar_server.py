@@ -393,6 +393,15 @@ EXPLORER = {
 }
 
 
+def _looks_hash(x):
+    """txId cua CMC la so noi bo (vd 352) - KHONG phai ma giao dich. Chi coi
+    la ma giao dich khi no dai va trong ky tu hex/base58."""
+    if x is None:
+        return False
+    t = str(x)
+    return len(t) >= 20 and all(c.isalnum() for c in t)
+
+
 def explorer(platform, kind, value):
     pair = EXPLORER.get(str(platform or '').lower())
     if not pair or not value:
@@ -410,7 +419,8 @@ def build_evidence(raw, platform, address):
         if not isinstance(p, dict):
             continue
         liq = _num(p.get('liqUsd')) or 0
-        pools.append({'address': p.get('addr'), 'exchange': p.get('exn'), 'liqUsd': liq,
+        pools.append({'address': p.get('addr'),
+                      'exchange': p.get('exn') or p.get('en') or p.get('exchange'), 'liqUsd': liq,
                       'share': round(liq / tot, 4) if tot else None, 'v24Usd': _num(p.get('v24')),
                       'createdAt': _num(p.get('pubAt')), 'primary': bool(p.get('top')),
                       'base': (p.get('t0') or {}).get('sym'), 'quote': (p.get('t1') or {}).get('sym'),
@@ -429,8 +439,10 @@ def build_evidence(raw, platform, address):
         events.append({'ts': _num(e.get('ts')),
                        'side': 'remove' if ('rem' in tp or 'sub' in tp or 'dec' in tp or 'out' in tp) else 'add',
                        'rawType': tp, 'usd': abs(tu) if tu is not None else None,
-                       'pool': e.get('en') or e.get('f'), 'tx': e.get('txId'),
-                       'url': explorer(platform, 'tx', e.get('txId'))})
+                       'pool': e.get('en') or e.get('f'), 'txId': e.get('txId'),
+                       'block': _num(e.get('h')),
+                       'tx': str(e.get('txn')) if _looks_hash(e.get('txn')) else None,
+                       'url': explorer(platform, 'tx', e.get('txn')) if _looks_hash(e.get('txn')) else None})
     events.sort(key=lambda x: -(x['ts'] or 0))
 
     hl = raw.get('hlist') or {}
@@ -453,8 +465,14 @@ def build_evidence(raw, platform, address):
     else:
         hmeta = {'count': 0, 'needsKey': True, 'status': hl.get('status'),
                  'reason': hl.get('error'), 'tried': hl.get('tried')}
+    tlu_change = _num((raw['liqchg'].get('data') or {}).get('tlu')) if raw['liqchg'].get('ok') else None
     return {'platform': platform, 'address': address, 'pools': pools,
-            'liqEvents': events, 'holdersTop': htop or None, 'holdersMeta': hmeta}
+            'liqEvents': events, 'holdersTop': htop or None, 'holdersMeta': hmeta,
+            # Hai endpoint do thanh khoan theo hai dinh nghia khac nhau - phai
+            # noi ro thay vi de nguoi doc tuong la mot con so.
+            'totals': {'tluFromChange': tlu_change, 'poolsSum': round(tot, 2),
+                       'poolsCount': len(pl),
+                       'txSampleWindowMin': None}}
 
 
 def _dim_unavailable(key, label, reason, maxpts, endpoint):

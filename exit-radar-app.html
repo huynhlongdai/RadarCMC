@@ -1076,6 +1076,11 @@ function evidenceHTML(v){
       '<p class="sub">' + pools.length + ' pool · tổng thanh khoản ' + usd(t.liquidityUsd) +
       '. Bấm địa chỉ để mở explorer — mỗi dòng kiểm chứng được độc lập.</p>' +
       evTable([{t:'Địa chỉ pool'},{t:'Sàn'},{t:'Thanh khoản',r:1},{t:'Tỷ trọng',r:1},{t:'Cặp'},{t:'Tạo cách đây',r:1},{t:''}], rows) +
+      ((p.totals && p.totals.poolsSum) ?
+        '<p class="caveat">Dữ liệu CMC cho <b>hai định nghĩa thanh khoản khác nhau</b>: <b>' +
+        usd(p.totals.tluFromChange) + '</b> từ endpoint sự kiện thay đổi, và <b>' + usd(p.totals.poolsSum) +
+        '</b> khi cộng ' + p.totals.poolsCount + ' pool ở bảng trên. Điểm A dùng con số thứ nhất, bảng dùng con số thứ hai — ' +
+        'chênh lệch là do hai endpoint đo khác nhau, không phải lỗi tính.</p>' : '') +
       '</div>');
   }
   if (evts.length){
@@ -1085,7 +1090,8 @@ function evidenceHTML(v){
       '<td class="n">' + usdExact(e.usd) + '</td>' +
       '<td>' + esc(e.pool || '—') + '</td>' +
       '<td>' + (e.rawType ? '<span class="addr">' + esc(e.rawType) + '</span>' : '—') + '</td>' +
-      '<td>' + addrHTML(e.tx, e.url) + '</td></tr>');
+      '<td>' + (e.tx ? addrHTML(e.tx, e.url)
+        : (e.block ? '<span class="addr">khối ' + nf(e.block, 0) + '</span>' : '<span class="muted">—</span>')) + '</td></tr>');
     out.push('<div class="ev-sec"><h3>Sự kiện thêm/rút thanh khoản · ' + evts.length + ' sự kiện gần nhất</h3>' +
       '<p class="sub">Đây là căn cứ trực tiếp của điểm A. Mã giao dịch mở được trên explorer.</p>' +
       evTable([{t:'Thời điểm',r:1},{t:'Chiều'},{t:'Giá trị',r:1},{t:'Pool'},{t:'Loại'},{t:'Mã giao dịch'}], rows) +

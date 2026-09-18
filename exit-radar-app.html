@@ -3530,6 +3530,239 @@ document.addEventListener('click', ev => {
   if (t.hasAttribute('data-rules')) wlRulesModal(w); else wlNoteModal(w);
 }, true);
 
+/* ==========================================================================
+   BOT TELEGRAM (khối tách riêng, chèn cuối trang).
+   Vì sao tách riêng: không sửa vào 214 KB mã cũ, chỉ BỌC thêm chứ không thay.
+   - Thêm mục "Bot Telegram" vào màn Theo dõi.
+   - Thêm luật chỉ bot mới chấm được (ví cá mập mua/bán theo số USD, giá tăng/giảm).
+   - Luật cũ vẫn nằm trong hộp "Cảnh báo" như trước; hộp này nay có thêm mục Telegram.
+   ========================================================================== */
+const TG_RULES = [
+  { k:'whaleBuy',       t:'Ví cá mập MUA',                u:'bật/tắt', hint:'Một ví mua từ ngưỡng USD trở lên — bot chấm được, trình duyệt thì không' },
+  { k:'whaleBuyMinUsd', t:'… ngưỡng mua tối thiểu',       u:'USD',     hint:'Ví dụ 50000 nghĩa là chỉ báo khi một ví mua từ 50.000 USD trở lên' },
+  { k:'whaleSell',      t:'Ví cá mập BÁN',                u:'bật/tắt', hint:'Một ví bán ra từ ngưỡng USD trở lên' },
+  { k:'whaleSellMinUsd',t:'… ngưỡng bán tối thiểu',       u:'USD',     hint:'Rút thanh khoản thường đi kèm một ví lớn xả trước' },
+  { k:'priceUpPct',     t:'Giá tăng quá',                 u:'%',       hint:'Tính theo giá CMC giữa hai lần quét' },
+  { k:'priceDownPct',   t:'Giá giảm quá',                 u:'%',       hint:'Cần token có mã CMC mới có giá' }
+];
+const TG_CONF_DEF = { quietFrom:23, quietTo:7, cooldownMin:30, maxPerDay:20 };
+function tgGet(k, d){ try { const v = Store.get(k, d); return v == null ? d : v; } catch(e){ return d; } }
+function tgPut(k, v){ try { Store.set(k, v); } catch(e){} }
+function tgConf(){
+  const c = tgGet('er.tgConf', null) || {};
+  const o = Object.assign({}, TG_CONF_DEF);
+  ['quietFrom','quietTo','cooldownMin','maxPerDay'].forEach(k => { if (c[k] != null) o[k] = Number(c[k]); });
+  return o;
+}
+function tgCodeV(){ return tgGet('er.tgCode', ''); }
+function tgAppUrl(){ try { return API.base || location.origin; } catch(e){ return location.origin; } }
+function tgBrief(){
+  return State.watch.map(w => {
+    const live = liveOf(w);
+    return { key:w.key, chain:w.chain, symbol:w.symbol, cid:(live.cid || null),
+             note:(w.note || ''), rules:(w.rules || {}), tg:(w.tg || {}) };
+  });
+}
+function tgCall(action, body){
+  return fetch(API.base + '/api/tg?action=' + encodeURIComponent(action), {
+    method:'POST', cache:'no-store',
+    headers:Object.assign({'Content-Type':'application/json'}, API.headers()),
+    body:JSON.stringify(Object.assign({ code:tgCodeV(), appUrl:tgAppUrl(), conf:tgConf() }, body || {}))
+  }).then(r => r.json()).catch(e => ({ ok:false, error:'không gọi được máy chủ: ' + e.message }))
+    .catch(e => ({ ok:false, error:String(e) }));
+}
+function tgFormMsg(w){
+  const live = liveOf(w);
+  return '⚠ <b>' + esc(w.symbol) + '</b> · ' + esc(CHAINS[w.chain] || w.chain) +
+    (w.note ? ' · <i>' + esc(w.note) + '</i>' : '') + '\n' +
+    '• ví cá mập MUA 84.200 USD — ví 4A2k…9Xj\n' +
+    'Điểm ' + (typeof live.score === 'number' ? live.score : '—') + '/100' +
+    (live.liq != null ? '\nThanh khoản ' + usd(live.liq) : '') +
+    (live.holders != null ? '\nHolder ' + nf(live.holders, 0) : '') +
+    '\n<i>Đây là bản xem trước — nội dung thật do máy chủ dựng, cùng khuôn dạng này.</i>';
+}
+function tgStatusHTML(st){
+  if (!st) return '<div class="row"><span class="k">Máy chủ</span><span class="lead"></span><span class="v">đang hỏi…</span></div>';
+  if (st.error) return '<div class="row"><span class="k">Máy chủ</span><span class="lead"></span><span class="v down">' + esc(st.error) + '</span></div>';
+  const c = st.chat || {};
+  const rows = [];
+  rows.push(['Bot', st.botSet ? ('@' + (st.botUsername || 'đã đặt token')) : 'chưa đặt TELEGRAM_BOT_TOKEN trên máy chủ',
+             st.botSet ? '' : 'down']);
+  rows.push(['Kho lưu trữ', { 'tep':'tệp JSON trên máy chủ', 'upstash':'Upstash Redis', 'khong-ghi-duoc':'không ghi được (Vercel cần Upstash)' }[st.store] || st.store, st.store === 'khong-ghi-duoc' ? 'down' : '']);
+  rows.push(['Chat đã nối', st.linked ? (c.title || 'đã nối') : 'chưa nối', st.linked ? '' : '']);
+  if (st.linked){
+    rows.push(['Token bot đang giữ', String(c.tokens == null ? '—' : c.tokens), '']);
+    rows.push(['Lần quét gần nhất', c.lastTick ? dtime(new Date(c.lastTick).toISOString()) : 'chưa quét', '']);
+    rows.push(['Tin đã gửi hôm nay', String(c.sentToday == null ? 0 : c.sentToday), '']);
+    rows.push(['Tin đang chờ', String(c.pending == null ? 0 : c.pending), c.pending ? 'down' : '']);
+    rows.push(['Trạng thái', c.pause ? 'tạm dừng' : 'đang chạy', '']);
+  }
+  return rows.map(r => '<div class="row"><span class="k">' + esc(r[0]) + '</span><span class="lead"></span>' +
+    '<span class="v ' + r[2] + '">' + esc(r[1]) + '</span></div>').join('');
+}
+function tgPanelHTML(){
+  const code = tgCodeV(), cf = tgConf();
+  return '<div class="card pad tg-card" id="tgCard" style="margin-top:22px">' +
+    '<div class="card-h">Bot Telegram — cảnh báo đẩy ra ngoài trình duyệt</div>' +
+    '<div id="tgStatus">' + tgStatusHTML(null) + '</div>' +
+    '<div class="acts" style="margin:12px 0">' +
+      '<button class="btn pri sm" id="tgMake" type="button">' + (code ? 'Tạo mã mới' : 'Tạo mã liên kết') + '</button>' +
+      '<button class="btn sm" id="tgPush" type="button">Đẩy danh sách &amp; luật lên bot</button>' +
+      '<button class="btn sm" id="tgTest" type="button">Gửi tin thử</button>' +
+      '<button class="btn sm ghost" id="tgPrev" type="button">Xem trước tin nhắn</button>' +
+      '<button class="btn sm ghost" id="tgRefresh" type="button">Cập nhật trạng thái</button>' +
+    '</div>' +
+    (code ? '<p class="caveat" id="tgCodeBox">Mã liên kết: <b class="mono">' + esc(code) +
+      '</b> — mở Telegram, gửi cho bot: <span class="mono">/link ' + esc(code) + '</span>. ' +
+      'Mã dùng một lần, hết hiệu lực sau khi nối.</p>' :
+      '<p class="caveat" id="tgCodeBox">Chưa có mã. Bấm “Tạo mã liên kết”, rồi gửi mã đó cho bot bằng lệnh <span class="mono">/link</span>.</p>') +
+    '<div class="wl-form" style="margin-top:12px">' +
+      '<label class="wl-fld"><span>Giờ yên tĩnh từ</span><input type="number" min="0" max="23" id="cf_from" value="' + cf.quietFrom + '"><em>Tin trong khoảng này dồn lại, gửi một lần khi hết giờ</em></label>' +
+      '<label class="wl-fld"><span>… đến</span><input type="number" min="0" max="23" id="cf_to" value="' + cf.quietTo + '"><em>Mặc định 23 → 7</em></label>' +
+      '<label class="wl-fld"><span>Chống lặp (phút)</span><input type="number" min="1" id="cf_cd" value="' + cf.cooldownMin + '"><em>Cùng một luật trên cùng một token chỉ báo lại sau từng này phút</em></label>' +
+      '<label class="wl-fld"><span>Tối đa tin/ngày</span><input type="number" min="1" id="cf_max" value="' + cf.maxPerDay + '"><em>Telegram cho khoảng 20 tin/phút cho một chat</em></label>' +
+    '</div>' +
+    '<div class="acts"><button class="btn sm ghost" id="tgSaveConf" type="button">Lưu cài đặt</button>' +
+      '<button class="btn sm ghost" id="tgUnlink" type="button">Ngắt chat</button></div>' +
+    '<div id="tgPreview" style="margin-top:12px"></div>' +
+    '<p class="caveat" style="margin-top:12px">Bot phải có tiến trình chạy thì mới quét: trên máy bạn chạy ' +
+    '<span class="mono">python exit_radar_server.py --bot</span>, hoặc để cron gọi <span class="mono">/api/cron/tick</span>. ' +
+    'Vercel gói Hobby chỉ cho cron chạy <b>một lần mỗi ngày</b> nên không đủ cho cảnh báo thời gian thực — ' +
+    'chạy trên máy, VPS, hoặc Vercel Pro (cron mỗi phút) mới đúng nhịp. <b>Chi phí credit</b>: một lần quét một token tốn khoảng 8 credit CMC (số lời gọi thật được in trong mỗi tin nhắn). Gói 15.000 credit/tháng chịu được khoảng 1.875 lượt quét: 5 token × quét mỗi 2 giờ ≈ 14.400 credit/tháng (vừa hết hạn mức), 3 token × quét mỗi 6 giờ ≈ 2.880 credit/tháng thì còn dư. Giãn nhịp bằng <span class="mono">--every 21600</span> hoặc bớt token, đừng để bot quét mỗi phút.</p></div>';
+}
+function tgReadConf(){
+  const g = id => { const el = document.getElementById(id); return el ? Number(el.value) : null; };
+  const c = { quietFrom:g('cf_from'), quietTo:g('cf_to'), cooldownMin:g('cf_cd'), maxPerDay:g('cf_max') };
+  Object.keys(c).forEach(k => { if (c[k] == null || isNaN(c[k])) delete c[k]; });
+  return Object.assign(tgConf(), c);
+}
+function tgWire(){
+  const card = document.getElementById('tgCard');
+  if (!card) return;
+  const sc = document.getElementById('tgSaveConf');
+  if (sc) sc.addEventListener('click', () => { tgPut('er.tgConf', tgReadConf()); toast('Đã lưu cài đặt bot', 'ok'); render(); });
+  const mk = document.getElementById('tgMake');
+  if (mk) mk.addEventListener('click', () => {
+    mk.disabled = true;
+    tgCall('code', {}).then(d => {
+      mk.disabled = false;
+      if (d.code){ tgPut('er.tgCode', d.code); render(); toast('Đã tạo mã liên kết ' + d.code, 'ok', 'Gửi cho bot: /link ' + d.code); }
+      else toast(d.error || 'Máy chủ chưa sẵn sàng cho bot', 'err', d.hint || '');
+    });
+  });
+  const pu = document.getElementById('tgPush');
+  if (pu) pu.addEventListener('click', () => {
+    if (!tgCodeV()) return toast('Tạo mã liên kết trước', 'err');
+    pu.disabled = true;
+    tgCall('push', { watch:tgBrief() }).then(d => {
+      pu.disabled = false;
+      toast(d.ok ? ('Đã đẩy ' + d.tokens + ' token lên bot') : (d.error || 'Không đẩy được'),
+            d.ok ? 'ok' : 'err', d.hint || '');
+      tgRefresh();
+    });
+  });
+  const te = document.getElementById('tgTest');
+  if (te) te.addEventListener('click', () => {
+    te.disabled = true;
+    tgCall('test', {}).then(d => {
+      te.disabled = false;
+      toast(d.ok ? 'Bot đã gửi tin thử — mở Telegram xem' : ('Không gửi được: ' + (d.telegram || d.error || '?')),
+            d.ok ? 'ok' : 'err', d.status ? ('Telegram trả HTTP ' + d.status + (d.retryAfter ? ', chờ ' + d.retryAfter + 's' : '')) : '');
+    });
+  });
+  const pv = document.getElementById('tgPrev');
+  if (pv) pv.addEventListener('click', () => {
+    const box = document.getElementById('tgPreview');
+    if (box) box.innerHTML = '<div class="card pad" style="background:var(--surface-2)"><div class="card-h">Tin nhắn sẽ trông thế này</div>' +
+      '<pre style="white-space:pre-wrap;font-size:var(--t-sm);margin:0">' + tgFormMsg(State.watch[0] || { key:'—', symbol:'TOKEN', chain:'solana' }) + '</pre></div>';
+  });
+  const rf = document.getElementById('tgRefresh');
+  if (rf) rf.addEventListener('click', tgRefresh);
+  const un = document.getElementById('tgUnlink');
+  if (un) un.addEventListener('click', () => {
+    tgCall('unlink', {}).then(() => { tgPut('er.tgCode', ''); tgPut('er.tgPushAt', 0); render(); toast('Đã ngắt chat khỏi danh sách', 'ok'); });
+  });
+  tgRefresh();
+}
+function tgRefresh(){
+  const box = document.getElementById('tgStatus');
+  if (!box) return;
+  tgCall('status', { code:tgCodeV() }).then(d => {
+    if (box) box.innerHTML = tgStatusHTML(d);
+    if (d && d.botSet) return;
+  });
+}
+function tgRuleChips(w){
+  const r = w.tg || {};
+  const on = TG_RULES.filter(x => r[x.k] != null && r[x.k] !== false);
+  if (!on.length) return '';
+  return on.map(x => '<span class="chip wl-rule" title="Bot Telegram">TG · ' + esc(x.t
+    .replace('Ví cá mập MUA','ví lớn mua').replace('Ví cá mập BÁN','ví lớn bán')
+    .replace('… ngưỡng mua tối thiểu','≥').replace('… ngưỡng bán tối thiểu','≥')
+    .replace('Giá tăng quá','giá tăng ≥').replace('Giá giảm quá','giá giảm ≥').replace('… ','')) +
+    (x.u === 'bật/tắt' ? '' : ' ' + nf(r[x.k], 0) + x.u) + '</span>').join(' ');
+}
+function tgRulesModal(w){
+  const r = w.tg || {};
+  evOpen('Bot Telegram cho ' + w.symbol, 'Cảnh báo đẩy ra Telegram, không cần mở web', 
+    '<div class="wl-form">' + TG_RULES.map(x =>
+      '<label class="wl-fld"><span>' + x.t + (x.u === 'bật/tắt' ? '' : ' (' + x.u + ')') + '</span>' +
+      (x.u === 'bật/tắt'
+        ? '<input type="checkbox" id="tg_' + x.k + '"' + (r[x.k] ? ' checked' : '') + '>'
+        : '<input type="number" min="0" step="1" id="tg_' + x.k + '" placeholder="không đặt" value="' + (r[x.k] == null ? '' : r[x.k]) + '">') +
+      '<em>' + x.hint + '</em></label>').join('') + '</div>' +
+    '<p class="caveat">Ngưỡng USD là giá trị một giao dịch của MỘT ví trong mẫu giao dịch gần nhất CMC trả về, ' +
+    'không phải tổng dòng tiền 24h. Muốn bot gửi được thì phải bấm “Đẩy danh sách &amp; luật lên bot” ở màn Theo dõi.</p>',
+    '<button class="btn pri" type="button" id="tgSave">Lưu luật bot</button>' +
+    '<button class="btn ghost" type="button" id="tgCancel" style="margin-left:8px">Huỷ</button>', () => {
+      const s = document.getElementById('tgSave'), c = document.getElementById('tgCancel');
+      if (c) c.onclick = evClose;
+      if (s) s.onclick = () => {
+        const nr = {};
+        TG_RULES.forEach(x => {
+          if (x.u === 'bật/tắt'){ const el = document.getElementById('tg_' + x.k); if (el && el.checked) nr[x.k] = true; }
+          else { const el = document.getElementById('tg_' + x.k); const v = el && el.value !== '' ? Number(el.value) : null; if (v != null && !isNaN(v)) nr[x.k] = v; }
+        });
+        if (Object.keys(nr).length) w.tg = nr; else delete w.tg;
+        saveWatch(); render(); evClose();
+        toast('Đã lưu luật bot cho ' + w.symbol, 'ok', Object.keys(nr).length ? 'Bấm “Đẩy danh sách & luật lên bot” để bot nhận luật mới.' : '');
+      };
+    });
+}
+/* --- bọc thêm, không thay thế -------------------------------------------------- */
+const _tgVW = window.viewWatchlist;
+window.viewWatchlist = function(){
+  const h = _tgVW.apply(this, arguments);
+  const i = h.lastIndexOf('<p class="field-help"');
+  return i < 0 ? h + tgPanelHTML() : h.slice(0, i) + tgPanelHTML() + h.slice(i);
+};
+const _tgRow = window.wlRowHTML;
+window.wlRowHTML = function(w){
+  const h = _tgRow.apply(this, arguments);
+  return h.replace('<button class="btn sm ghost" data-rules=', '<button class="btn sm ghost" data-tg="' + esc(w.key) + '" type="button" title="Luật gửi qua Telegram">Bot</button>' +
+    '<button class="btn sm ghost" data-rules=');
+};
+const _tgSum = window.wlRuleSummary;
+window.wlRuleSummary = function(w){
+  let s = _tgSum.apply(this, arguments);
+  const g = tgRuleChips(w);
+  if (!g) return s;
+  if (s.indexOf('chưa đặt') >= 0) s = '';
+  return s + ' ' + g;
+};
+const _tgWire = window.watchUpgrade;
+window.watchUpgrade = function(){
+  _tgWire.apply(this, arguments);
+  try { tgWire(); } catch (e) {}
+};
+document.addEventListener('click', ev => {
+  const t = ev.target.closest ? ev.target.closest('[data-tg]') : null;
+  if (!t) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const w = State.watch.find(x => x.key === t.getAttribute('data-tg'));
+  if (w) tgRulesModal(w);
+}, true);
+
 </script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 """Exit Radar - bundle serverless cho Vercel (sinh tu dong, dung sua tay).
-Nguon: exit_radar_server.py + exit-radar-app.html - 223518 byte HTML.
+Nguon: exit_radar_server.py + exit-radar-app.html - 239084 byte HTML.
 """
 import base64
 APP_HTML_B64 = (
@@ -1571,7 +1571,116 @@ APP_HTML_B64 = (
     'NoLCAnICsKICAgICAgJ2No4buJIMOhcCBk4bulbmcgY2hvIHRva2VuIGPDsyBtw6MgQ01DLjwvcD4nOwp9Owpkb2N1bWVudC5hZGRFdmVudExpc3RlbmVyKCdjbGljaycsIGV2ID0+IHsKICBjb25zdCB0ID0gZXYudGFyZ2V0LmNsb3Nlc3QgPyBldi50'
     'YXJnZXQuY2xvc2VzdCgnW2RhdGEtcnVsZXNdLFtkYXRhLW5vdGVdJykgOiBudWxsOwogIGlmICghdCkgcmV0dXJuOwogIGV2LnByZXZlbnREZWZhdWx0KCk7IGV2LnN0b3BQcm9wYWdhdGlvbigpOwogIGNvbnN0IGsgPSB0LmdldEF0dHJpYnV0ZSgnZG'
     'F0YS1ydWxlcycpIHx8IHQuZ2V0QXR0cmlidXRlKCdkYXRhLW5vdGUnKTsKICBjb25zdCB3ID0gU3RhdGUud2F0Y2guZmluZCh4ID0+IHgua2V5ID09PSBrKTsKICBpZiAoIXcpIHJldHVybjsKICBpZiAodC5oYXNBdHRyaWJ1dGUoJ2RhdGEtcnVsZXMn'
-    'KSkgd2xSdWxlc01vZGFsKHcpOyBlbHNlIHdsTm90ZU1vZGFsKHcpOwp9LCB0cnVlKTsKCjwvc2NyaXB0Pgo8L2JvZHk+CjwvaHRtbD4K'
+    'KSkgd2xSdWxlc01vZGFsKHcpOyBlbHNlIHdsTm90ZU1vZGFsKHcpOwp9LCB0cnVlKTsKCi8qID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09CiAgIEJPVCBURUxFR1'
+    'JBTSAoa2jhu5FpIHTDoWNoIHJpw6puZywgY2jDqG4gY3Xhu5FpIHRyYW5nKS4KICAgVsOsIHNhbyB0w6FjaCByacOqbmc6IGtow7RuZyBz4butYSB2w6BvIDIxNCBLQiBtw6MgY8WpLCBjaOG7iSBC4buMQyB0aMOqbSBjaOG7qSBraMO0bmcgdGhheS4K'
+    'ICAgLSBUaMOqbSBt4bulYyAiQm90IFRlbGVncmFtIiB2w6BvIG3DoG4gVGhlbyBkw7VpLgogICAtIFRow6ptIGx14bqtdCBjaOG7iSBib3QgbeG7m2kgY2jhuqVtIMSRxrDhu6NjICh2w60gY8OhIG3huq1wIG11YS9iw6FuIHRoZW8gc+G7kSBVU0QsIG'
+    'dpw6EgdMSDbmcvZ2nhuqNtKS4KICAgLSBMdeG6rXQgY8WpIHbhuqtuIG7hurFtIHRyb25nIGjhu5lwICJD4bqjbmggYsOhbyIgbmjGsCB0csaw4bubYzsgaOG7mXAgbsOgeSBuYXkgY8OzIHRow6ptIG3hu6VjIFRlbGVncmFtLgogICA9PT09PT09PT09'
+    'PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PSAqLwpjb25zdCBUR19SVUxFUyA9IFsKICB7IGs6J3doYWxlQnV5JywgICAgICAgdDonVsOtIGPDoSBt4bqtcCBNVUEnLCAgICAgICAgIC'
+    'AgICAgICB1Oidi4bqtdC904bqvdCcsIGhpbnQ6J03hu5l0IHbDrSBtdWEgdOG7qyBuZ8aw4buhbmcgVVNEIHRy4bufIGzDqm4g4oCUIGJvdCBjaOG6pW0gxJHGsOG7o2MsIHRyw6xuaCBkdXnhu4d0IHRow6wga2jDtG5nJyB9LAogIHsgazond2hhbGVC'
+    'dXlNaW5Vc2QnLCB0OifigKYgbmfGsOG7oW5nIG11YSB04buRaSB0aGnhu4N1JywgICAgICAgdTonVVNEJywgICAgIGhpbnQ6J1bDrSBk4bulIDUwMDAwIG5naMSpYSBsw6AgY2jhu4kgYsOhbyBraGkgbeG7mXQgdsOtIG11YSB04burIDUwLjAwMCBVU0'
+    'QgdHLhu58gbMOqbicgfSwKICB7IGs6J3doYWxlU2VsbCcsICAgICAgdDonVsOtIGPDoSBt4bqtcCBCw4FOJywgICAgICAgICAgICAgICAgdTonYuG6rXQvdOG6r3QnLCBoaW50OidN4buZdCB2w60gYsOhbiByYSB04burIG5nxrDhu6FuZyBVU0QgdHLh'
+    'u58gbMOqbicgfSwKICB7IGs6J3doYWxlU2VsbE1pblVzZCcsdDon4oCmIG5nxrDhu6FuZyBiw6FuIHThu5FpIHRoaeG7g3UnLCAgICAgICB1OidVU0QnLCAgICAgaGludDonUsO6dCB0aGFuaCBraG/huqNuIHRoxrDhu51uZyDEkWkga8OobSBt4buZdC'
+    'B2w60gbOG7m24geOG6oyB0csaw4bubYycgfSwKICB7IGs6J3ByaWNlVXBQY3QnLCAgICAgdDonR2nDoSB0xINuZyBxdcOhJywgICAgICAgICAgICAgICAgIHU6JyUnLCAgICAgICBoaW50OidUw61uaCB0aGVvIGdpw6EgQ01DIGdp4buvYSBoYWkgbOG6'
+    'p24gcXXDqXQnIH0sCiAgeyBrOidwcmljZURvd25QY3QnLCAgIHQ6J0dpw6EgZ2nhuqNtIHF1w6EnLCAgICAgICAgICAgICAgICAgdTonJScsICAgICAgIGhpbnQ6J0PhuqduIHRva2VuIGPDsyBtw6MgQ01DIG3hu5tpIGPDsyBnacOhJyB9Cl07CmNvbn'
+    'N0IFRHX0NPTkZfREVGID0geyBxdWlldEZyb206MjMsIHF1aWV0VG86NywgY29vbGRvd25NaW46MzAsIG1heFBlckRheToyMCB9OwpmdW5jdGlvbiB0Z0dldChrLCBkKXsgdHJ5IHsgY29uc3QgdiA9IFN0b3JlLmdldChrLCBkKTsgcmV0dXJuIHYgPT0g'
+    'bnVsbCA/IGQgOiB2OyB9IGNhdGNoKGUpeyByZXR1cm4gZDsgfSB9CmZ1bmN0aW9uIHRnUHV0KGssIHYpeyB0cnkgeyBTdG9yZS5zZXQoaywgdik7IH0gY2F0Y2goZSl7fSB9CmZ1bmN0aW9uIHRnQ29uZigpewogIGNvbnN0IGMgPSB0Z0dldCgnZXIudG'
+    'dDb25mJywgbnVsbCkgfHwge307CiAgY29uc3QgbyA9IE9iamVjdC5hc3NpZ24oe30sIFRHX0NPTkZfREVGKTsKICBbJ3F1aWV0RnJvbScsJ3F1aWV0VG8nLCdjb29sZG93bk1pbicsJ21heFBlckRheSddLmZvckVhY2goayA9PiB7IGlmIChjW2tdICE9'
+    'IG51bGwpIG9ba10gPSBOdW1iZXIoY1trXSk7IH0pOwogIHJldHVybiBvOwp9CmZ1bmN0aW9uIHRnQ29kZVYoKXsgcmV0dXJuIHRnR2V0KCdlci50Z0NvZGUnLCAnJyk7IH0KZnVuY3Rpb24gdGdBcHBVcmwoKXsgdHJ5IHsgcmV0dXJuIEFQSS5iYXNlIH'
+    'x8IGxvY2F0aW9uLm9yaWdpbjsgfSBjYXRjaChlKXsgcmV0dXJuIGxvY2F0aW9uLm9yaWdpbjsgfSB9CmZ1bmN0aW9uIHRnQnJpZWYoKXsKICByZXR1cm4gU3RhdGUud2F0Y2gubWFwKHcgPT4gewogICAgY29uc3QgbGl2ZSA9IGxpdmVPZih3KTsKICAg'
+    'IHJldHVybiB7IGtleTp3LmtleSwgY2hhaW46dy5jaGFpbiwgc3ltYm9sOncuc3ltYm9sLCBjaWQ6KGxpdmUuY2lkIHx8IG51bGwpLAogICAgICAgICAgICAgbm90ZToody5ub3RlIHx8ICcnKSwgcnVsZXM6KHcucnVsZXMgfHwge30pLCB0Zzoody50Zy'
+    'B8fCB7fSkgfTsKICB9KTsKfQpmdW5jdGlvbiB0Z0NhbGwoYWN0aW9uLCBib2R5KXsKICByZXR1cm4gZmV0Y2goQVBJLmJhc2UgKyAnL2FwaS90Zz9hY3Rpb249JyArIGVuY29kZVVSSUNvbXBvbmVudChhY3Rpb24pLCB7CiAgICBtZXRob2Q6J1BPU1Qn'
+    'LCBjYWNoZTonbm8tc3RvcmUnLAogICAgaGVhZGVyczpPYmplY3QuYXNzaWduKHsnQ29udGVudC1UeXBlJzonYXBwbGljYXRpb24vanNvbid9LCBBUEkuaGVhZGVycygpKSwKICAgIGJvZHk6SlNPTi5zdHJpbmdpZnkoT2JqZWN0LmFzc2lnbih7IGNvZG'
+    'U6dGdDb2RlVigpLCBhcHBVcmw6dGdBcHBVcmwoKSwgY29uZjp0Z0NvbmYoKSB9LCBib2R5IHx8IHt9KSkKICB9KS50aGVuKHIgPT4gci5qc29uKCkpLmNhdGNoKGUgPT4gKHsgb2s6ZmFsc2UsIGVycm9yOidraMO0bmcgZ+G7jWkgxJHGsOG7o2MgbcOh'
+    'eSBjaOG7pzogJyArIGUubWVzc2FnZSB9KSkKICAgIC5jYXRjaChlID0+ICh7IG9rOmZhbHNlLCBlcnJvcjpTdHJpbmcoZSkgfSkpOwp9CmZ1bmN0aW9uIHRnRm9ybU1zZyh3KXsKICBjb25zdCBsaXZlID0gbGl2ZU9mKHcpOwogIHJldHVybiAn4pqgID'
+    'xiPicgKyBlc2Mody5zeW1ib2wpICsgJzwvYj4gwrcgJyArIGVzYyhDSEFJTlNbdy5jaGFpbl0gfHwgdy5jaGFpbikgKwogICAgKHcubm90ZSA/ICcgwrcgPGk+JyArIGVzYyh3Lm5vdGUpICsgJzwvaT4nIDogJycpICsgJ1xuJyArCiAgICAn4oCiIHbD'
+    'rSBjw6EgbeG6rXAgTVVBIDg0LjIwMCBVU0Qg4oCUIHbDrSA0QTJr4oCmOVhqXG4nICsKICAgICfEkGnhu4NtICcgKyAodHlwZW9mIGxpdmUuc2NvcmUgPT09ICdudW1iZXInID8gbGl2ZS5zY29yZSA6ICfigJQnKSArICcvMTAwJyArCiAgICAobGl2ZS'
+    '5saXEgIT0gbnVsbCA/ICdcblRoYW5oIGtob+G6o24gJyArIHVzZChsaXZlLmxpcSkgOiAnJykgKwogICAgKGxpdmUuaG9sZGVycyAhPSBudWxsID8gJ1xuSG9sZGVyICcgKyBuZihsaXZlLmhvbGRlcnMsIDApIDogJycpICsKICAgICdcbjxpPsSQw6J5'
+    'IGzDoCBi4bqjbiB4ZW0gdHLGsOG7m2Mg4oCUIG7hu5lpIGR1bmcgdGjhuq10IGRvIG3DoXkgY2jhu6cgZOG7sW5nLCBjw7luZyBraHXDtG4gZOG6oW5nIG7DoHkuPC9pPic7Cn0KZnVuY3Rpb24gdGdTdGF0dXNIVE1MKHN0KXsKICBpZiAoIXN0KSByZX'
+    'R1cm4gJzxkaXYgY2xhc3M9InJvdyI+PHNwYW4gY2xhc3M9ImsiPk3DoXkgY2jhu6c8L3NwYW4+PHNwYW4gY2xhc3M9ImxlYWQiPjwvc3Bhbj48c3BhbiBjbGFzcz0idiI+xJFhbmcgaOG7j2nigKY8L3NwYW4+PC9kaXY+JzsKICBpZiAoc3QuZXJyb3Ip'
+    'IHJldHVybiAnPGRpdiBjbGFzcz0icm93Ij48c3BhbiBjbGFzcz0iayI+TcOheSBjaOG7pzwvc3Bhbj48c3BhbiBjbGFzcz0ibGVhZCI+PC9zcGFuPjxzcGFuIGNsYXNzPSJ2IGRvd24iPicgKyBlc2Moc3QuZXJyb3IpICsgJzwvc3Bhbj48L2Rpdj4nOw'
+    'ogIGNvbnN0IGMgPSBzdC5jaGF0IHx8IHt9OwogIGNvbnN0IHJvd3MgPSBbXTsKICByb3dzLnB1c2goWydCb3QnLCBzdC5ib3RTZXQgPyAoJ0AnICsgKHN0LmJvdFVzZXJuYW1lIHx8ICfEkcOjIMSR4bq3dCB0b2tlbicpKSA6ICdjaMawYSDEkeG6t3Qg'
+    'VEVMRUdSQU1fQk9UX1RPS0VOIHRyw6puIG3DoXkgY2jhu6cnLAogICAgICAgICAgICAgc3QuYm90U2V0ID8gJycgOiAnZG93biddKTsKICByb3dzLnB1c2goWydLaG8gbMawdSB0cuG7rycsIHsgJ3RlcCc6J3Thu4dwIEpTT04gdHLDqm4gbcOheSBjaO'
+    'G7pycsICd1cHN0YXNoJzonVXBzdGFzaCBSZWRpcycsICdraG9uZy1naGktZHVvYyc6J2tow7RuZyBnaGkgxJHGsOG7o2MgKFZlcmNlbCBj4bqnbiBVcHN0YXNoKScgfVtzdC5zdG9yZV0gfHwgc3Quc3RvcmUsIHN0LnN0b3JlID09PSAna2hvbmctZ2hp'
+    'LWR1b2MnID8gJ2Rvd24nIDogJyddKTsKICByb3dzLnB1c2goWydDaGF0IMSRw6MgbuG7kWknLCBzdC5saW5rZWQgPyAoYy50aXRsZSB8fCAnxJHDoyBu4buRaScpIDogJ2NoxrBhIG7hu5FpJywgc3QubGlua2VkID8gJycgOiAnJ10pOwogIGlmIChzdC'
+    '5saW5rZWQpewogICAgcm93cy5wdXNoKFsnVG9rZW4gYm90IMSRYW5nIGdp4buvJywgU3RyaW5nKGMudG9rZW5zID09IG51bGwgPyAn4oCUJyA6IGMudG9rZW5zKSwgJyddKTsKICAgIHJvd3MucHVzaChbJ0zhuqduIHF1w6l0IGfhuqduIG5o4bqldCcs'
+    'IGMubGFzdFRpY2sgPyBkdGltZShuZXcgRGF0ZShjLmxhc3RUaWNrKS50b0lTT1N0cmluZygpKSA6ICdjaMawYSBxdcOpdCcsICcnXSk7CiAgICByb3dzLnB1c2goWydUaW4gxJHDoyBn4butaSBow7RtIG5heScsIFN0cmluZyhjLnNlbnRUb2RheSA9PS'
+    'BudWxsID8gMCA6IGMuc2VudFRvZGF5KSwgJyddKTsKICAgIHJvd3MucHVzaChbJ1RpbiDEkWFuZyBjaOG7nScsIFN0cmluZyhjLnBlbmRpbmcgPT0gbnVsbCA/IDAgOiBjLnBlbmRpbmcpLCBjLnBlbmRpbmcgPyAnZG93bicgOiAnJ10pOwogICAgcm93'
+    'cy5wdXNoKFsnVHLhuqFuZyB0aMOhaScsIGMucGF1c2UgPyAndOG6oW0gZOG7q25nJyA6ICfEkWFuZyBjaOG6oXknLCAnJ10pOwogIH0KICByZXR1cm4gcm93cy5tYXAociA9PiAnPGRpdiBjbGFzcz0icm93Ij48c3BhbiBjbGFzcz0iayI+JyArIGVzYy'
+    'hyWzBdKSArICc8L3NwYW4+PHNwYW4gY2xhc3M9ImxlYWQiPjwvc3Bhbj4nICsKICAgICc8c3BhbiBjbGFzcz0idiAnICsgclsyXSArICciPicgKyBlc2MoclsxXSkgKyAnPC9zcGFuPjwvZGl2PicpLmpvaW4oJycpOwp9CmZ1bmN0aW9uIHRnUGFuZWxI'
+    'VE1MKCl7CiAgY29uc3QgY29kZSA9IHRnQ29kZVYoKSwgY2YgPSB0Z0NvbmYoKTsKICByZXR1cm4gJzxkaXYgY2xhc3M9ImNhcmQgcGFkIHRnLWNhcmQiIGlkPSJ0Z0NhcmQiIHN0eWxlPSJtYXJnaW4tdG9wOjIycHgiPicgKwogICAgJzxkaXYgY2xhc3'
+    'M9ImNhcmQtaCI+Qm90IFRlbGVncmFtIOKAlCBj4bqjbmggYsOhbyDEkeG6qXkgcmEgbmdvw6BpIHRyw6xuaCBkdXnhu4d0PC9kaXY+JyArCiAgICAnPGRpdiBpZD0idGdTdGF0dXMiPicgKyB0Z1N0YXR1c0hUTUwobnVsbCkgKyAnPC9kaXY+JyArCiAg'
+    'ICAnPGRpdiBjbGFzcz0iYWN0cyIgc3R5bGU9Im1hcmdpbjoxMnB4IDAiPicgKwogICAgICAnPGJ1dHRvbiBjbGFzcz0iYnRuIHByaSBzbSIgaWQ9InRnTWFrZSIgdHlwZT0iYnV0dG9uIj4nICsgKGNvZGUgPyAnVOG6oW8gbcOjIG3hu5tpJyA6ICdU4b'
+    'qhbyBtw6MgbGnDqm4ga+G6v3QnKSArICc8L2J1dHRvbj4nICsKICAgICAgJzxidXR0b24gY2xhc3M9ImJ0biBzbSIgaWQ9InRnUHVzaCIgdHlwZT0iYnV0dG9uIj7EkOG6qXkgZGFuaCBzw6FjaCAmYW1wOyBsdeG6rXQgbMOqbiBib3Q8L2J1dHRvbj4n'
+    'ICsKICAgICAgJzxidXR0b24gY2xhc3M9ImJ0biBzbSIgaWQ9InRnVGVzdCIgdHlwZT0iYnV0dG9uIj5H4butaSB0aW4gdGjhu608L2J1dHRvbj4nICsKICAgICAgJzxidXR0b24gY2xhc3M9ImJ0biBzbSBnaG9zdCIgaWQ9InRnUHJldiIgdHlwZT0iYn'
+    'V0dG9uIj5YZW0gdHLGsOG7m2MgdGluIG5o4bqvbjwvYnV0dG9uPicgKwogICAgICAnPGJ1dHRvbiBjbGFzcz0iYnRuIHNtIGdob3N0IiBpZD0idGdSZWZyZXNoIiB0eXBlPSJidXR0b24iPkPhuq1wIG5o4bqtdCB0cuG6oW5nIHRow6FpPC9idXR0b24+'
+    'JyArCiAgICAnPC9kaXY+JyArCiAgICAoY29kZSA/ICc8cCBjbGFzcz0iY2F2ZWF0IiBpZD0idGdDb2RlQm94Ij5Nw6MgbGnDqm4ga+G6v3Q6IDxiIGNsYXNzPSJtb25vIj4nICsgZXNjKGNvZGUpICsKICAgICAgJzwvYj4g4oCUIG3hu58gVGVsZWdyYW'
+    '0sIGfhu61pIGNobyBib3Q6IDxzcGFuIGNsYXNzPSJtb25vIj4vbGluayAnICsgZXNjKGNvZGUpICsgJzwvc3Bhbj4uICcgKwogICAgICAnTcOjIGTDuW5nIG3hu5l0IGzhuqduLCBo4bq/dCBoaeG7h3UgbOG7sWMgc2F1IGtoaSBu4buRaS48L3A+JyA6'
+    'CiAgICAgICc8cCBjbGFzcz0iY2F2ZWF0IiBpZD0idGdDb2RlQm94Ij5DaMawYSBjw7MgbcOjLiBC4bqlbSDigJxU4bqhbyBtw6MgbGnDqm4ga+G6v3TigJ0sIHLhu5NpIGfhu61pIG3DoyDEkcOzIGNobyBib3QgYuG6sW5nIGzhu4duaCA8c3BhbiBjbG'
+    'Fzcz0ibW9ubyI+L2xpbms8L3NwYW4+LjwvcD4nKSArCiAgICAnPGRpdiBjbGFzcz0id2wtZm9ybSIgc3R5bGU9Im1hcmdpbi10b3A6MTJweCI+JyArCiAgICAgICc8bGFiZWwgY2xhc3M9IndsLWZsZCI+PHNwYW4+R2nhu50gecOqbiB0xKluaCB04bur'
+    'PC9zcGFuPjxpbnB1dCB0eXBlPSJudW1iZXIiIG1pbj0iMCIgbWF4PSIyMyIgaWQ9ImNmX2Zyb20iIHZhbHVlPSInICsgY2YucXVpZXRGcm9tICsgJyI+PGVtPlRpbiB0cm9uZyBraG/huqNuZyBuw6B5IGThu5NuIGzhuqFpLCBn4butaSBt4buZdCBs4b'
+    'qnbiBraGkgaOG6v3QgZ2nhu508L2VtPjwvbGFiZWw+JyArCiAgICAgICc8bGFiZWwgY2xhc3M9IndsLWZsZCI+PHNwYW4+4oCmIMSR4bq/bjwvc3Bhbj48aW5wdXQgdHlwZT0ibnVtYmVyIiBtaW49IjAiIG1heD0iMjMiIGlkPSJjZl90byIgdmFsdWU9'
+    'IicgKyBjZi5xdWlldFRvICsgJyI+PGVtPk3hurdjIMSR4buLbmggMjMg4oaSIDc8L2VtPjwvbGFiZWw+JyArCiAgICAgICc8bGFiZWwgY2xhc3M9IndsLWZsZCI+PHNwYW4+Q2jhu5FuZyBs4bq3cCAocGjDunQpPC9zcGFuPjxpbnB1dCB0eXBlPSJudW'
+    '1iZXIiIG1pbj0iMSIgaWQ9ImNmX2NkIiB2YWx1ZT0iJyArIGNmLmNvb2xkb3duTWluICsgJyI+PGVtPkPDuW5nIG3hu5l0IGx14bqtdCB0csOqbiBjw7luZyBt4buZdCB0b2tlbiBjaOG7iSBiw6FvIGzhuqFpIHNhdSB04burbmcgbsOgeSBwaMO6dDwv'
+    'ZW0+PC9sYWJlbD4nICsKICAgICAgJzxsYWJlbCBjbGFzcz0id2wtZmxkIj48c3Bhbj5U4buRaSDEkWEgdGluL25nw6B5PC9zcGFuPjxpbnB1dCB0eXBlPSJudW1iZXIiIG1pbj0iMSIgaWQ9ImNmX21heCIgdmFsdWU9IicgKyBjZi5tYXhQZXJEYXkgKy'
+    'AnIj48ZW0+VGVsZWdyYW0gY2hvIGtob+G6o25nIDIwIHRpbi9waMO6dCBjaG8gbeG7mXQgY2hhdDwvZW0+PC9sYWJlbD4nICsKICAgICc8L2Rpdj4nICsKICAgICc8ZGl2IGNsYXNzPSJhY3RzIj48YnV0dG9uIGNsYXNzPSJidG4gc20gZ2hvc3QiIGlk'
+    'PSJ0Z1NhdmVDb25mIiB0eXBlPSJidXR0b24iPkzGsHUgY8OgaSDEkeG6t3Q8L2J1dHRvbj4nICsKICAgICAgJzxidXR0b24gY2xhc3M9ImJ0biBzbSBnaG9zdCIgaWQ9InRnVW5saW5rIiB0eXBlPSJidXR0b24iPk5n4bqvdCBjaGF0PC9idXR0b24+PC'
+    '9kaXY+JyArCiAgICAnPGRpdiBpZD0idGdQcmV2aWV3IiBzdHlsZT0ibWFyZ2luLXRvcDoxMnB4Ij48L2Rpdj4nICsKICAgICc8cCBjbGFzcz0iY2F2ZWF0IiBzdHlsZT0ibWFyZ2luLXRvcDoxMnB4Ij5Cb3QgcGjhuqNpIGPDsyB0aeG6v24gdHLDrG5o'
+    'IGNo4bqheSB0aMOsIG3hu5tpIHF1w6l0OiB0csOqbiBtw6F5IGLhuqFuIGNo4bqheSAnICsKICAgICc8c3BhbiBjbGFzcz0ibW9ubyI+cHl0aG9uIGV4aXRfcmFkYXJfc2VydmVyLnB5IC0tYm90PC9zcGFuPiwgaG/hurdjIMSR4buDIGNyb24gZ+G7jW'
+    'kgPHNwYW4gY2xhc3M9Im1vbm8iPi9hcGkvY3Jvbi90aWNrPC9zcGFuPi4gJyArCiAgICAnVmVyY2VsIGfDs2kgSG9iYnkgY2jhu4kgY2hvIGNyb24gY2jhuqF5IDxiPm3hu5l0IGzhuqduIG3hu5dpIG5nw6B5PC9iPiBuw6puIGtow7RuZyDEkeG7pyBj'
+    'aG8gY+G6o25oIGLDoW8gdGjhu51pIGdpYW4gdGjhu7FjIOKAlCAnICsKICAgICdjaOG6oXkgdHLDqm4gbcOheSwgVlBTLCBob+G6t2MgVmVyY2VsIFBybyAoY3JvbiBt4buXaSBwaMO6dCkgbeG7m2kgxJHDum5nIG5o4buLcC4gPGI+Q2hpIHBow60gY3'
+    'JlZGl0PC9iPjogbeG7mXQgbOG6p24gcXXDqXQgbeG7mXQgdG9rZW4gdOG7kW4ga2hv4bqjbmcgOCBjcmVkaXQgQ01DIChz4buRIGzhu51pIGfhu41pIHRo4bqtdCDEkcaw4bujYyBpbiB0cm9uZyBt4buXaSB0aW4gbmjhuq9uKS4gR8OzaSAxNS4wMDAg'
+    'Y3JlZGl0L3Row6FuZyBjaOG7i3UgxJHGsOG7o2Mga2hv4bqjbmcgMS44NzUgbMaw4bujdCBxdcOpdDogNSB0b2tlbiDDlyBxdcOpdCBt4buXaSAyIGdp4budIOKJiCAxNC40MDAgY3JlZGl0L3Row6FuZyAoduG7q2EgaOG6v3QgaOG6oW4gbeG7qWMpLC'
+    'AzIHRva2VuIMOXIHF1w6l0IG3hu5dpIDYgZ2nhu50g4omIIDIuODgwIGNyZWRpdC90aMOhbmcgdGjDrCBjw7JuIGTGsC4gR2nDo24gbmjhu4twIGLhurFuZyA8c3BhbiBjbGFzcz0ibW9ubyI+LS1ldmVyeSAyMTYwMDwvc3Bhbj4gaG/hurdjIGLhu5t0'
+    'IHRva2VuLCDEkeG7q25nIMSR4buDIGJvdCBxdcOpdCBt4buXaSBwaMO6dC48L3A+PC9kaXY+JzsKfQpmdW5jdGlvbiB0Z1JlYWRDb25mKCl7CiAgY29uc3QgZyA9IGlkID0+IHsgY29uc3QgZWwgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZChpZCk7IH'
+    'JldHVybiBlbCA/IE51bWJlcihlbC52YWx1ZSkgOiBudWxsOyB9OwogIGNvbnN0IGMgPSB7IHF1aWV0RnJvbTpnKCdjZl9mcm9tJyksIHF1aWV0VG86ZygnY2ZfdG8nKSwgY29vbGRvd25NaW46ZygnY2ZfY2QnKSwgbWF4UGVyRGF5OmcoJ2NmX21heCcp'
+    'IH07CiAgT2JqZWN0LmtleXMoYykuZm9yRWFjaChrID0+IHsgaWYgKGNba10gPT0gbnVsbCB8fCBpc05hTihjW2tdKSkgZGVsZXRlIGNba107IH0pOwogIHJldHVybiBPYmplY3QuYXNzaWduKHRnQ29uZigpLCBjKTsKfQpmdW5jdGlvbiB0Z1dpcmUoKX'
+    'sKICBjb25zdCBjYXJkID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3RnQ2FyZCcpOwogIGlmICghY2FyZCkgcmV0dXJuOwogIGNvbnN0IHNjID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3RnU2F2ZUNvbmYnKTsKICBpZiAoc2MpIHNjLmFkZEV2'
+    'ZW50TGlzdGVuZXIoJ2NsaWNrJywgKCkgPT4geyB0Z1B1dCgnZXIudGdDb25mJywgdGdSZWFkQ29uZigpKTsgdG9hc3QoJ8SQw6MgbMawdSBjw6BpIMSR4bq3dCBib3QnLCAnb2snKTsgcmVuZGVyKCk7IH0pOwogIGNvbnN0IG1rID0gZG9jdW1lbnQuZ2'
+    'V0RWxlbWVudEJ5SWQoJ3RnTWFrZScpOwogIGlmIChtaykgbWsuYWRkRXZlbnRMaXN0ZW5lcignY2xpY2snLCAoKSA9PiB7CiAgICBtay5kaXNhYmxlZCA9IHRydWU7CiAgICB0Z0NhbGwoJ2NvZGUnLCB7fSkudGhlbihkID0+IHsKICAgICAgbWsuZGlz'
+    'YWJsZWQgPSBmYWxzZTsKICAgICAgaWYgKGQuY29kZSl7IHRnUHV0KCdlci50Z0NvZGUnLCBkLmNvZGUpOyByZW5kZXIoKTsgdG9hc3QoJ8SQw6MgdOG6oW8gbcOjIGxpw6puIGvhur90ICcgKyBkLmNvZGUsICdvaycsICdH4butaSBjaG8gYm90OiAvbG'
+    'luayAnICsgZC5jb2RlKTsgfQogICAgICBlbHNlIHRvYXN0KGQuZXJyb3IgfHwgJ03DoXkgY2jhu6cgY2jGsGEgc+G6tW4gc8OgbmcgY2hvIGJvdCcsICdlcnInLCBkLmhpbnQgfHwgJycpOwogICAgfSk7CiAgfSk7CiAgY29uc3QgcHUgPSBkb2N1bWVu'
+    'dC5nZXRFbGVtZW50QnlJZCgndGdQdXNoJyk7CiAgaWYgKHB1KSBwdS5hZGRFdmVudExpc3RlbmVyKCdjbGljaycsICgpID0+IHsKICAgIGlmICghdGdDb2RlVigpKSByZXR1cm4gdG9hc3QoJ1ThuqFvIG3DoyBsacOqbiBr4bq/dCB0csaw4bubYycsIC'
+    'dlcnInKTsKICAgIHB1LmRpc2FibGVkID0gdHJ1ZTsKICAgIHRnQ2FsbCgncHVzaCcsIHsgd2F0Y2g6dGdCcmllZigpIH0pLnRoZW4oZCA9PiB7CiAgICAgIHB1LmRpc2FibGVkID0gZmFsc2U7CiAgICAgIHRvYXN0KGQub2sgPyAoJ8SQw6MgxJHhuql5'
+    'ICcgKyBkLnRva2VucyArICcgdG9rZW4gbMOqbiBib3QnKSA6IChkLmVycm9yIHx8ICdLaMO0bmcgxJHhuql5IMSRxrDhu6NjJyksCiAgICAgICAgICAgIGQub2sgPyAnb2snIDogJ2VycicsIGQuaGludCB8fCAnJyk7CiAgICAgIHRnUmVmcmVzaCgpOw'
+    'ogICAgfSk7CiAgfSk7CiAgY29uc3QgdGUgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgndGdUZXN0Jyk7CiAgaWYgKHRlKSB0ZS5hZGRFdmVudExpc3RlbmVyKCdjbGljaycsICgpID0+IHsKICAgIHRlLmRpc2FibGVkID0gdHJ1ZTsKICAgIHRnQ2Fs'
+    'bCgndGVzdCcsIHt9KS50aGVuKGQgPT4gewogICAgICB0ZS5kaXNhYmxlZCA9IGZhbHNlOwogICAgICB0b2FzdChkLm9rID8gJ0JvdCDEkcOjIGfhu61pIHRpbiB0aOG7rSDigJQgbeG7nyBUZWxlZ3JhbSB4ZW0nIDogKCdLaMO0bmcgZ+G7rWkgxJHGsO'
+    'G7o2M6ICcgKyAoZC50ZWxlZ3JhbSB8fCBkLmVycm9yIHx8ICc/JykpLAogICAgICAgICAgICBkLm9rID8gJ29rJyA6ICdlcnInLCBkLnN0YXR1cyA/ICgnVGVsZWdyYW0gdHLhuqMgSFRUUCAnICsgZC5zdGF0dXMgKyAoZC5yZXRyeUFmdGVyID8gJywg'
+    'Y2jhu50gJyArIGQucmV0cnlBZnRlciArICdzJyA6ICcnKSkgOiAnJyk7CiAgICB9KTsKICB9KTsKICBjb25zdCBwdiA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCd0Z1ByZXYnKTsKICBpZiAocHYpIHB2LmFkZEV2ZW50TGlzdGVuZXIoJ2NsaWNrJy'
+    'wgKCkgPT4gewogICAgY29uc3QgYm94ID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3RnUHJldmlldycpOwogICAgaWYgKGJveCkgYm94LmlubmVySFRNTCA9ICc8ZGl2IGNsYXNzPSJjYXJkIHBhZCIgc3R5bGU9ImJhY2tncm91bmQ6dmFyKC0tc3Vy'
+    'ZmFjZS0yKSI+PGRpdiBjbGFzcz0iY2FyZC1oIj5UaW4gbmjhuq9uIHPhur0gdHLDtG5nIHRo4bq/IG7DoHk8L2Rpdj4nICsKICAgICAgJzxwcmUgc3R5bGU9IndoaXRlLXNwYWNlOnByZS13cmFwO2ZvbnQtc2l6ZTp2YXIoLS10LXNtKTttYXJnaW46MC'
+    'I+JyArIHRnRm9ybU1zZyhTdGF0ZS53YXRjaFswXSB8fCB7IGtleTon4oCUJywgc3ltYm9sOidUT0tFTicsIGNoYWluOidzb2xhbmEnIH0pICsgJzwvcHJlPjwvZGl2Pic7CiAgfSk7CiAgY29uc3QgcmYgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgn'
+    'dGdSZWZyZXNoJyk7CiAgaWYgKHJmKSByZi5hZGRFdmVudExpc3RlbmVyKCdjbGljaycsIHRnUmVmcmVzaCk7CiAgY29uc3QgdW4gPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgndGdVbmxpbmsnKTsKICBpZiAodW4pIHVuLmFkZEV2ZW50TGlzdGVuZX'
+    'IoJ2NsaWNrJywgKCkgPT4gewogICAgdGdDYWxsKCd1bmxpbmsnLCB7fSkudGhlbigoKSA9PiB7IHRnUHV0KCdlci50Z0NvZGUnLCAnJyk7IHRnUHV0KCdlci50Z1B1c2hBdCcsIDApOyByZW5kZXIoKTsgdG9hc3QoJ8SQw6Mgbmfhuq90IGNoYXQga2jh'
+    'u49pIGRhbmggc8OhY2gnLCAnb2snKTsgfSk7CiAgfSk7CiAgdGdSZWZyZXNoKCk7Cn0KZnVuY3Rpb24gdGdSZWZyZXNoKCl7CiAgY29uc3QgYm94ID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3RnU3RhdHVzJyk7CiAgaWYgKCFib3gpIHJldHVybj'
+    'sKICB0Z0NhbGwoJ3N0YXR1cycsIHsgY29kZTp0Z0NvZGVWKCkgfSkudGhlbihkID0+IHsKICAgIGlmIChib3gpIGJveC5pbm5lckhUTUwgPSB0Z1N0YXR1c0hUTUwoZCk7CiAgICBpZiAoZCAmJiBkLmJvdFNldCkgcmV0dXJuOwogIH0pOwp9CmZ1bmN0'
+    'aW9uIHRnUnVsZUNoaXBzKHcpewogIGNvbnN0IHIgPSB3LnRnIHx8IHt9OwogIGNvbnN0IG9uID0gVEdfUlVMRVMuZmlsdGVyKHggPT4gclt4LmtdICE9IG51bGwgJiYgclt4LmtdICE9PSBmYWxzZSk7CiAgaWYgKCFvbi5sZW5ndGgpIHJldHVybiAnJz'
+    'sKICByZXR1cm4gb24ubWFwKHggPT4gJzxzcGFuIGNsYXNzPSJjaGlwIHdsLXJ1bGUiIHRpdGxlPSJCb3QgVGVsZWdyYW0iPlRHIMK3ICcgKyBlc2MoeC50CiAgICAucmVwbGFjZSgnVsOtIGPDoSBt4bqtcCBNVUEnLCd2w60gbOG7m24gbXVhJykucmVw'
+    'bGFjZSgnVsOtIGPDoSBt4bqtcCBCw4FOJywndsOtIGzhu5tuIGLDoW4nKQogICAgLnJlcGxhY2UoJ+KApiBuZ8aw4buhbmcgbXVhIHThu5FpIHRoaeG7g3UnLCfiiaUnKS5yZXBsYWNlKCfigKYgbmfGsOG7oW5nIGLDoW4gdOG7kWkgdGhp4buDdScsJ+'
+    'KJpScpCiAgICAucmVwbGFjZSgnR2nDoSB0xINuZyBxdcOhJywnZ2nDoSB0xINuZyDiiaUnKS5yZXBsYWNlKCdHacOhIGdp4bqjbSBxdcOhJywnZ2nDoSBnaeG6o20g4omlJykucmVwbGFjZSgn4oCmICcsJycpKSArCiAgICAoeC51ID09PSAnYuG6rXQv'
+    'dOG6r3QnID8gJycgOiAnICcgKyBuZihyW3gua10sIDApICsgeC51KSArICc8L3NwYW4+Jykuam9pbignICcpOwp9CmZ1bmN0aW9uIHRnUnVsZXNNb2RhbCh3KXsKICBjb25zdCByID0gdy50ZyB8fCB7fTsKICBldk9wZW4oJ0JvdCBUZWxlZ3JhbSBjaG'
+    '8gJyArIHcuc3ltYm9sLCAnQ+G6o25oIGLDoW8gxJHhuql5IHJhIFRlbGVncmFtLCBraMO0bmcgY+G6p24gbeG7nyB3ZWInLCAKICAgICc8ZGl2IGNsYXNzPSJ3bC1mb3JtIj4nICsgVEdfUlVMRVMubWFwKHggPT4KICAgICAgJzxsYWJlbCBjbGFzcz0i'
+    'd2wtZmxkIj48c3Bhbj4nICsgeC50ICsgKHgudSA9PT0gJ2Lhuq10L3Thuq90JyA/ICcnIDogJyAoJyArIHgudSArICcpJykgKyAnPC9zcGFuPicgKwogICAgICAoeC51ID09PSAnYuG6rXQvdOG6r3QnCiAgICAgICAgPyAnPGlucHV0IHR5cGU9ImNoZW'
+    'NrYm94IiBpZD0idGdfJyArIHguayArICciJyArIChyW3gua10gPyAnIGNoZWNrZWQnIDogJycpICsgJz4nCiAgICAgICAgOiAnPGlucHV0IHR5cGU9Im51bWJlciIgbWluPSIwIiBzdGVwPSIxIiBpZD0idGdfJyArIHguayArICciIHBsYWNlaG9sZGVy'
+    'PSJraMO0bmcgxJHhurd0IiB2YWx1ZT0iJyArIChyW3gua10gPT0gbnVsbCA/ICcnIDogclt4LmtdKSArICciPicpICsKICAgICAgJzxlbT4nICsgeC5oaW50ICsgJzwvZW0+PC9sYWJlbD4nKS5qb2luKCcnKSArICc8L2Rpdj4nICsKICAgICc8cCBjbG'
+    'Fzcz0iY2F2ZWF0Ij5OZ8aw4buhbmcgVVNEIGzDoCBnacOhIHRy4buLIG3hu5l0IGdpYW8gZOG7i2NoIGPhu6dhIE3hu5hUIHbDrSB0cm9uZyBt4bqrdSBnaWFvIGThu4tjaCBn4bqnbiBuaOG6pXQgQ01DIHRy4bqjIHbhu4EsICcgKwogICAgJ2tow7Ru'
+    'ZyBwaOG6o2kgdOG7lW5nIGTDsm5nIHRp4buBbiAyNGguIE114buRbiBib3QgZ+G7rWkgxJHGsOG7o2MgdGjDrCBwaOG6o2kgYuG6pW0g4oCcxJDhuql5IGRhbmggc8OhY2ggJmFtcDsgbHXhuq10IGzDqm4gYm904oCdIOG7nyBtw6BuIFRoZW8gZMO1aS'
+    '48L3A+JywKICAgICc8YnV0dG9uIGNsYXNzPSJidG4gcHJpIiB0eXBlPSJidXR0b24iIGlkPSJ0Z1NhdmUiPkzGsHUgbHXhuq10IGJvdDwvYnV0dG9uPicgKwogICAgJzxidXR0b24gY2xhc3M9ImJ0biBnaG9zdCIgdHlwZT0iYnV0dG9uIiBpZD0idGdD'
+    'YW5jZWwiIHN0eWxlPSJtYXJnaW4tbGVmdDo4cHgiPkh14bu3PC9idXR0b24+JywgKCkgPT4gewogICAgICBjb25zdCBzID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3RnU2F2ZScpLCBjID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3RnQ2FuY2'
+    'VsJyk7CiAgICAgIGlmIChjKSBjLm9uY2xpY2sgPSBldkNsb3NlOwogICAgICBpZiAocykgcy5vbmNsaWNrID0gKCkgPT4gewogICAgICAgIGNvbnN0IG5yID0ge307CiAgICAgICAgVEdfUlVMRVMuZm9yRWFjaCh4ID0+IHsKICAgICAgICAgIGlmICh4'
+    'LnUgPT09ICdi4bqtdC904bqvdCcpeyBjb25zdCBlbCA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCd0Z18nICsgeC5rKTsgaWYgKGVsICYmIGVsLmNoZWNrZWQpIG5yW3gua10gPSB0cnVlOyB9CiAgICAgICAgICBlbHNlIHsgY29uc3QgZWwgPSBkb2'
+    'N1bWVudC5nZXRFbGVtZW50QnlJZCgndGdfJyArIHguayk7IGNvbnN0IHYgPSBlbCAmJiBlbC52YWx1ZSAhPT0gJycgPyBOdW1iZXIoZWwudmFsdWUpIDogbnVsbDsgaWYgKHYgIT0gbnVsbCAmJiAhaXNOYU4odikpIG5yW3gua10gPSB2OyB9CiAgICAg'
+    'ICAgfSk7CiAgICAgICAgaWYgKE9iamVjdC5rZXlzKG5yKS5sZW5ndGgpIHcudGcgPSBucjsgZWxzZSBkZWxldGUgdy50ZzsKICAgICAgICBzYXZlV2F0Y2goKTsgcmVuZGVyKCk7IGV2Q2xvc2UoKTsKICAgICAgICB0b2FzdCgnxJDDoyBsxrB1IGx14b'
+    'qtdCBib3QgY2hvICcgKyB3LnN5bWJvbCwgJ29rJywgT2JqZWN0LmtleXMobnIpLmxlbmd0aCA/ICdC4bqlbSDigJzEkOG6qXkgZGFuaCBzw6FjaCAmIGx14bqtdCBsw6puIGJvdOKAnSDEkeG7gyBib3Qgbmjhuq1uIGx14bqtdCBt4bubaS4nIDogJycp'
+    'OwogICAgICB9OwogICAgfSk7Cn0KLyogLS0tIGLhu41jIHRow6ptLCBraMO0bmcgdGhheSB0aOG6vyAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLSAqLwpjb25zdCBfdGdWVyA9IHdpbmRvdy52aWV3V2F0Y2'
+    'hsaXN0Owp3aW5kb3cudmlld1dhdGNobGlzdCA9IGZ1bmN0aW9uKCl7CiAgY29uc3QgaCA9IF90Z1ZXLmFwcGx5KHRoaXMsIGFyZ3VtZW50cyk7CiAgY29uc3QgaSA9IGgubGFzdEluZGV4T2YoJzxwIGNsYXNzPSJmaWVsZC1oZWxwIicpOwogIHJldHVy'
+    'biBpIDwgMCA/IGggKyB0Z1BhbmVsSFRNTCgpIDogaC5zbGljZSgwLCBpKSArIHRnUGFuZWxIVE1MKCkgKyBoLnNsaWNlKGkpOwp9Owpjb25zdCBfdGdSb3cgPSB3aW5kb3cud2xSb3dIVE1MOwp3aW5kb3cud2xSb3dIVE1MID0gZnVuY3Rpb24odyl7Ci'
+    'AgY29uc3QgaCA9IF90Z1Jvdy5hcHBseSh0aGlzLCBhcmd1bWVudHMpOwogIHJldHVybiBoLnJlcGxhY2UoJzxidXR0b24gY2xhc3M9ImJ0biBzbSBnaG9zdCIgZGF0YS1ydWxlcz0nLCAnPGJ1dHRvbiBjbGFzcz0iYnRuIHNtIGdob3N0IiBkYXRhLXRn'
+    'PSInICsgZXNjKHcua2V5KSArICciIHR5cGU9ImJ1dHRvbiIgdGl0bGU9Ikx14bqtdCBn4butaSBxdWEgVGVsZWdyYW0iPkJvdDwvYnV0dG9uPicgKwogICAgJzxidXR0b24gY2xhc3M9ImJ0biBzbSBnaG9zdCIgZGF0YS1ydWxlcz0nKTsKfTsKY29uc3'
+    'QgX3RnU3VtID0gd2luZG93LndsUnVsZVN1bW1hcnk7CndpbmRvdy53bFJ1bGVTdW1tYXJ5ID0gZnVuY3Rpb24odyl7CiAgbGV0IHMgPSBfdGdTdW0uYXBwbHkodGhpcywgYXJndW1lbnRzKTsKICBjb25zdCBnID0gdGdSdWxlQ2hpcHModyk7CiAgaWYg'
+    'KCFnKSByZXR1cm4gczsKICBpZiAocy5pbmRleE9mKCdjaMawYSDEkeG6t3QnKSA+PSAwKSBzID0gJyc7CiAgcmV0dXJuIHMgKyAnICcgKyBnOwp9Owpjb25zdCBfdGdXaXJlID0gd2luZG93LndhdGNoVXBncmFkZTsKd2luZG93LndhdGNoVXBncmFkZS'
+    'A9IGZ1bmN0aW9uKCl7CiAgX3RnV2lyZS5hcHBseSh0aGlzLCBhcmd1bWVudHMpOwogIHRyeSB7IHRnV2lyZSgpOyB9IGNhdGNoIChlKSB7fQp9Owpkb2N1bWVudC5hZGRFdmVudExpc3RlbmVyKCdjbGljaycsIGV2ID0+IHsKICBjb25zdCB0ID0gZXYu'
+    'dGFyZ2V0LmNsb3Nlc3QgPyBldi50YXJnZXQuY2xvc2VzdCgnW2RhdGEtdGddJykgOiBudWxsOwogIGlmICghdCkgcmV0dXJuOwogIGV2LnByZXZlbnREZWZhdWx0KCk7IGV2LnN0b3BQcm9wYWdhdGlvbigpOwogIGNvbnN0IHcgPSBTdGF0ZS53YXRjaC'
+    '5maW5kKHggPT4geC5rZXkgPT09IHQuZ2V0QXR0cmlidXRlKCdkYXRhLXRnJykpOwogIGlmICh3KSB0Z1J1bGVzTW9kYWwodyk7Cn0sIHRydWUpOwoKPC9zY3JpcHQ+CjwvYm9keT4KPC9odG1sPgo='
 )
 
 #!/usr/bin/env python3
@@ -2589,7 +2698,751 @@ def search(q, key=None, enrich=None):
 # truoc khi so sanh — nho vay ca hai kieu goi deu chay.
 OPMAP = {'app': '/', 'home': '/', 'health': '/api/health', 'search': '/api/search',
          'scan': '/api/scan', 'markets': '/api/markets', 'marketctx': '/api/marketctx',
-         'calls': '/api/calls'}
+         'calls': '/api/calls', 'tg': '/api/tg', 'tick': '/api/cron/tick'}
+
+
+# ============================================================== BOT TELEGRAM
+# Day canh bao ra khoi trinh duyet: bot Telegram nhan lenh tu nguoi dung,
+# tu quet theo luat da dat va gui tin nhan. Cach lam dua tren tai lieu that:
+#   - gui tin: POST https://api.telegram.org/bot<token>/sendMessage (HTML)
+#   - nhan lenh: getUpdates long polling (timeout) hoac webhook; khi dat webhook
+#     Telegram gui header 'X-Telegram-Bot-Api-Secret-Token' de xac thuc.
+#   - gioi han gui: 30 tin/giay toan bot, ~1 tin/giay cho MOT chat, 20 tin/phut
+#     cho nhom; vuot thi Telegram tra 429 kem 'parameters.retry_after' (giay).
+#     => o day co gian cach 1,1s/chat + han muc 18 tin/phut/chat + doc retry_after.
+#   - luu tru: tep JSON khi chay tren may (che do --bot), hoac Upstash Redis REST
+#     khi chay serverless (Vercel khong ghi duoc tep). Khong co kho luu tru thi
+#     endpoint bao ro chu khong gia vo da luu.
+TG_DIR   = os.environ.get('ER_DATA_DIR', os.path.join(ROOT, '.data'))
+TG_FILE  = os.path.join(TG_DIR, 'tg.json')
+TG_URL   = 'https://api.telegram.org/bot%s/%s'
+KV_URL   = (os.environ.get('UPSTASH_REDIS_REST_URL') or '').rstrip('/')
+KV_TOK   = os.environ.get('UPSTASH_REDIS_REST_TOKEN') or ''
+KV_KEY   = os.environ.get('ER_KV_KEY', 'exit-radar:tg')
+TG_GAP   = 1.1          # giay giua hai tin lien tiep cua cung mot chat
+TG_PERMIN = 18          # tran tin/phut/chat (Telegram cho 20 voi nhom)
+TG_MAX_PER_TICK = int(os.environ.get('TG_MAX_PER_TICK', '5'))
+TG_MSG_MAX = 3800       # Telegram cho 4096 ky tu; chua lai mot chut
+
+
+def tg_token():
+    return (os.environ.get('TELEGRAM_BOT_TOKEN') or '').strip()
+
+
+def tg_secret():
+    return (os.environ.get('TG_SECRET') or os.environ.get('CRON_SECRET') or '').strip()
+
+
+def kv_on():
+    return bool(KV_URL and KV_TOK)
+
+
+def store_mode():
+    if kv_on():
+        return 'upstash'
+    try:
+        os.makedirs(TG_DIR, exist_ok=True)
+        return 'tep' if os.access(TG_DIR, os.W_OK) else 'khong-ghi-duoc'
+    except Exception:
+        return 'khong-ghi-duoc'
+
+
+def _kv(cmd):
+    req = urllib.request.Request(KV_URL, data=json.dumps(cmd).encode('utf-8'),
+                                 headers={'Authorization': 'Bearer ' + KV_TOK,
+                                          'Content-Type': 'application/json'}, method='POST')
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return json.loads(r.read().decode('utf-8'))
+
+
+def tg_load():
+    """Doc kho luu tru; tra ve dict rong neu chua co gi (khong nem loi)."""
+    if kv_on():
+        try:
+            d = _kv(['GET', KV_KEY]).get('result')
+            return json.loads(d) if d else {}
+        except Exception:
+            return {}
+    try:
+        with open(TG_FILE, encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def tg_save(st):
+    st['updatedAt'] = int(time.time() * 1000)
+    if kv_on():
+        try:
+            _kv(['SET', KV_KEY, json.dumps(st, ensure_ascii=False)])
+            return True
+        except Exception:
+            return False
+    try:
+        os.makedirs(TG_DIR, exist_ok=True)
+        with open(TG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(st, f, ensure_ascii=False)
+        return True
+    except Exception:
+        return False
+
+
+def tg_call(method, payload, timeout=20):
+    """Goi Bot API. Tra ve dict co ok/status/result/error/retry_after - khong nem loi."""
+    t = tg_token()
+    if not t:
+        return {'ok': False, 'status': 0, 'error': 'chưa đặt TELEGRAM_BOT_TOKEN trên máy chủ',
+                'result': None}
+    try:
+        req = urllib.request.Request(TG_URL % (t, method),
+                                     data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
+                                     headers={'Content-Type': 'application/json'}, method='POST')
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            d = json.loads(r.read().decode('utf-8'))
+        return {'ok': bool(d.get('ok')), 'status': r.status, 'result': d.get('result'),
+                'error': None if d.get('ok') else (d.get('description') or 'lỗi không rõ')}
+    except urllib.error.HTTPError as e:
+        body = ''
+        try:
+            body = e.read().decode('utf-8')
+        except Exception:
+            pass
+        d = {}
+        try:
+            d = json.loads(body)
+        except Exception:
+            pass
+        ra = ((d.get('parameters') or {}).get('retry_after'))
+        return {'ok': False, 'status': e.code, 'error': d.get('description') or body[:180],
+                'error_code': d.get('error_code'), 'retry_after': ra, 'result': None}
+    except Exception as e:
+        return {'ok': False, 'status': 0, 'error': str(e), 'result': None}
+
+
+def tg_min_gap_ok(ch):
+    """Tran gui: cach nhau >= TG_GAP giay va <= TG_PERMIN tin trong 60 giay."""
+    now = time.time()
+    last = float(ch.get('lastSent') or 0)
+    if now - last < TG_GAP:
+        return False, TG_GAP - (now - last)
+    hist = [float(x) for x in (ch.get('sentHist') or []) if now - float(x) < 60]
+    ch['sentHist'] = hist
+    if len(hist) >= TG_PERMIN:
+        return False, 60 - (now - hist[0])
+    return True, 0
+
+
+def tg_send(chat_id, text, markup=None, st=None, ch=None, dry=False):
+    """Gui mot tin. dry=True thi KHONG goi Telegram, tra ve dung noi dung se gui."""
+    text = text[:TG_MSG_MAX]
+    if dry or not tg_token():
+        return {'ok': False, 'dry': True, 'text': text,
+                'error': None if dry else 'chưa đặt TELEGRAM_BOT_TOKEN trên máy chủ'}
+    if ch is not None:
+        ok, wait = tg_min_gap_ok(ch)
+        if not ok:
+            return {'ok': False, 'throttled': True, 'wait': round(wait, 1),
+                    'error': 'chờ %.1fs cho đủ giãn cách gửi' % wait}
+    body = {'chat_id': chat_id, 'text': text, 'parse_mode': 'HTML',
+            'disable_web_page_preview': True}
+    if markup:
+        body['reply_markup'] = markup
+    r = tg_call('sendMessage', body)
+    if r.get('ok') and ch is not None:
+        ch['lastSent'] = time.time()
+        ch.setdefault('sentHist', []).append(time.time())
+        ch['sentHist'] = ch['sentHist'][-40:]
+        if st is not None:
+            tg_save(st)
+    return r
+
+
+def tg_markup(app_url, token_key=None):
+    if not app_url:
+        return None
+    u = app_url.rstrip('/') + '/#' + (('/scan/' + token_key.replace(':', '/')) if token_key else '/watchlist')
+    return {'inline_keyboard': [[{'text': 'Mở trong Exit Radar', 'url': u}]]}
+
+
+def tg_scan(platform, address, key=None):
+    """Quet mot token va rut ra dung nhung so can cho luat canh bao."""
+    out = build(platform, address, key)
+    if 'error' in out:
+        return {'ok': False, 'error': out.get('error'), 'detail': out.get('detail')}
+    tok = out.get('token') or {}
+    dims = out.get('dims')
+    seq = list(dims.values()) if isinstance(dims, dict) else list(dims or [])
+
+    def by(probe):
+        for d in seq:
+            if probe in ((d or {}).get('_ev') or {}):
+                return d
+        return {}
+    dE, dB = by('rows'), by('holders')
+    evE, evB = (dE.get('_ev') or {}), (dB.get('_ev') or {})
+    # build() khong tra ve tong diem o cap cao nhat: tong diem = tong diem cua
+    # cac chieu CHAM DUOC. Chieu khong cham duoc bi loai han - neu tinh no la 0
+    # thi mot token thieu du lieu se trong nhu "an toan", dung sai ve nghia.
+    usable = [d for d in seq if d.get('applicable') and isinstance(d.get('score'), (int, float))]
+    sc = max(0, min(100, sum(d['score'] for d in usable))) if usable else None
+    liq = tok.get('liquidityUsd')
+    if liq is not None and float(liq or 0) <= 0:
+        liq = None   # 0 o day la "khong co so", khong phai "thanh khoan bang 0"
+    return {'ok': True, 'score': sc, 'scoreMax': (sum((d.get('max') or 0) for d in usable) or None),
+            'dimsScored': len(usable), 'dimsTotal': len(seq),
+            'symbol': tok.get('symbol'), 'name': tok.get('name'),
+            'cid': tok.get('cid'), 'liq': liq,
+            'holders': tok.get('holders'), 'price': tok.get('priceUsd'),
+            'whale': ((out.get('whale') or {}).get('verdict')),
+            'whaleBuyUsd': evE.get('buy_usd'), 'whaleSellUsd': evE.get('sell_usd'),
+            'wallets': (evE.get('wallets') or [])[:12],
+            'rows': (evE.get('rows') or [])[:40],
+            'top10': evB.get('top10_share'), 'swaps': evE.get('swaps_sampled'),
+            'calls': out.get('calls'), 'at': int(time.time() * 1000)}
+
+
+TG_RULES = [
+    ('whaleBuy',      'ví cá mập mua vào'),
+    ('whaleSell',     'ví cá mập bán ra'),
+    ('scoreAbove',    'điểm vượt ngưỡng'),
+    ('jumpUp',        'điểm tăng thêm'),
+    ('liqDropPct',    'thanh khoản giảm'),
+    ('holdDropPct',   'số holder giảm'),
+    ('whaleOut',      'dòng tiền ví lớn chuyển sang rút'),
+    ('priceUpPct',    'giá tăng'),
+    ('priceDownPct',  'giá giảm'),
+]
+
+
+def tg_eval(prev, snap, tg_rules, now_ms):
+    """So hai lan quet va tra ve danh sach canh bao da vuot luat.
+
+    Moi canh bao deu co so TRUOC -> so SAU. Khong doan: thieu du lieu thi bo qua
+    luat do va ghi ly do, khong bao '0' hay 'an toan' khi khong biet.
+    """
+    r = tg_rules or {}
+    out, skipped = [], []
+    if not prev:
+        return out, skipped
+    min_buy = _num(r.get('whaleBuyMinUsd')) or 0
+    min_sell = _num(r.get('whaleSellMinUsd')) or 0
+    seen_ts = float(r.get('_seenTs') or 0) / 1000.0
+    if r.get('whaleBuy') or r.get('whaleSell'):
+        rows = [x for x in (snap.get('rows') or []) if float(x.get('ts') or 0) > seen_ts]
+        if not rows:
+            skipped.append('chưa có giao dịch mới kể từ lần quét trước')
+        for x in rows:
+            usd = float(x.get('usd') or 0)
+            side = x.get('side')
+            if r.get('whaleBuy') and side == 'buy' and usd >= max(min_buy, 1):
+                out.append({'rule': 'ví cá mập mua', 'side': 'buy', 'usd': usd,
+                            'wallet': x.get('wallet'), 'tx': x.get('tx'),
+                            'text': 'ví cá mập MUA ' + usd_txt(usd) + ' — ví ' + short_w(x.get('wallet')),
+                            'from': '', 'to': usd_txt(usd)})
+            if r.get('whaleSell') and side == 'sell' and usd >= max(min_sell, 1):
+                out.append({'rule': 'ví cá mập bán', 'side': 'sell', 'usd': usd,
+                            'wallet': x.get('wallet'), 'tx': x.get('tx'),
+                            'text': 'ví cá mập BÁN ' + usd_txt(usd) + ' — ví ' + short_w(x.get('wallet')),
+                            'from': '', 'to': usd_txt(usd)})
+    if r.get('scoreAbove') is not None and prev.get('score') is not None and snap.get('score') is not None:
+        lim = _num(r.get('scoreAbove'))
+        if prev['score'] < lim <= snap['score']:
+            out.append({'rule': 'điểm vượt ' + nf_txt(lim, 0), 'from': nf_txt(prev['score'], 0),
+                        'to': nf_txt(snap['score'], 0),
+                        'text': 'điểm vượt ' + nf_txt(lim, 0) + ' (' + nf_txt(prev['score'], 0) +
+                                ' → ' + nf_txt(snap['score'], 0) + ')'})
+    if r.get('jumpUp') is not None and prev.get('score') is not None and snap.get('score') is not None:
+        d = snap['score'] - prev['score']
+        if d >= _num(r.get('jumpUp')):
+            out.append({'rule': 'điểm tăng thêm', 'from': nf_txt(prev['score'], 0), 'to': nf_txt(snap['score'], 0),
+                        'text': 'điểm tăng ' + nf_txt(d, 0) + ' điểm (' + nf_txt(prev['score'], 0) +
+                                ' → ' + nf_txt(snap['score'], 0) + ')'})
+    for k, label, unit in (('liqDropPct', 'thanh khoản giảm', 'USD'),
+                           ('holdDropPct', 'số holder giảm', 'người')):
+        if r.get(k) is None:
+            continue
+        a, b = prev.get('liq' if k == 'liqDropPct' else 'holders'), snap.get('liq' if k == 'liqDropPct' else 'holders')
+        if not a or not b:
+            skipped.append(label + ': thiếu một trong hai mốc')
+            continue
+        pct = (b - a) / abs(a) * 100.0
+        if pct <= -_num(r.get(k)):
+            out.append({'rule': label, 'from': usd_short(a) if unit == 'USD' else nf_txt(a, 0),
+                        'to': usd_short(b) if unit == 'USD' else nf_txt(b, 0),
+                        'text': label + ' ' + nf_txt(abs(pct), 1) + '% (' +
+                                (usd_short(a) if unit == 'USD' else nf_txt(a, 0)) + ' → ' +
+                                (usd_short(b) if unit == 'USD' else nf_txt(b, 0)) + ')'})
+    if r.get('whaleOut') and prev.get('whale') != 'out' and snap.get('whale') == 'out':
+        out.append({'rule': 'dòng tiền ví lớn chuyển sang rút', 'from': prev.get('whale') or 'không rõ',
+                    'to': 'đang rút', 'text': 'dòng tiền ví lớn chuyển từ ' +
+                    ('đang vào' if prev.get('whale') == 'in' else 'không rõ') + ' sang ĐANG RÚT'})
+    for k, label, up in (('priceUpPct', 'giá tăng', True), ('priceDownPct', 'giá giảm', False)):
+        if r.get(k) is None:
+            continue
+        a, b = prev.get('price'), snap.get('price')
+        if not a or not b:
+            skipped.append(label + ': chưa có giá ở một trong hai mốc')
+            continue
+        pct = (b - a) / abs(a) * 100.0
+        if (pct >= _num(r.get(k))) if up else (pct <= -_num(r.get(k))):
+            out.append({'rule': label, 'from': price_txt(a), 'to': price_txt(b),
+                        'text': label + ' ' + nf_txt(abs(pct), 2) + '% (' + price_txt(a) +
+                                ' → ' + price_txt(b) + ')'})
+    return out, skipped
+
+
+def usd_txt(v):
+    v = float(v or 0)
+    if v >= 1e9:
+        return nf_txt(v / 1e9, 2) + ' tỷ USD'
+    if v >= 1e6:
+        return nf_txt(v / 1e6, 2) + ' triệu USD'
+    if v >= 1e3:
+        return nf_txt(v / 1e3, 1) + ' nghìn USD'
+    return nf_txt(v, 0) + ' USD'
+
+
+def usd_short(v):
+    v = float(v or 0)
+    if v >= 1e9:
+        return nf_txt(v / 1e9, 2) + 'B'
+    if v >= 1e6:
+        return nf_txt(v / 1e6, 2) + 'M'
+    if v >= 1e3:
+        return nf_txt(v / 1e3, 1) + 'K'
+    return nf_txt(v, 0)
+
+
+def nf_txt(v, d=0):
+    try:
+        return ('%.' + str(d) + 'f') % float(v)
+    except Exception:
+        return '-'
+
+
+def price_txt(v):
+    v = float(v or 0)
+    if v and v < 0.01:
+        return '%.3e' % v
+    return '$' + (nf_txt(v, 2) if v < 1000 else nf_txt(v, 0))
+
+
+def short_w(w):
+    w = str(w or 'không rõ ví')
+    return w[:5] + '…' + w[-4:] if len(w) > 12 else w
+
+
+def esc_tg(s):
+    return str(s if s is not None else '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+
+
+def tg_message(tok, alerts, snap, note=None):
+    """Mot tin nhan cho mot token. HTML (parse_mode=HTML)."""
+    ch = ((snap or {}).get('level') or '')
+    head = '<b>' + esc_tg(tok.get('symbol') or '?') + '</b> · ' + esc_tg(tok.get('chain') or '') + \
+           (' · <i>' + esc_tg(note) + '</i>' if note else '')
+    lines = ['⚠ ' + head]
+    for a in alerts:
+        lines.append('• ' + esc_tg(a.get('text')))
+    sc = (snap or {}).get('score')
+    if isinstance(sc, (int, float)):
+        lines.append('Điểm ' + nf_txt(sc, 0) + '/100' +
+                     (' (' + esc_tg(ch) + ')' if ch else '') +
+                     ' — tổng của ' + str((snap or {}).get('dimsScored') or 0) + '/' +
+                     str((snap or {}).get('dimsTotal') or 5) + ' chiều chấm được')
+    if (snap or {}).get('liq') is not None:
+        lines.append('Thanh khoản ' + usd_txt(snap['liq']))
+    if (snap or {}).get('holders') is not None:
+        lines.append('Holder ' + nf_txt(snap['holders'], 0))
+    ca = ((snap or {}).get('calls') or [])
+    if ca:
+        lines.append('<i>' + str(len(ca)) + ' lời gọi CMC cho lần quét này</i>')
+    return '\n'.join(lines)
+
+
+def tg_help():
+    return ('<b>Exit Radar — bot cảnh báo</b>\n'
+            '/link MÃ — nối chat này với danh sách theo dõi trong web (mã lấy ở mục Bot Telegram)\n'
+            '/status — xem đang theo dõi gì, luật nào đang bật, lần quét gần nhất\n'
+            '/list — danh sách token + điểm + luật\n'
+            '/pause — tạm dừng gửi (vẫn quét)\n'
+            '/resume — bật lại\n'
+            '/quiet 23 7 — giờ yên tĩnh (tin dồn lại, gửi vào lúc kết thúc)\n'
+            '/test — gửi một tin thử\n'
+            '/unlink — ngắt chat này khỏi danh sách\n\n'
+            'Lưu ý: bot chỉ quét khi tiến trình chạy (máy bạn chạy <code>--bot</code>, hoặc cron). '
+            'Số liệu lấy từ CMC, mỗi token tốn khoảng 8-12 credit mỗi lần quét.')
+
+
+def tg_code_new(st, n=6):
+    ab = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    code = ''.join(ab[int(time.time() * 1000 + i * 7919) % len(ab)] for i in range(n))
+    st.setdefault('codes', {})[code] = {'at': int(time.time() * 1000)}
+    return code
+
+
+def tg_link(st, code, chat):
+    code = (code or '').strip().upper()
+    codes = st.setdefault('codes', {})
+    if code not in codes:
+        return None
+    ch = st.setdefault('chats', {}).setdefault(str(chat['id']), {})
+    ch['code'] = code
+    ch['title'] = chat.get('title') or chat.get('username') or chat.get('first_name') or str(chat['id'])
+    ch['linkedAt'] = int(time.time() * 1000)
+    ch.setdefault('pause', False)
+    ch.setdefault('brief', [])
+    ch.setdefault('snaps', {})
+    ch.setdefault('seen', {})
+    ch.setdefault('pending', [])
+    ch.setdefault('conf', {'quietFrom': 23, 'quietTo': 7, 'cooldownMin': 30, 'maxPerDay': 20})
+    del codes[code]
+    return ch
+
+
+def tg_quiet(ch, now=None):
+    c = ch.get('conf') or {}
+    a, b = int(c.get('quietFrom', 23)), int(c.get('quietTo', 7))
+    h = time.localtime(now or time.time()).tm_hour
+    return (h >= a or h < b) if a != b else False
+
+
+def tg_due(ch, a, now_ms):
+    """Chong lap: cung mot luat cho cung mot token chi bao lai sau cooldown."""
+    c = ch.get('conf') or {}
+    cd = int(c.get('cooldownMin', 30)) * 60000
+    k = a.get('key') + '|' + a.get('rule')
+    last = (ch.get('seen') or {}).get(k)
+    if last and (now_ms - last) < cd:
+        return False
+    return True
+
+
+def tg_cmd(st, chat, text):
+    """Xu ly lenh nguoi dung gui cho bot. Tra ve (tra_loi, co_luu)."""
+    t = (text or '').strip()
+    low = t.lower()
+    cid = str(chat['id'])
+    ch = (st.get('chats') or {}).get(cid)
+    if low.startswith('/start'):
+        parts = t.split()
+        if len(parts) > 1:
+            got = tg_link(st, parts[1], chat)
+            if got:
+                return ('Đã nối chat này với danh sách theo dõi.\n' + tg_status(st, cid), True)
+            return ('Mã liên kết không đúng hoặc đã dùng. Mở web, mục Bot Telegram, tạo mã mới.', True)
+        return (tg_help(), False)
+    if low.startswith('/help'):
+        return (tg_help(), False)
+    if low.startswith('/link'):
+        parts = t.split()
+        if len(parts) < 2:
+            return ('Dùng: <code>/link MÃ</code> — mã lấy ở mục Bot Telegram trong web.', False)
+        got = tg_link(st, parts[1], chat)
+        return ((tg_status(st, cid) if got else 'Mã không đúng hoặc đã dùng. Tạo mã mới trong web.'), bool(got))
+    if not ch:
+        return ('Chat này chưa nối với danh sách nào. Mở web → mục Bot Telegram → tạo mã rồi gửi /link MÃ.', False)
+    if low.startswith('/status'):
+        return (tg_status(st, cid), False)
+    if low.startswith('/list'):
+        return (tg_list(ch), False)
+    if low.startswith('/pause'):
+        ch['pause'] = True
+        return ('Đã tạm dừng gửi. Vẫn quét và ghi nhật ký trong web. /resume để bật lại.', True)
+    if low.startswith('/resume'):
+        ch['pause'] = False
+        return ('Đã bật lại.', True)
+    if low.startswith('/unlink'):
+        st.get('chats', {}).pop(cid, None)
+        return ('Đã ngắt chat này. Danh sách trong web không bị xoá.', True)
+    if low.startswith('/quiet'):
+        p = [x for x in t.split()[1:] if x.isdigit()]
+        if len(p) < 2:
+            return ('Dùng: <code>/quiet 23 7</code> (từ 23h đến 7h, tin dồn lại gửi sau).', False)
+        ch.setdefault('conf', {})['quietFrom'] = int(p[0]) % 24
+        ch['conf']['quietTo'] = int(p[1]) % 24
+        return ('Đã đặt giờ yên tĩnh %02d:00 → %02d:00.' % (ch['conf']['quietFrom'], ch['conf']['quietTo']), True)
+    if low.startswith('/test'):
+        return ('Đang gửi thử…', False)
+    return ('Không hiểu lệnh này. /help để xem danh sách lệnh.', False)
+
+
+def tg_status(st, cid):
+    ch = (st.get('chats') or {}).get(cid)
+    if not ch:
+        return 'Chat này chưa nối với danh sách nào.'
+    b = ch.get('brief') or []
+    conf = ch.get('conf') or {}
+    last = ch.get('lastTick') or 0
+    return ('Đang theo dõi <b>%d</b> token · %s\n'
+            'Giờ yên tĩnh: %02d:00 → %02d:00 · chống lặp: %d phút · tối đa %d tin/ngày\n'
+            'Lần quét gần nhất: %s\n'
+            'Đã gửi hôm nay: %d\n'
+            'Trạng thái: %s') % (len(b), 'ĐANG TẠM DỪNG' if ch.get('pause') else 'đang chạy',
+                                 int(conf.get('quietFrom', 23)), int(conf.get('quietTo', 7)),
+                                 int(conf.get('cooldownMin', 30)), int(conf.get('maxPerDay', 20)),
+                                 (time.strftime('%d/%m %H:%M', time.localtime(last / 1000)) if last else 'chưa quét'),
+                                 int((ch.get('sentDay') or {}).get('n') or 0),
+                                 ('có tin đang chờ %d' % len(ch.get('pending') or [])) if ch.get('pending') else 'không có tin chờ')
+
+
+def tg_list(ch):
+    b = ch.get('brief') or []
+    if not b:
+        return 'Danh sách trống.'
+    snaps = ch.get('snaps') or {}
+    rows = []
+    for w in b[:30]:
+        s = snaps.get(w.get('key')) or {}
+        r = w.get('tg') or {}
+        on = [lab for k, lab in TG_RULES if (r.get(k) is not None and r.get(k) is not False)]
+        rows.append('• <b>%s</b> (%s) — điểm %s · luật: %s' % (
+            esc_tg(w.get('symbol')), esc_tg(w.get('chain')),
+            (nf_txt(s.get('score'), 0) if isinstance(s.get('score'), (int, float)) else '—'),
+            esc_tg(', '.join(on) if on else 'chưa đặt')))
+    return '\n'.join(rows)
+
+
+def tg_tick(key=None, dry=False, only=None, st=None):
+    """Mot vong quet: quet tung token, so voi lan truoc, gui tin da vuot luat.
+
+    dry=True: khong goi Telegram, tra ve nguyen van tin nhan se gui. Dung de
+    kiem chung noi dung truoc khi cap token that.
+    """
+    st = st if st is not None else tg_load()
+    now_ms = int(time.time() * 1000)
+    out = {'ok': True, 'dry': dry, 'chats': 0, 'scanned': 0, 'fired': 0, 'sent': [],
+           'errors': [], 'skipped': [], 'mode': store_mode(), 'botSet': bool(tg_token())}
+    for cid, ch in (st.get('chats') or {}).items():
+        out['chats'] += 1
+        if only and str(only) != str(cid):
+            continue
+        brief, snaps = ch.get('brief') or [], ch.get('snaps') or {}
+        if ch.get('pause'):
+            out['skipped'].append('chat %s đang tạm dừng' % cid)
+            continue
+        limit = TG_MAX_PER_TICK
+        for w in brief[:limit]:
+            pl, ad = (w.get('key') or ':').split(':', 1)
+            snap = tg_scan(pl, ad, key)
+            if not snap.get('ok'):
+                out['errors'].append({'token': w.get('symbol'), 'error': snap.get('error')})
+                continue
+            prev = snaps.get(w.get('key'))
+            tg_r = dict(w.get('tg') or {})
+            tg_r['_seenTs'] = (prev or {}).get('at') or 0
+            fired, skipped = tg_eval(prev, snap, tg_r, now_ms)
+            for s in skipped:
+                out['skipped'].append(w.get('symbol') + ': ' + s)
+            snap['level'] = ('THẤP' if (snap.get('score') or 0) < 25 else
+                             'ĐỂ MẮT' if (snap.get('score') or 0) < 50 else
+                             'CAO' if (snap.get('score') or 0) < 75 else 'NGHIÊM TRỌNG')
+            snaps[w.get('key')] = snap
+            out['scanned'] += 1
+            keep = []
+            for a in fired:
+                a['key'] = w.get('key')
+                a['symbol'] = w.get('symbol')
+                if tg_due(ch, a, now_ms):
+                    keep.append(a)
+                    ch.setdefault('seen', {})[a['key'] + '|' + a['rule']] = now_ms
+            if not keep:
+                continue
+            out['fired'] += len(keep)
+            ch['lastTick'] = now_ms
+            texts = [(w, tg_message(w, keep, snap, note=w.get('note'))) for w in [w]]
+            if tg_quiet(ch) and not dry:
+                ch.setdefault('pending', []).extend(
+                    [{'text': tx, 'key': w.get('key'), 'at': now_ms} for w, tx in texts])
+                out['skipped'].append('%s: đang giờ yên tĩnh, dồn lại' % w.get('symbol'))
+                continue
+            day = time.strftime('%Y-%m-%d')
+            sd = ch.setdefault('sentDay', {'d': day, 'n': 0})
+            if sd.get('d') != day:
+                sd['d'], sd['n'] = day, 0
+            if sd['n'] >= int((ch.get('conf') or {}).get('maxPerDay', 20)):
+                out['skipped'].append('%s: đã chạm trần tin/ngày' % w.get('symbol'))
+                continue
+            for w, tx in texts:
+                r = tg_send(chat_id=cid, text=tx, st=st, ch=ch, dry=dry,
+                            markup=tg_markup(ch.get('appUrl'), w.get('key')))
+                if r.get('ok'):
+                    sd['n'] += 1
+                    out['sent'].append({'to': cid, 'token': w.get('symbol'), 'chars': len(tx)})
+                elif r.get('dry'):
+                    out['sent'].append({'dry': True, 'to': cid, 'token': w.get('symbol'),
+                                        'text': tx})
+                else:
+                    out['errors'].append({'token': w.get('symbol'), 'telegram': r.get('error'),
+                                          'status': r.get('status'), 'retryAfter': r.get('retry_after')})
+                    if r.get('retry_after'):
+                        time.sleep(min(20, int(r['retry_after'])))
+        # xả tin dồn khi hết giờ yên tĩnh
+        if ch.get('pending') and not tg_quiet(ch) and not dry:
+            p = ch['pending'][:6]
+            ch['pending'] = []
+            for it in p:
+                tg_send(chat_id=cid, text=it['text'], st=st, ch=ch)
+            out['sent'].append({'to': cid, 'flushed': len(p)})
+        ch['snaps'] = snaps
+    out['stored'] = tg_save(st)
+    out['store'] = store_mode()
+    return out
+
+
+def tg_poll(key=None, interval=600):
+    """Che do chay tren may: nhan lenh bang long polling + quet theo chu ky."""
+    print('Bot Telegram: %s' % ('đã có token' if tg_token() else 'CHƯA có TELEGRAM_BOT_TOKEN'))
+    print('Kho lưu trữ: %s' % store_mode())
+    me = tg_call('getMe', {})
+    print('getMe: %s' % (('@' + me['result']['username']) if me.get('ok') else me.get('error')))
+    st = tg_load()
+    offset, last = None, 0
+    while True:
+        try:
+            r = tg_call('getUpdates', {'offset': offset, 'timeout': 25,
+                                       'allowed_updates': ['message']}, timeout=40)
+            for u in (r.get('result') or []):
+                offset = u['update_id'] + 1
+                m = u.get('message') or {}
+                chat, txt = m.get('chat'), m.get('text')
+                if not chat or not txt:
+                    continue
+                ans, save = tg_cmd(st, chat, txt)
+                if save:
+                    tg_save(st)
+                if ans and not txt.lower().startswith('/test'):
+                    tg_send(chat['id'], ans, st=st, ch=(st.get('chats') or {}).get(str(chat['id'])))
+                elif txt.lower().startswith('/test'):
+                    tg_send(chat['id'], 'Tin thử từ Exit Radar lúc ' +
+                            time.strftime('%H:%M:%S %d/%m/%Y') + '.\nNếu bạn thấy tin này, bot đã nối đúng chat.',
+                            st=st, ch=(st.get('chats') or {}).get(str(chat['id'])))
+            if time.time() - last > interval:
+                last = time.time()
+                res = tg_tick(key=key, st=st)
+                print('[%s] quét %d token · %d cảnh báo · gửi %d tin · lỗi %d' % (
+                    time.strftime('%H:%M:%S'), res['scanned'], res['fired'],
+                    len([s for s in res['sent'] if not s.get('dry')]), len(res['errors'])))
+                for e in res['errors'][:3]:
+                    print('   lỗi:', e)
+        except KeyboardInterrupt:
+            print('\ndừng bot.')
+            return
+        except Exception as e:
+            print('vòng lặp gặp lỗi:', e)
+            time.sleep(5)
+
+
+def tg_http(action, body=None, q=None):
+    """Diem vao HTTP cho giao dien web. Khong bao gio tra token ra ngoai."""
+    body = body or {}
+    q = q or {}
+    st = tg_load()
+    action = (action or 'status').lower()
+    mode, bot = store_mode(), bool(tg_token())
+    base = {'ok': True, 'botSet': bot, 'store': mode,
+            'botUsername': None, 'hint': None}
+    if not bot:
+        base['hint'] = ('Máy chủ chưa đặt TELEGRAM_BOT_TOKEN. Tạo bot với @BotFather rồi đặt biến '
+                        'môi trường TELEGRAM_BOT_TOKEN (và chạy bot bằng "python exit_radar_server.py --bot" '
+                        'trên máy luôn bật, hoặc cron gọi /api/cron/tick).')
+    if mode == 'khong-ghi-duoc' and not kv_on():
+        base['hint'] = (base['hint'] or '') + (' Vercel không ghi được tệp: cần Upstash Redis '
+                                               '(UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN) để lưu luật.')
+    if mode in ('khong-ghi-duoc', 'upstash') or True:
+        me = tg_call('getMe', {}) if bot and action in ('code', 'status', 'test') else {'ok': False}
+        if me.get('ok'):
+            base['botUsername'] = me['result'].get('username')
+    if action == 'code':
+        code = tg_code_new(st)
+        tg_save(st)
+        base['code'] = code
+        base['deep'] = ('https://t.me/' + (base['botUsername'] or '<bot>') + '?start=' + code)
+        base['expiresInMin'] = 60
+        return base
+    if action == 'status':
+        code = (body.get('code') or q.get('code', ['']))[0]
+        ch = None
+        for cid, c in (st.get('chats') or {}).items():
+            if code and c.get('code') == code:
+                ch = c
+        for cid, c in (st.get('chats') or {}).items():
+            if code and c.get('code') != code:
+                continue
+            if ch is None:
+                ch = c
+        base['linked'] = bool(ch and code and ch.get('code') == code)
+        if ch:
+            base['chat'] = {'id': cid if 'cid' in dir() else None, 'title': ch.get('title'),
+                            'tokens': len(ch.get('brief') or []),
+                            'lastTick': ch.get('lastTick'), 'pause': ch.get('pause'),
+                            'sentToday': (ch.get('sentDay') or {}).get('n'),
+                            'pending': len(ch.get('pending') or [])}
+        base['chats'] = len(st.get('chats') or {})
+        return base
+    if action == 'push':
+        code = body.get('code')
+        ch = None
+        for cid, c in (st.get('chats') or {}).items():
+            if c.get('code') == code:
+                ch = c
+                break
+        if not ch:
+            return {'ok': False, 'error': 'Chưa nối chat. Gửi /link MÃ cho bot trước.'}
+        ch['brief'] = body.get('watch') or []
+        if body.get('appUrl'):
+            ch['appUrl'] = body['appUrl']
+        if body.get('conf'):
+            ch['conf'] = body['conf']
+        tg_save(st)
+        return {'ok': True, 'tokens': len(ch['brief']), 'chat': ch.get('title'),
+                'hint': 'Đã đẩy danh sách. Bot sẽ quét theo chu kỳ và gửi khi luật bị vượt.'}
+    if action == 'test':
+        code = body.get('code')
+        ch = None
+        for cid, c in (st.get('chats') or {}).items():
+            if c.get('code') == code:
+                ch = c
+                break
+        if not ch:
+            return {'ok': False, 'error': 'Chưa nối chat với mã này.'}
+        cid = [k for k, c in st['chats'].items() if c is ch][0]
+        r = tg_send(cid, 'Tin thử từ Exit Radar — nếu bạn thấy tin này, bot đã nối đúng chat.\n'
+                    'Đang theo dõi %d token.' % len(ch.get('brief') or []), st=st, ch=ch)
+        return {'ok': bool(r.get('ok')), 'telegram': r.get('error'), 'status': r.get('status'),
+                'retryAfter': r.get('retry_after'), 'throttled': r.get('throttled')}
+    if action == 'preview':
+        return tg_tick(key=tg_key_from(body.get('key')), dry=True, only=body.get('chat'))
+    if action == 'unlink':
+        code = body.get('code')
+        for cid, c in list((st.get('chats') or {}).items()):
+            if c.get('code') == code:
+                st['chats'].pop(cid)
+        tg_save(st)
+        return {'ok': True}
+    return {'ok': False, 'error': 'action không hỗ trợ: ' + action}
+
+
+def tg_key_from(k):
+    return (k or os.environ.get('CMC_API_KEY') or None)
+
+
+def tg_webhook(update, headers=None):
+    """Webhook (neu dat): xac thuc bang header do Telegram gui."""
+    sec = tg_secret()
+    if sec and (headers or {}).get('X-Telegram-Bot-Api-Secret-Token') != sec:
+        return {'ok': False, 'error': 'sai secret token'}
+    st = tg_load()
+    m = (update or {}).get('message') or {}
+    chat, txt = m.get('chat'), m.get('text')
+    if not chat or not txt:
+        return {'ok': True, 'ignored': True}
+    ans, save = tg_cmd(st, chat, txt)
+    if save:
+        tg_save(st)
+    if ans:
+        tg_send(chat['id'], ans, st=st, ch=(st.get('chats') or {}).get(str(chat['id'])))
+    return {'ok': True}
 
 
 # --------------------------------------------------------------- HTTP server
@@ -2617,6 +3470,26 @@ class handler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self._send(204, b'')
+
+    def do_POST(self):
+        u = urllib.parse.urlparse(self.path)
+        q = urllib.parse.parse_qs(u.query)
+        g = lambda k, d='': (q.get(k, [d])[0] or d)
+        path = OPMAP.get((g('op') or '').strip().lower(), u.path)
+        try:
+            n = int(self.headers.get('Content-Length') or 0)
+            body = json.loads(self.rfile.read(n).decode('utf-8') or '{}') if n else {}
+        except Exception:
+            body = {}
+        try:
+            if path == '/api/tg':
+                return self._send(200, tg_http(g('action'), body, q))
+            if path in ('/api/telegram', '/api/tg/webhook'):
+                hdr = {k: v for k, v in self.headers.items()}
+                return self._send(200, tg_webhook(body, hdr))
+            return self._send(404, {'error': 'không có đường dẫn này'})
+        except Exception as e:
+            return self._send(500, {'error': str(e)})
 
     def do_GET(self):
         u = urllib.parse.urlparse(self.path)
@@ -2660,6 +3533,12 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(200 if 'error' not in out else 502, out)
             if path == '/api/calls':
                 return self._send(200, {'calls': _calls[-60:], 'stats': dict(STATS)})
+            if path == '/api/tg':
+                return self._send(200, tg_http(g('action'), None, q))
+            if path == '/api/cron/tick':
+                if not tg_secret() or (g('secret') or '') != tg_secret():
+                    return self._send(403, {'error': 'thiếu hoặc sai secret'})
+                return self._send(200, tg_tick(self._key()))
             return self._send(404, {'error': 'không có đường dẫn này'})
         except Exception as e:
             return self._send(500, {'error': str(e)})

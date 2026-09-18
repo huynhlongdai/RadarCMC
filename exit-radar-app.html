@@ -230,6 +230,16 @@ a.addr-link:hover{border-bottom-style:solid}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .gate{border:1px dashed var(--border);border-radius:10px;padding:14px 16px;color:var(--muted);font-size:var(--t-sm);line-height:1.6}
 .gate b{color:inherit}
+/* --- dải dữ liệu thị trường trên trang chủ --- */
+.market{margin:26px 0 10px;border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-align:left}
+.mkt-h{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
+.mkt-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:12px;margin-bottom:16px}
+.mkt-card{display:flex;flex-direction:column;gap:3px}
+.mkt-card .mk{font-size:11px;color:var(--muted)}
+.mkt-card .mv{font-size:var(--t-md);font-weight:600;font-variant-numeric:tabular-nums}
+.mkt-card .mv.sm{font-size:var(--t-sm);font-weight:500;color:var(--muted)}
+.mono{font-variant-numeric:tabular-nums}
+.chip{display:inline-block;font-size:11px;padding:3px 9px;border:1px solid var(--border);border-radius:999px;color:var(--muted)}
 .reason{display:flex;align-items:baseline;gap:var(--space-3);padding:9px 0;font-size:var(--t-sm)}
 .reason + .reason{border-top:1px solid var(--border)}
 .reason .n{font-family:var(--mono);font-size:11px;color:var(--faint);flex:0 0 14px}
@@ -825,14 +835,20 @@ function pickerRow(r, flagged){
     '<span class="radio"></span>' +
     '<span><span class="nm">' + esc(r.symbol) + (flagged ? '<span class="warn">cảnh báo</span>' : '') + '</span><br>' +
     '<span class="ch">' + esc(CHAINS[r.chain] || r.chain) + '</span></span>' +
-    '<span class="stat">' + usd(r.liquidityUsd) + ' thanh khoản<br>' + nf(r.holders) + ' holder</span></button>';
+    '<span class="stat">' + usd(r.liquidityUsd) + ' thanh khoản<br>' +
+      (r.holders === null || r.holders === undefined
+        ? '<span class="ch">holder: chưa có số liệu</span>'
+        : nf(r.holders) + ' holder') +
+      (r.priceUsd ? ' · ' + price(r.priceUsd) : '') + '</span></button>';
 }
 
 function viewLanding(){
   const s = State.landing;
   const extra = [];
   if (s === 'idle' || !s) {
-    extra.push(''); // không có gì phụ trợ
+    extra.push('<div id="marketStrip" class="market">' +
+      '<div class="mkt-h">Thị trường hôm nay · CoinMarketCap</div>' +
+      '<p class="caveat">Đang tải dữ liệu thị trường…</p></div>');
   }
   if (s === 'suggest' && State.suggest.length === 1) {
     extra.push('<div class="suggest">' + pickerRow(State.suggest[0], false) + '</div>');
@@ -840,8 +856,11 @@ function viewLanding(){
   if (s === 'ambiguous') {
     extra.push('<div class="suggest" style="margin-top:24px">' +
       '<div class="note-box warn" style="margin-bottom:12px"><span class="ic">!</span>' +
-      '<div>Có ' + State.ambiguous.length + ' token trùng tên <b>' + esc(State.query) + '</b>. ' +
-      'Hệ thống không tự chọn thay bạn. Xếp theo thanh khoản giảm dần.</div></div>' +
+      '<div>' + State.ambiguous.length + ' kết quả cho <b>' + esc(State.query) + '</b>' +
+      (State.ambiguous.filter(r => r.exact).length
+        ? ' — trong đó ' + State.ambiguous.filter(r => r.exact).length + ' khớp chính xác ký hiệu' : '') +
+      '. Tìm kiếm của CMC khớp cả <b>chuỗi con</b>, nên có kết quả chỉ chứa chuỗi bạn gõ chứ không phải token bạn cần. ' +
+      'Xếp theo nhóm khớp rồi theo thanh khoản.</div></div>' +
       State.ambiguous.map((r,i) => pickerRow(r, i > 0 && r.liquidityUsd < 100000)).join('') +
       '</div>');
   }
@@ -952,6 +971,91 @@ function whaleHTML(w){
       (out ? '−' : '+') + usdExact(Math.abs(w.outUsd - w.inUsd)).replace('−','').replace('+','') +
       '. Đây là cơ sở của chiều E — và là mẫu, không phải tổng 24h.</p></div>';
 }
+/* ==========================================================================
+   DẢI DỮ LIỆU THỊ TRƯỜNG — trang chủ, nguồn CMC Standard API (không cần key)
+   ========================================================================== */
+function mktPct(x){
+  if (x === null || x === undefined || isNaN(x)) return '<span class="mv sm">—</span>';
+  return '<span class="mv">' + (x >= 0 ? '▲' : '▼') + ' ' + Math.abs(Number(x)).toFixed(2) + '%</span>';
+}
+function cmcChipHTML(v){
+  const t = v.token || {};
+  // Ba trang thai, khong gop hai cai khac nhau lam mot:
+  //  co cid            -> token co ho so rieng tren CMC (co trang coin)
+  //  da tra, khong cid -> chi niem yet tren DEX
+  //  chua tra duoc     -> khong khang dinh gi
+  let chip;
+  if (t.cid) chip = 'Có hồ sơ trên CMC · ID ' + esc(String(t.cid));
+  else if (t.cmcLookup === 'da-tra') chip = 'Chỉ niêm yết trên DEX · chưa có hồ sơ CMC';
+  else chip = 'Chưa tra được hồ sơ CMC';
+  const extra = (t.website || t.twitter)
+    ? ' <a href="' + esc(t.website || t.twitter) + '" target="_blank" rel="noopener">trang chính thức</a>' : '';
+  return '<div style="margin-top:8px"><span class="chip">' + chip + '</span>' + extra + '</div>';
+}
+function renderMarkets(el, d){
+  const g = d.globals || {};
+  const cards = [
+    ['Tổng vốn hoá', g.totalMcap ? usd(g.totalMcap) : '—', g.mcapChange24h],
+    ['Khối lượng 24h', g.totalVolume24h ? usd(g.totalVolume24h) : '—', null],
+    ['BTC chi phối', g.btcDominance ? Number(g.btcDominance).toFixed(1) + '%' : '—', null],
+    ['ETH chi phối', g.ethDominance ? Number(g.ethDominance).toFixed(1) + '%' : '—', null],
+    ['Coin hoạt động', g.activeCryptos ? nf(g.activeCryptos) : '—', null],
+    ['Sàn hoạt động', g.activeExchanges ? nf(g.activeExchanges) : '—', null]
+  ];
+  const head = '<div class="mkt-cards">' + cards.map(c =>
+    '<div class="mkt-card"><span class="mk">' + c[0] + '</span>' +
+    (c[2] === null || c[2] === undefined
+      ? '<span class="mv">' + c[1] + '</span>'
+      : '<span class="mv">' + c[1] + '</span>' + mktPct(c[2])) + '</div>').join('') + '</div>';
+  const top = d.top || [];
+  const rows = top.map(t =>
+    '<tr><td class="n">' + nf(t.rank, 0) + '</td>' +
+    '<td><b>' + esc(t.symbol) + '</b> <span class="ch">' + esc((t.name || '').slice(0, 18)) + '</span></td>' +
+    '<td class="n">' + price(t.priceUsd) + '</td>' +
+    '<td class="n">' + mktPct(t.pc24h) + '</td>' +
+    '<td class="n">' + usd(t.mcap) + '</td>' +
+    '<td class="n">' + usd(t.volume24h) + '</td>' +
+    '<td><button class="btn sm ghost" type="button" data-mk="' + esc(t.symbol) + '">Quét</button></td></tr>').join('');
+  el.innerHTML = '<div class="mkt-h">Thị trường hôm nay · CoinMarketCap</div>' + head +
+    (rows ? '<div class="ev-wrap"><table class="ev-table"><thead><tr><th>#</th><th>Token</th>' +
+      '<th class="r">Giá</th><th class="r">24h</th><th class="r">Vốn hoá</th><th class="r">KL 24h</th><th></th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
+    '<p class="caveat">' + top.length + ' token đầu theo vốn hoá. Mũi tên ▲▼ là chiều biến động, ' +
+    'không phải mức rủi ro — thang rủi ro bốn bậc chỉ dùng ở màn kết quả quét.</p>';
+  el.querySelectorAll('[data-mk]').forEach(b => b.addEventListener('click', () => {
+    const inp = document.getElementById('q');
+    if (inp) inp.value = b.getAttribute('data-mk');
+    const f = document.getElementById('searchForm');
+    if (f) f.dispatchEvent(new Event('submit', {cancelable:true, bubbles:true}));
+  }));
+}
+function loadMarkets(el){
+  const head = '<div class="mkt-h">Thị trường hôm nay · CoinMarketCap</div>';
+  fetch(API.base + '/api/markets', {cache:'no-store'})
+    .then(r => r.json())
+    .then(d => {
+      if (!d || (!d.globals && !(d.top || []).length)){
+        el.innerHTML = head + '<p class="caveat">Chưa lấy được dữ liệu thị trường từ máy chủ.</p>';
+        return;
+      }
+      renderMarkets(el, d);
+    })
+    .catch(() => {
+      el.innerHTML = head + '<p class="caveat">Không kết nối được máy chủ dữ liệu, nên chưa có số liệu thị trường.</p>';
+    });
+}
+let _mkTries = 0;
+function maybeLoadMarkets(){
+  const el = document.getElementById('marketStrip');
+  if (!el){ if (_mkTries++ < 40) setTimeout(maybeLoadMarkets, 300); return; }
+  if (el.getAttribute('data-loaded')) return;
+  el.setAttribute('data-loaded', '1');
+  loadMarkets(el);
+}
+window.addEventListener('hashchange', () => setTimeout(maybeLoadMarkets, 60));
+window.addEventListener('load', () => setTimeout(maybeLoadMarkets, 60));
+setTimeout(maybeLoadMarkets, 300);
+
 /* ==========================================================================
    TẦNG BẰNG CHỨNG — mỗi kết luận phải kèm số liệu tra được
    Nguyên tắc: không có bảng số liệu thì không có kết luận.
@@ -1274,14 +1378,14 @@ function viewResult(chain, addr){
       '<h1>' + esc(t.symbol) + ' <span style="color:var(--faint);font-weight:400">· ' +
         esc(CHAINS[t.chain] || t.chain) + '</span></h1>' +
       '<div class="sub num">' + esc(t.name) + ' · ' + price(t.priceUsd) + ' · thanh khoản ' +
-        usd(t.liquidityUsd) + ' · ' + nf(t.holders) + ' holder</div></div>' +
+        usd(t.liquidityUsd) + ' · ' + nf(t.holders) + ' holder</div>' + cmcChipHTML(v) + '</div>' +
       '<div class="right"><span class="badge ' + MODES[State.mode].cls + '">' + MODES[State.mode].badge + '</span></div>' +
     '</div>' +
     '<div class="src-attrib"><span>Dữ liệu: CoinMarketCap API</span>' +
       '<span>' + v.calls.length + ' lời gọi</span><span>cập nhật ' + ago(v.fetchedAt) + '</span>' +
       '<span>chế độ ' + MODES[State.mode].vn.toLowerCase() + '</span></div>' +
     '<div class="cols two"><div class="stack sticky">' + verdictCard + notices.join('') + '</div>' +
-      '<div class="stack">' + whaleHTML(v.whale) +
+      '<div class="stack">' + contactHTML(v) + whaleHTML(v.whale) +
         '<div class="card pad"><div class="card-h">5 chiều chấm điểm</div>' +
           DIM_ORDER.map(k => meterHTML(k, v.dims[k])).join('') +
           '<div class="row" style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">' +
@@ -1294,6 +1398,47 @@ function viewResult(chain, addr){
       '</div></div>' +
     '<div class="stack" style="margin-top:28px">' + evidenceHTML(v) + '</div>' +
     actionsHTML(v, inWatch);
+}
+function contactHTML(v){
+  const c = v.contact;
+  if (!c){
+    const why = v.contactSkipped === 'can-key'
+      ? 'Hồ sơ liên hệ của token nằm ở endpoint Pro (<span class="mono">/v1/cryptocurrency/info</span>) nên cần key CMC. ' +
+        'Dán key trong Cài đặt để lấy website, X, Telegram, GitHub, whitepaper và hợp đồng trên từng chain.'
+      : 'Không xác định được mã token trên CMC nên chưa tra được hồ sơ liên hệ.';
+    return '<div class="card pad"><div class="card-h">Hồ sơ token · liên hệ</div>' +
+      '<div class="note-box info"><span class="ic">◇</span><div>' + why + '</div></div></div>';
+  }
+  if (!c.ok){
+    return '<div class="card pad"><div class="card-h">Hồ sơ token · liên hệ</div>' +
+      '<div class="note-box err"><span class="ic">✕</span><div>CMC không trả hồ sơ token (mã <span class="mono">' +
+      esc(String(c.status)) + '</span>' + (c.error ? ' · ' + esc(c.error) : '') + ').</div></div></div>';
+  }
+  const defs = [['Website', c.website], ['X / Twitter', c.twitter], ['Telegram', c.chat],
+    ['Reddit', c.reddit], ['GitHub', c.sourceCode], ['Whitepaper', c.technicalDoc],
+    ['Diễn đàn', c.messageBoard], ['Facebook', c.facebook], ['Thông báo', c.announcement]];
+  const links = defs.filter(x => x[1] && x[1].length);
+  const rows = links.map(x => '<div class="row"><span class="k">' + x[0] + '</span><span class="lead"></span>' +
+    '<span class="v"><a href="' + esc(x[1][0]) + '" target="_blank" rel="noopener">' +
+    esc(String(x[1][0]).replace(/^https?:\/\//, '').replace(/\/$/, '').slice(0, 58)) + '</a></span></div>').join('');
+  const chains = (c.chains || []).map(ch => '<div class="row"><span class="k">' + esc(ch.chain || '—') +
+    '</span><span class="lead"></span><span class="v mono">' + esc(shortAddr(ch.address)) + '</span></div>').join('');
+  const tags = (c.tags || []).map(t => '<span class="mono" style="display:inline-block;border:1px solid var(--border);' +
+    'border-radius:999px;padding:2px 9px;margin:3px 4px 0 0;font-size:var(--t-xs);color:var(--muted)">' +
+    esc(t) + '</span>').join('');
+  return '<div class="card pad"><div class="card-h">Hồ sơ token trên CMC · liên hệ</div>' +
+    '<div class="row"><span class="k">Mã CMC</span><span class="lead"></span>' +
+      '<span class="v mono">' + esc(String(c.id)) + ' · /' + esc(c.slug || '') + '</span></div>' +
+    '<div class="row"><span class="k">Ngày lên sàn</span><span class="lead"></span><span class="v num">' +
+      (c.dateAdded ? String(c.dateAdded).slice(0, 10) : '—') +
+      (c.dateLaunched ? ' · ra mắt ' + String(c.dateLaunched).slice(0, 10) : '') + '</span></div>' +
+    (c.notice ? '<div class="note-box warn" style="margin:10px 0"><span class="ic">!</span><div>' + esc(c.notice) + '</div></div>' : '') +
+    rows +
+    (chains ? '<div class="card-h" style="margin-top:16px">Hợp đồng trên từng chain · ' + (c.chains || []).length + '</div>' + chains : '') +
+    (tags ? '<div style="margin-top:14px">' + tags + '</div>' : '') +
+    (c.description ? '<p style="color:var(--muted);font-size:var(--t-sm);margin-top:12px;max-width:72ch">' +
+      esc(c.description) + '</p>' : '') +
+    '</div>';
 }
 function historyBlock(v){
   const h = v.history || [];
@@ -2082,12 +2227,32 @@ function bind(p){
       }
       if (h.cmcReachable && h.keyProvided){
         State.mode = 'full'; Store.set('er.mode', 'full');
-        toast('Key đã nhận. Đã bật chế độ đầy đủ.', 'ok', 'Máy chủ sẽ dùng key cho các endpoint cần quyền.');
+        const p = h.plan;
+        toast('Key đã nhận. Đã bật chế độ đầy đủ.', 'ok',
+          p && p.creditLimitMonthly
+            ? 'Gói: ' + nf(p.creditLimitMonthly,0) + ' credit/tháng · ' + nf(p.rateLimitMinute,0) + ' request/phút · còn ' + nf(p.creditsLeftMonth,0) + ' credit.'
+            : 'Máy chủ sẽ dùng key cho các endpoint cần quyền.');
         render(); return;
       }
+      /* Chẩn đoán theo ba tình huống thật, không gộp thành một câu chung. */
+      const p = h.plan;
+      let msg;
+      if (h.keyProvided && h.keyValid){
+        msg = '<b>Key hợp lệ, nhưng lời gọi thử bị CMC trả mã <span class="mono">' + h.cmcStatus +
+          '</span>.</b> Key đã đọc được hồ sơ gói' +
+          (p && p.creditLimitMonthly ? ' (' + nf(p.creditLimitMonthly,0) + ' credit/tháng · ' +
+            nf(p.rateLimitMinute,0) + ' request/phút · còn ' + nf(p.creditsLeftMonth,0) + ' credit, làm mới ' +
+            String(p.resetAt || '').slice(0,10) + ')' : '') +
+          '. Đây thường là hạn mức tạm thời — chờ vài giây rồi thử lại.';
+      } else if (h.keyProvided){
+        msg = '<b>Key chưa dùng được.</b> CMC trả mã <span class="mono">' + h.cmcStatus + '</span>' +
+          (h.keyError ? ' · ' + esc(h.keyError) : '') +
+          '. Kiểm tra: key còn hiệu lực, là key CMC Pro, và chưa cạn hạn mức. Key chỉ đi từ máy này tới CMC.';
+      } else {
+        msg = '<b>Máy chủ chưa nhận được key.</b> Dán lại key rồi thử lại. Key chỉ đi từ máy này tới CMC.';
+      }
       host.innerHTML = '<div class="note-box err" style="margin-top:14px"><span class="ic">✕</span>' +
-        '<div><b>Key chưa dùng được.</b> CMC trả mã <span class="mono">' + h.cmcStatus + '</span>. ' +
-        'Key sai, chưa kích hoạt, hoặc đang cạn hạn mức. Key không được gửi đi đâu ngoài máy này.</div></div>';
+        '<div>' + msg + '</div></div>';
     });
   };
   const ck = $('clearKey');

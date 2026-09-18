@@ -70,7 +70,12 @@ def _http(url, key=None, method='GET', body=None, timeout=25):
 def cmc(path, params=None, key=None, cache=True, method='GET', body=None):
     """Gọi một endpoint. Trả {'ok', 'data', 'status', 'ms', 'path'}."""
     qs = ('?' + urllib.parse.urlencode(params)) if (params and method == 'GET') else ''
-    url = PUBLIC + path + qs
+    # /public-api la kenh AN DANH, va no TU CHOI moi key hop le: do bang du lieu
+    # that ngay 18/09 — cung mot key chay 200 tren /v1/... nhung public-api tra
+    # 401/1001 "This API Key is invalid". Vi truoc day moi loi goi deu di qua
+    # public-api, key DUNG bi bao sai. Co key => di duong Pro /v1.
+    base = CMC_BASE if key else PUBLIC
+    url = base + path + qs
     ck = url + ('|k' if key else '')
     now = time.time()
     if cache:
@@ -475,6 +480,102 @@ def build_evidence(raw, platform, address):
                        'txSampleWindowMin': None}}
 
 
+def key_info(key=None):
+    """Ho so key: tran tin dung thang, so credit con lai, gioi han moi phut.
+    /v1/key/info chi chay khi co key. Da kiem chung: tra ve plan 15.000
+    credit/thang va 50 request/phut."""
+    if not key:
+        return None
+    r = cmc('/v1/key/info', None, key, cache=False)
+    if not r['ok']:
+        return {'ok': False, 'status': r.get('status'), 'error': r.get('error')}
+    d = r.get('data') or {}
+    p, u = d.get('plan') or {}, d.get('usage') or {}
+    cm, cd = u.get('current_month') or {}, u.get('current_day') or {}
+    return {'ok': True,
+            'creditLimitMonthly': _num(p.get('credit_limit_monthly')),
+            'rateLimitMinute': _num(p.get('rate_limit_minute')),
+            'resetAt': p.get('credit_limit_monthly_reset_timestamp'),
+            'creditsUsedMonth': _num(cm.get('credits_used')),
+            'creditsLeftMonth': _num(cm.get('credits_left')),
+            'creditsUsedDay': _num(cd.get('credits_used'))}
+
+
+def token_info(cid, key=None):
+    """Ho so token tren CMC: kenh lien he (website, X, Telegram, Reddit, GitHub,
+    whitepaper), logo, mo ta, ngay len san, tag, va hop dong tren TUNG chain.
+
+    /v1/cryptocurrency/info la endpoint Pro nen PHAI co key — goi khong key tra
+    401 'API key missing'. Da kiem chung bang du lieu that voi BONK (cid 23095):
+    tra ve 8 hop dong tren 8 chain cung day du kenh lien lac.
+    """
+    if not cid:
+        return None
+    r = retry('/v1/cryptocurrency/info', {'id': cid}, key)
+    if not r['ok'] or not r.get('data'):
+        return {'ok': False, 'status': r.get('status'), 'error': r.get('error')}
+    d = (r.get('data') or {}).get(str(cid)) or (r.get('data') or {}).get(cid) or {}
+    u = d.get('urls') or {}
+
+    def pick(k):
+        return [x for x in (u.get(k) or []) if x][:3]
+
+    chains = []
+    for c in (d.get('contract_address') or []):
+        pl = c.get('platform') or {}
+        chains.append({'chain': pl.get('name'), 'address': c.get('contract_address'),
+                       'coinId': (pl.get('coin') or {}).get('id')})
+    return {'ok': True, 'id': d.get('id'), 'name': d.get('name'), 'symbol': d.get('symbol'),
+            'slug': d.get('slug'), 'category': d.get('category'), 'logo': d.get('logo'),
+            'description': (d.get('description') or '')[:900],
+            'website': pick('website'), 'twitter': pick('twitter'), 'chat': pick('chat'),
+            'reddit': pick('reddit'), 'messageBoard': pick('message_board'),
+            'facebook': pick('facebook'), 'technicalDoc': pick('technical_doc'),
+            'sourceCode': pick('source_code'), 'announcement': pick('announcement'),
+            'explorer': pick('explorer'), 'subreddit': d.get('subreddit'),
+            'twitterUsername': d.get('twitter_username'),
+            'dateAdded': d.get('date_added'), 'dateLaunched': d.get('date_launched'),
+            'tags': (d.get('tags') or [])[:16], 'notice': d.get('notice'),
+            'chains': chains, 'platform': (d.get('platform') or {}).get('name')}
+
+
+def markets(key=None):
+    """Du lieu thi truong cho trang chu. Hai endpoint nay chay KHONG can key
+    (da kiem chung): /v1/global-metrics/quotes/latest va
+    /v1/cryptocurrency/listings/latest. Con quotes/latest va trending/* thi 403."""
+    t0 = time.time()
+    out = {'ok': True, 'source': 'live-cmc', 'globals': None, 'top': []}
+    g = cmc('/v1/global-metrics/quotes/latest', None, key)
+    if g.get('ok'):
+        d = g.get('data') or {}
+        q = (d.get('quote') or {}).get('USD') or {}
+        out['globals'] = {
+            'btcDominance': _num(d.get('btc_dominance')),
+            'ethDominance': _num(d.get('eth_dominance')),
+            'totalMcap': _num(q.get('total_market_cap')),
+            'totalVolume24h': _num(q.get('total_volume_24h')),
+            'mcapChange24h': _num(q.get('total_market_cap_yesterday_percentage_change')),
+            'activeCryptos': _num(d.get('active_cryptocurrencies')),
+            'activeExchanges': _num(d.get('active_exchanges')),
+            'updatedAt': d.get('last_updated')}
+    time.sleep(0.4)
+    l = cmc('/v1/cryptocurrency/listings/latest',
+            {'limit': 10, 'convert': 'USD', 'sort': 'market_cap'}, key)
+    if l.get('ok'):
+        for x in (l.get('data') or [])[:10]:
+            qq = (x.get('quote') or {}).get('USD') or {}
+            out['top'].append({'rank': int(_num(x.get('cmc_rank')) or 0),
+                               'symbol': x.get('symbol'), 'name': x.get('name'),
+                               'priceUsd': _num(qq.get('price')),
+                               'pc24h': _num(qq.get('percent_change_24h')),
+                               'pc7d': _num(qq.get('percent_change_7d')),
+                               'mcap': _num(qq.get('market_cap')),
+                               'volume24h': _num(qq.get('volume_24h'))})
+    out['elapsedMs'] = int((time.time() - t0) * 1000)
+    out['stats'] = dict(STATS)
+    return out
+
+
 def _dim_unavailable(key, label, reason, maxpts, endpoint):
     return {'score': 0, 'max': maxpts, 'label': label, 'applicable': False,
             'endpoint': endpoint, '_ev': {'reason': reason}}
@@ -493,14 +594,38 @@ def build(platform, address, key=None):
     # /dex/search theo ky hieu - co cache, chi goi khi con thieu.
     if _num(t.get('tsup')) is None:
         t['tsup'] = _num(t.get('ts'))
-    if _num(t.get('pu')) is None:
-        sym = t.get('sym') or t.get('n') or ''
-        if sym:
-            for it in (search(sym, key).get('items') or []):
-                if it.get('address') == address:
-                    t['pu'] = it.get('priceUsd'); t['v24h'] = it.get('volume24h')
-                    if not t.get('tsup'): t['tsup'] = it.get('tsup')
-                    break
+    sym = t.get('sym') or t.get('n') or ''
+    t['cmcLookup'] = 'chua-tra'
+    if sym:
+        # Tra mot lan theo ky hieu (co cache 60s) de lay DUNG ma token tren CMC.
+        # KHONG duoc dung pcid cua /dex/token: do la ma cua NEN TANG (Solana =
+        # 5426), khong phai ma cua token — da kiem chung bang du lieu that va
+        # lan dau no hien sai thanh "ho so CMC ID 5426" cho BONK.
+        items = search(sym, key, enrich=False).get('items') or []
+        t['cmcLookup'] = 'da-tra'
+        hit = None
+        for it in items:
+            if it.get('address') == address:
+                hit = it
+                break
+        if hit:
+            if _num(t.get('pu')) is None and hit.get('priceUsd'):
+                t['pu'] = hit.get('priceUsd')
+            if not t.get('v24h'):
+                t['v24h'] = hit.get('volume24h')
+            if not t.get('tsup'):
+                t['tsup'] = hit.get('tsup')
+            t['cid'] = hit.get('cid')
+            t['logo'] = hit.get('logo')
+            t['website'] = hit.get('website') or t.get('web')
+            t['twitter'] = hit.get('twitter') or t.get('tw')
+    # Ho so lien he/social day du — chi co khi co key (endpoint Pro). Thieu key
+    # thi noi ro vi sao, khong hien o trong roi de nguoi doc tuong token khong co.
+    if key and t.get('cid'):
+        t['contact'] = token_info(t.get('cid'), key)
+    else:
+        t['contact'] = None
+        t['contactSkipped'] = 'can-key' if not key else 'khong-co-cid'
     if tlu == 0:
         return {'error': 'nopool', 'token': t, 'calls': _calls[-12:]}
 
@@ -515,7 +640,7 @@ def build(platform, address, key=None):
                                  'dex/security/detail không nhận tham số công khai (HTTP %s)'
                                  % raw['security'].get('status'), 20, 'dex/security/detail')
     dims['D'] = _dim_unavailable('D', 'Đòn bẩy & thanh lý',
-                                 'endpoint phái sinh yêu cầu API key (HTTP %s)'
+                                 'endpoint phái sinh không trả dữ liệu kể cả khi đã có key (HTTP %s)'
                                  % (raw['htrend'].get('status') if raw['htrend'] else 0), 10,
                                  'v5/derivatives/liquidations/*')
     E = score_E(raw.get('tx_pages') or raw['tx'])
@@ -576,6 +701,9 @@ def build(platform, address, key=None):
     return {
         'token': {'chain': platform, 'address': address, 'symbol': t.get('sym') or t.get('n'),
                   'name': t.get('n'), 'priceUsd': _num(t.get('pu')) or 0,
+                  'cid': (int(_num(t.get('cid'))) if _num(t.get('cid')) else None),
+                  'cmcLookup': t.get('cmcLookup'),
+                  'logo': t.get('logo'), 'website': t.get('website'), 'twitter': t.get('twitter'),
                   'liquidityUsd': tlu or 0,
                   'holders': (dims['B']['_ev'] or {}).get('holders') or 0,
                   'poolAgeDays': int((time.time() * 1000 - (_num(t.get('pubAt')) or time.time() * 1000)) / 86400000),
@@ -583,6 +711,7 @@ def build(platform, address, key=None):
                   'volume24h': _num(t.get('v24h')), 'platformId': t.get('pid')},
         'dims': dims, 'reasons': reasons, 'whale': w, 'history': [],
         'proof': evd,
+        'contact': t.get('contact'), 'contactSkipped': t.get('contactSkipped'),
         'window': {'swapPages': len(raw.get('tx_pages') or []), 'swapSampled': eg.get('swaps_sampled'),
                    'swapMinutes': eg.get('window_minutes'), 'bundles': eg.get('bundles')},
         'holderList': {'available': bool(raw.get('hlist', {}).get('ok')),
@@ -596,21 +725,52 @@ def build(platform, address, key=None):
     }
 
 
-def search(q, key=None):
+def search(q, key=None, enrich=None):
+    """Tim token DEX.
+
+    Hai dieu phai noi ro vi da do bang du lieu that:
+    1) /dex/search khop CA CHUOI CON — go "Ondo" tra ve ca MOONDOGE, Gondola.
+       Nen phai xep hang theo nhom: khop dung ky hieu > bat dau bang > chua chuoi.
+    2) /dex/search KHONG tra ve so holder. Giao dien cu hien 'holder' trong khi
+       truong do luon la None, nen nguoi dung khong thay gi. Muon co so holder
+       phai goi them /dex/holders/count cho tung token.
+    """
     r = cmc('/v1/dex/search', {'q': q}, key)
     if not r['ok']:
         return {'ok': False, 'error': r['error'], 'status': r['status'], 'items': []}
+    ql = (q or '').strip().lower()
     items = []
-    for x in (r['data'] or {}).get('tks', [])[:8]:
-        items.append({'symbol': x.get('s') or x.get('n'), 'name': x.get('n'),
+    for x in (r['data'] or {}).get('tks', [])[:40]:
+        sym = x.get('s') or x.get('n') or ''
+        sl = str(sym).lower()
+        grp = 0 if sl == ql else (1 if sl.startswith(ql) else 2)
+        items.append({'symbol': sym, 'name': x.get('n'),
                       'chain': str(x.get('plt') or '').lower().replace(' ', '-'),
                       'platform': (x.get('plt') or '').lower(),
                       'address': x.get('addr'),
                       'liquidityUsd': _num(x.get('liq')) or 0,
-                      'holders': None, 'priceUsd': _num(x.get('pu')),
+                      'holders': None, 'holdersStatus': None,
+                      'priceUsd': _num(x.get('pu')),
                       'volume24h': _num(x.get('v24h')), 'mcap': _num(x.get('mc')),
-                      'pc24h': _num(x.get('pc24h'))})
-    return {'ok': True, 'items': items, 'total': (r['data'] or {}).get('total'), 'ms': r['ms']}
+                      'pc24h': _num(x.get('pc24h')),
+                      'cid': int(_num(x.get('cid'))) if _num(x.get('cid')) else None,
+                      'logo': x.get('l'), 'website': x.get('w'), 'twitter': x.get('x'),
+                      'createdAt': _num(x.get('pt')), 'group': grp, 'exact': grp == 0})
+    items.sort(key=lambda it: (it['group'], -(it['liquidityUsd'] or 0)))
+    n_exact = len([i for i in items if i['exact']])
+    # Bu so holder cho nhom khop dung (toi da 4 loi goi) — chi khi chuoi du dai,
+    # va tan dung cache 60s cua cmc().
+    do_enrich = enrich if enrich is not None else (len(ql) >= 3)
+    if do_enrich and n_exact:
+        for it in items[:min(n_exact, 4)]:
+            hc = retry('/v1/dex/holders/count',
+                       {'platform': it['platform'], 'tokenAddress': it['address']}, key)
+            if hc.get('ok'):
+                it['holders'] = _num((hc.get('data') or {}).get('count'))
+            it['holdersStatus'] = hc.get('status')
+            time.sleep(0.3)
+    return {'ok': True, 'items': items[:20], 'total': (r['data'] or {}).get('total'),
+            'exactCount': n_exact, 'query': q, 'ms': r['ms']}
 
 
 # --------------------------------------------------------------- HTTP server
@@ -650,13 +810,22 @@ class H(BaseHTTPRequestHandler):
                     return self._send(200, open(p, 'rb').read(), 'text/html; charset=utf-8')
                 return self._send(404, {'error': 'không thấy exit-radar-app.html'})
             if u.path == '/api/health':
-                probe = cmc('/v1/dex/search', {'q': 'BTC'}, self._key())
+                k = self._key()
+                probe = cmc('/v1/dex/search', {'q': 'BTC'}, k)
+                ki = key_info(k) if k else None
                 return self._send(200, {'ok': True, 'server': 'exit-radar',
                                         'cmcReachable': probe['ok'], 'cmcStatus': probe['status'],
-                                        'keyProvided': bool(self._key()),
+                                        'keyProvided': bool(k),
+                                        'keyValid': bool(ki and ki.get('ok')),
+                                        'keyError': (ki or {}).get('error'),
+                                        'plan': ki if (ki and ki.get('ok')) else None,
+                                        'base': CMC_BASE if k else PUBLIC,
+                                        'marketsKeyless': True,
                                         'cacheTtlSec': CACHE_TTL, 'stats': dict(STATS)})
             if u.path == '/api/search':
                 return self._send(200, search(g('q'), self._key()))
+            if u.path == '/api/markets':
+                return self._send(200, markets(self._key()))
             if u.path == '/api/scan':
                 pl, ad = g('platform'), g('address')
                 if not pl or not ad:

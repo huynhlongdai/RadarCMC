@@ -2037,7 +2037,7 @@ class handler(BaseHTTPRequestHandler):
         g = lambda k, d='': (q.get(k, [d])[0] or d)
         path = OPMAP.get((g('op') or '').strip().lower(), u.path)
         try:
-                        if path in ('/', '/index.html', '/api/index'):
+            if path in ('/', '/index.html', '/api/index'):
                 # Vercel khong phat hanh tep tinh o che do backend: HTML nhung thang.
                 # '/api/index' la dich cua rewrite '/', '?op=app' duoc OPMAP doi ve '/'.
                 return self._send(200, base64.b64decode(APP_HTML_B64), 'text/html; charset=utf-8')

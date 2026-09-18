@@ -187,7 +187,7 @@ def fetch_holders_list(platform, key, address, platform_id=None):
         time.sleep(0.4)
     return {'ok': False, 'data': None, 'ms': 0, 'path': '/v1/dex/holders/list',
             'status': tried[-1]['status'] if tried else 0,
-            'error': 'khong xac dinh duoc tham so', 'tried': tried}
+            'error': 'không xác định được tham số (CMC trả "Parameter error")', 'tried': tried}
 
 
 def collect(platform, address, key=None):

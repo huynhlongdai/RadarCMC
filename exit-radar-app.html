@@ -1581,19 +1581,22 @@ function evSrc(o){
       (o.ms ? ' · ' + o.ms + ' ms' : '')) +
     (o.error ? evRow('CMC trả lỗi', '<span class="mono">' + esc(String(o.error)) + '</span>') : '');
 }
+/* nhan cot tieng Viet cho bang dan chung + ma HTTP/thoi gian phai la so nguyen */
+const EV_LABEL = { body:'Thân phản hồi', status:'Mã HTTP', error:'Lỗi', path:'Đường dẫn CMC', ms:'Thời gian (ms)', side:'Chiều', usd:'Giá trị (USD)', count:'Số lượng', platform:'Chuỗi', platformId:'Mã nền tảng', tokenAddress:'Địa chỉ token', address:'Địa chỉ', ts:'Thời điểm', share:'Tỷ trọng', wallet:'Ví', sym:'Ký hiệu', rank:'Hạng' };
+const EV_INT = /^(status|ms|count|rank)$/;
 function evCells(list, max){
   list = (list || []).filter(x => x && typeof x === 'object').slice(0, max || 40);
   if (!list.length) return '';
   const keys = [];
   list.forEach(o => Object.keys(o).forEach(k => { if (keys.indexOf(k) < 0 && keys.length < 9) keys.push(k); }));
-  const head = keys.map(k => ({ t: k }));
+  const head = keys.map(k => ({ t: EV_LABEL[k] || k }));
   const rows = list.map(o => '<tr>' + keys.map(k => {
     let x = o[k];
     if (x === null || x === undefined || x === '') return '<td>—</td>';
     if (typeof x === 'object') x = JSON.stringify(x);
     const s = String(x);
     if (/^https?:\/\//.test(s)) return '<td><a href="' + esc(s) + '" target="_blank" rel="noopener">xem</a></td>';
-    if (typeof x === 'number') return '<td class="n">' + nf(x, Math.abs(x) < 10 ? 4 : 2) + '</td>';
+    if (typeof x === 'number') return '<td class="n">' + (EV_INT.test(k) ? nf(x, 0) : nf(x, Math.abs(x) < 10 ? 4 : 2)) + '</td>';
     if (/^[0-9a-fA-Fx]{18,}$/.test(s)) return '<td class="mono" title="' + esc(s) + '">' + esc(s.slice(0, 8)) + '…' + esc(s.slice(-6)) + '</td>';
     return '<td>' + esc(s.length > 22 ? s.slice(0, 22) + '…' : s) + '</td>';
   }).join('') + '</tr>');

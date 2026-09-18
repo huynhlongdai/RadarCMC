@@ -1083,7 +1083,7 @@ function tokenMarketHTML(v){
   const row = (k, val) => '<div class="row"><span class="k">' + k + '</span><span class="lead"></span>' +
     '<span class="v">' + val + '</span></div>';
   const chg = (label, x) => x === null || x === undefined ? '' : row(label, mktPct(x));
-  return '<div class="card pad"><div class="card-h">Bối cảnh thị trường của token · CoinMarketCap</div>' +
+  return '<div class="card pad"><div class="card-h">Bối cảnh thị trường của token · CoinMarketCap <span data-ev="market" style="cursor:pointer;color:var(--accent,#5b8cff);font-weight:400">· dẫn chứng</span></div>' +
     (m.rank ? row('Xếp hạng vốn hoá', '#' + nf(m.rank, 0)) : '') +
     chg('1 giờ', m.pc1h) + chg('24 giờ', m.pc24h) + chg('7 ngày', m.pc7d) + chg('30 ngày', m.pc30d) +
     (m.mcap ? row('Vốn hoá', usd(m.mcap)) : '') +
@@ -1457,7 +1457,7 @@ function viewResult(chain, addr){
     const L = LEVELS[v.level];
     verdictCard = '<div class="verdict ' + L.cls + '"><div class="v-top">' +
       '<div><div class="v-lvl ' + L.cls + '">' + L.vn + '</div>' +
-      '<div class="v-score">' + v.score + '</div></div>' +
+      '<div class="v-score" data-ev="score" style="cursor:pointer" title="Bấm xem dẫn chứng của từng chiều">' + v.score + '</div></div>' +
       coverageBlock(v) + '</div>' +
       '<div class="v-reasons">' +
       (v.reasons.length
@@ -1512,7 +1512,7 @@ function viewResult(chain, addr){
     '<p class="caveat" style="margin:8px 0 0"><b>Bấm vào con số nào cũng mở được hộp dẫn chứng</b> — endpoint nào, mã HTTP bao nhiêu, ' +
       'dữ liệu thô ra sao; chỗ nào CMC không trả được thì nói thẳng là không.</p>' +
     '<div class="src-attrib"><span>Dữ liệu: CoinMarketCap API</span>' +
-      '<span>' + v.calls.length + ' lời gọi</span><span>cập nhật ' + ago(v.fetchedAt) + '</span>' +
+      '<span data-ev="calls" style="cursor:pointer;text-decoration:underline dotted" title="Bấm xem từng lời gọi CMC">' + v.calls.length + ' lời gọi</span><span>cập nhật ' + ago(v.fetchedAt) + '</span>' +
       '<span>chế độ ' + MODES[State.mode].vn.toLowerCase() + '</span></div>' +
     '<div class="cols two"><div class="stack sticky">' + verdictCard + notices.join('') + '</div>' +
       '<div class="stack">' + contactHTML(v) + tokenMarketHTML(v) + whaleHTML(v.whale) +
@@ -1596,7 +1596,7 @@ function evCells(list, max){
     if (typeof x === 'number') return '<td class="n">' + nf(x, Math.abs(x) < 10 ? 4 : 2) + '</td>';
     if (/^[0-9a-fA-Fx]{18,}$/.test(s)) return '<td class="mono" title="' + esc(s) + '">' + esc(s.slice(0, 8)) + '…' + esc(s.slice(-6)) + '</td>';
     return '<td>' + esc(s.length > 30 ? s.slice(0, 30) + '…' : s) + '</td>';
-  }).join('') + '</tr>').join('');
+  }).join('') + '</tr>');
   return evTable(head, rows) + '<p class="caveat">' + list.length + ' dòng — bảng hiện mọi trường CMC trả về, không lọc bớt.</p>';
 }
 function evPools(v){
@@ -1800,7 +1800,7 @@ function contactHTML(v){
   const tags = (c.tags || []).map(t => '<span class="mono" style="display:inline-block;border:1px solid var(--border);' +
     'border-radius:999px;padding:2px 9px;margin:3px 4px 0 0;font-size:var(--t-xs);color:var(--muted)">' +
     esc(t) + '</span>').join('');
-  return '<div class="card pad"><div class="card-h">Hồ sơ token trên CMC · liên hệ</div>' +
+  return '<div class="card pad"><div class="card-h">Hồ sơ token trên CMC · liên hệ <span data-ev="contact" style="cursor:pointer;color:var(--accent,#5b8cff);font-weight:400">· dẫn chứng</span></div>' +
     '<div class="row"><span class="k">Mã CMC</span><span class="lead"></span>' +
       '<span class="v mono">' + esc(String(c.id)) + ' · /' + esc(c.slug || '') + '</span></div>' +
     '<div class="row"><span class="k">Ngày lên sàn</span><span class="lead"></span><span class="v num">' +

@@ -1996,6 +1996,15 @@ def search(q, key=None, enrich=None):
             'exactCount': n_exact, 'query': q, 'ms': r['ms']}
 
 
+# Vercel rewrite trong vercel.json gui '/api/index?op=<ten>' thay vi giu nguyen
+# duong dan. Da kiem chung tren ban live: self.path = '/api/index?op=search' nen
+# u.path khong con la '/api/search' va moi route deu roi vao 404. Doi lai theo op
+# truoc khi so sanh — nho vay ca hai kieu goi deu chay.
+OPMAP = {'app': '/', 'home': '/', 'health': '/api/health', 'search': '/api/search',
+         'scan': '/api/scan', 'markets': '/api/markets', 'marketctx': '/api/marketctx',
+         'calls': '/api/calls'}
+
+
 # --------------------------------------------------------------- HTTP server
 class handler(BaseHTTPRequestHandler):
     server_version = 'ExitRadar/1.0'
@@ -2026,11 +2035,12 @@ class handler(BaseHTTPRequestHandler):
         u = urllib.parse.urlparse(self.path)
         q = urllib.parse.parse_qs(u.query)
         g = lambda k, d='': (q.get(k, [d])[0] or d)
+        path = OPMAP.get(g('op'), u.path)
         try:
             if u.path in ('/', '/index.html'):
                 # Vercel khong phat hanh tep tinh o che do backend: HTML nhung thang.
                 return self._send(200, base64.b64decode(APP_HTML_B64), 'text/html; charset=utf-8')
-            if u.path == '/api/health':
+            if path == '/api/health':
                 k = self._key()
                 probe = cmc('/v1/dex/search', {'q': 'BTC'}, k)
                 ki = key_info(k) if k else None
@@ -2043,19 +2053,19 @@ class handler(BaseHTTPRequestHandler):
                                         'base': CMC_BASE if k else PUBLIC,
                                         'marketsKeyless': True,
                                         'cacheTtlSec': CACHE_TTL, 'stats': dict(STATS)})
-            if u.path == '/api/search':
+            if path == '/api/search':
                 return self._send(200, search(g('q'), self._key()))
-            if u.path == '/api/markets':
+            if path == '/api/markets':
                 return self._send(200, markets(self._key()))
-            if u.path == '/api/marketctx':
+            if path == '/api/marketctx':
                 return self._send(200, market_context(self._key()))
-            if u.path == '/api/scan':
+            if path == '/api/scan':
                 pl, ad = g('platform'), g('address')
                 if not pl or not ad:
                     return self._send(400, {'error': 'thiếu platform hoặc address'})
                 out = build(pl, ad, self._key())
                 return self._send(200 if 'error' not in out else 502, out)
-            if u.path == '/api/calls':
+            if path == '/api/calls':
                 return self._send(200, {'calls': _calls[-60:], 'stats': dict(STATS)})
             return self._send(404, {'error': 'không có đường dẫn này'})
         except Exception as e:

@@ -18,6 +18,7 @@
   --text:#FFFFFF; --muted:#A6B0C3; --faint:#858CA2;
   /* mức rủi ro — CMC green-500 / orange-500 / cam đậm / red-500 */
   --risk-low:#16C784; --risk-watch:#EE8B2A; --risk-high:#E4572E; --risk-critical:#EA3943;
+  --buy:#16C784; --sell:#EA3943; --chart-a:#5B8DEF; --chart-b:#A78BFA;
   /* nhấn — chỉ một màu */
   --accent:#3861FB; --accent-2:#486DF7; --accent-ink:#FFFFFF;
   --accent-soft:rgba(56,97,251,.14); --accent-line:rgba(56,97,251,.42);
@@ -42,6 +43,7 @@
   --border:#DCE1EA; --border-strong:#C7CDD8;
   --text:#17181B; --muted:#616E85; --faint:#858CA2;
   --risk-low:#0B8A5D; --risk-watch:#B4660F; --risk-high:#BE4A18; --risk-critical:#C4292F;
+  --buy:#0B8A5D; --sell:#C4292F; --chart-a:#2A55D6; --chart-b:#6D3FD4;
   --accent:#2A4FD0; --accent-2:#3861FB; --accent-ink:#FFFFFF;
   --accent-soft:rgba(42,79,208,.09); --accent-line:rgba(42,79,208,.4);
   --ok:#0B8A5D; --warn:#B4660F; --err:#C4292F;
@@ -221,11 +223,29 @@ table.ev-table td.n{font-variant-numeric:tabular-nums}
 .addr{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px}
 a.addr-link{text-decoration:none;border-bottom:1px dotted var(--border)}
 a.addr-link:hover{border-bottom-style:solid}
-.side-buy{color:var(--risk-low);font-weight:600}
-.side-sell{color:var(--risk-high);font-weight:600}
+.side-buy{color:var(--buy);font-weight:600}
+.side-sell{color:var(--sell);font-weight:600}
 .sharebar{display:inline-block;height:7px;width:56px;border-radius:4px;background:var(--border);position:relative;vertical-align:middle;margin-left:6px}
 .sharebar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:currentColor;opacity:.55}
 .chart{width:100%;height:auto;display:block;margin:0 0 6px}
+.mv.up{color:var(--buy)} .mv.down{color:var(--sell)}
+.radar svg{width:100%;max-width:168px;height:auto;display:block;margin:0 auto}
+.radar .caveat{margin-top:6px}
+.wbar{margin:10px 0 2px}
+.wbar-row{display:flex;align-items:center;gap:10px;padding:3px 0;font-size:var(--t-sm)}
+.wbar-row .k{flex:0 0 176px;color:var(--muted)}
+.wbar-track{flex:1;height:9px;background:var(--surface-3);border-radius:5px;overflow:hidden}
+.wbar-track i{display:block;height:100%;border-radius:5px}
+.wbar-track i.buy{background:var(--buy)} .wbar-track i.sell{background:var(--sell)}
+.wbar-row .v{flex:0 0 86px;text-align:right;font-family:var(--mono);font-size:var(--t-xs)}
+.pbar{margin:6px 0 2px}
+.pbar-row{display:flex;align-items:center;gap:10px;padding:3px 0;font-size:var(--t-xs)}
+.pbar-row .k{flex:0 0 136px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:11px}
+.pbar-track{flex:1;height:8px;background:var(--surface-3);border-radius:5px;overflow:hidden}
+.pbar-track i{display:block;height:100%;background:var(--chart-a);border-radius:5px;opacity:.85}
+.pbar-row .v{flex:0 0 80px;text-align:right;font-family:var(--mono);font-size:var(--t-xs)}
+.hlines svg{width:100%;height:auto;display:block}
+.hlines .card-h{margin-bottom:6px}
 .legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin:4px 0 0}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .gate{border:1px dashed var(--border);border-radius:10px;padding:14px 16px;color:var(--muted);font-size:var(--t-sm);line-height:1.6}
@@ -281,7 +301,7 @@ a.addr-link:hover{border-bottom-style:solid}
 .tbl tbody tr:last-child td{border-bottom:0}
 .tbl tbody tr:hover{background:var(--surface-2)}
 .tbl td.name{font-family:var(--sans);font-weight:600}
-.tbl .up{color:var(--risk-high)} .tbl .down{color:var(--ok)} .tbl .flat{color:var(--faint)}
+.tbl .up{color:var(--buy)} .tbl .down{color:var(--sell)} .tbl .flat{color:var(--faint)}
 .tbl .ta-r{text-align:right}
 .tbl .mini{display:block;font-size:10.5px;color:var(--faint)}
 .pill{display:inline-block;margin-left:7px;font-size:9.5px;font-family:var(--mono);
@@ -969,6 +989,7 @@ function whaleHTML(w){
       '<span class="v">' + w.suspiciousPct + '% giá trị bán trong mẫu</span></div>' +
     '<div class="row"><span class="k">Lệnh gắn cờ bundle/bot</span><span class="lead"></span>' +
       '<span class="v">' + (w.bundles || 0) + ' / ' + (w.sampled || 0) + '</span></div>' +
+    whaleBars(w) +
     '<p class="caveat">Trong mẫu này dòng tiền <b>' + (out ? 'đang rút ra' : 'đang vào') + '</b> · ròng ' +
       (out ? '−' : '+') + usdExact(Math.abs(w.outUsd - w.inUsd)).replace('−','').replace('+','') +
       '. Đây là cơ sở của chiều E — và là mẫu, không phải tổng 24h.</p></div>';
@@ -978,7 +999,7 @@ function whaleHTML(w){
    ========================================================================== */
 function mktPct(x){
   if (x === null || x === undefined || isNaN(x)) return '<span class="mv sm">—</span>';
-  return '<span class="mv">' + (x >= 0 ? '▲' : '▼') + ' ' + Math.abs(Number(x)).toFixed(2) + '%</span>';
+  return '<span class="mv ' + (x >= 0 ? 'up' : 'down') + '">' + (x >= 0 ? '▲' : '▼') + ' ' + Math.abs(Number(x)).toFixed(2) + '%</span>';
 }
 function cmcChipHTML(v){
   const t = v.token || {};
@@ -1266,20 +1287,121 @@ function flowChart(rows){
   let bars = '';
   ks.forEach((k,i) => {
     const b = bk[k], hb = (H - PT - PB) * (b.buy / mx), hs = (H - PT - PB) * (b.sell / mx), x = 8 + i * bw;
-    if (hb > 0.4) bars += '<rect x="' + x.toFixed(1) + '" y="' + (H-PB-hb).toFixed(1) + '" width="' + Math.max(1, bw*0.42).toFixed(1) + '" height="' + hb.toFixed(1) + '" fill="var(--risk-low)" opacity=".85"></rect>';
-    if (hs > 0.4) bars += '<rect x="' + (x + bw*0.45).toFixed(1) + '" y="' + (H-PB-hs).toFixed(1) + '" width="' + Math.max(1, bw*0.42).toFixed(1) + '" height="' + hs.toFixed(1) + '" fill="var(--risk-high)" opacity=".85"></rect>';
+    if (hb > 0.4) bars += '<rect x="' + x.toFixed(1) + '" y="' + (H-PB-hb).toFixed(1) + '" width="' + Math.max(1, bw*0.42).toFixed(1) + '" height="' + hb.toFixed(1) + '" fill="var(--buy)" opacity=".9"></rect>';
+    if (hs > 0.4) bars += '<rect x="' + (x + bw*0.45).toFixed(1) + '" y="' + (H-PB-hs).toFixed(1) + '" width="' + Math.max(1, bw*0.42).toFixed(1) + '" height="' + hs.toFixed(1) + '" fill="var(--sell)" opacity=".9"></rect>';
   });
   return '<div class="card pad"><div class="card-h">Mua/bán theo khung 15 phút · ' + rs.length + ' lệnh gần nhất</div>' +
     '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Khối lượng mua bán theo khung 15 phút">' +
       bars + '<line x1="0" y1="' + (H-PB) + '" x2="' + W + '" y2="' + (H-PB) + '" stroke="currentColor" opacity=".25"></line>' +
     '</svg>' +
-    '<div class="legend"><span><i style="background:var(--risk-low)"></i>mua</span>' +
-      '<span><i style="background:var(--risk-high)"></i>bán</span>' +
+    '<div class="legend"><span><i style="background:var(--buy)"></i>mua</span>' +
+      '<span><i style="background:var(--sell)"></i>bán</span>' +
       '<span>khung lớn nhất ' + usdExact(mx) + '</span></div>' +
     '<p class="caveat">Mỗi cột là tổng giá trị USD trong một khung 15 phút. Đây là màu của <b>chiều dòng tiền</b>, ' +
       'không phải mức rủi ro — thang rủi ro bốn bậc nằm ở cột trái.</p></div>';
 }
 
+/* ==========================================================================
+   BỘ BIỂU ĐỒ — quy ước màu thống nhất: MUA = xanh (--buy) · BÁN = đỏ (--sell).
+   Mọi biểu đồ đều có chú giải và một dòng nói rõ cách đọc.
+   ========================================================================== */
+function chartLegend(items){
+  return '<div class="legend">' + (items || []).map(it =>
+    '<span><i style="background:' + it.c + '"></i>' + esc(it.t) + (it.v ? ' · ' + esc(it.v) : '') + '</span>').join('') + '</div>';
+}
+function radarSVG(dims, size){
+  const order = DIM_ORDER, S = size || 168, C = S / 2, R = C - 30, n = order.length;
+  const ang = i => -Math.PI / 2 + (2 * Math.PI * i) / n;
+  const pt = (i, f) => [C + Math.cos(ang(i)) * R * f, C + Math.sin(ang(i)) * R * f];
+  let g = '';
+  [0.25, 0.5, 0.75, 1].forEach(f => {
+    g += '<polygon points="' + order.map((k, i) => pt(i, f).map(x => x.toFixed(1)).join(',')).join(' ') +
+      '" fill="none" stroke="currentColor" stroke-opacity="' + (f === 1 ? .32 : .14) + '"/>';
+  });
+  order.forEach((k, i) => {
+    const a = pt(i, 1), l = pt(i, 1.26);
+    g += '<line x1="' + C + '" y1="' + C + '" x2="' + a[0].toFixed(1) + '" y2="' + a[1].toFixed(1) + '" stroke="currentColor" stroke-opacity=".14"/>' +
+      '<text x="' + l[0].toFixed(1) + '" y="' + (l[1] + 3.5).toFixed(1) + '" text-anchor="middle" font-size="9.5" fill="currentColor" opacity=".75">' + k + '</text>';
+  });
+  const val = k => { const d = dims[k] || {}; return (d.applicable && d.max) ? Math.max(0, Math.min(1, d.score / d.max)) : 0; };
+  const poly = order.map((k, i) => pt(i, val(k)).map(x => x.toFixed(1)).join(',')).join(' ');
+  const dots = order.map((k, i) => { const q = pt(i, val(k));
+    return '<circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="2.8" fill="currentColor" opacity="' + (val(k) ? .95 : .3) + '"/>'; }).join('');
+  const miss = order.filter(k => !(dims[k] || {}).applicable);
+  return '<div class="radar" style="color:var(--vc,var(--muted))">' +
+    '<svg viewBox="0 0 ' + S + ' ' + S + '" role="img" aria-label="Biểu đồ radar năm chiều, mỗi trục tính theo mức tối đa của chiều đó">' + g +
+    '<polygon points="' + poly + '" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="1.8"/>' + dots + '</svg>' +
+    '<p class="caveat" style="text-align:center">Radar 5 chiều · mỗi trục là <b>phần trăm của mức tối đa chiều đó</b> ' +
+    '(A 30 · B 25 · C 20 · D 10 · E 15). Càng rộng càng rủi ro.' +
+    (miss.length ? ' ' + miss.length + ' chiều không lấy được dữ liệu nằm ở tâm.' : '') + '</p></div>';
+}
+function whaleBars(w){
+  if (!w) return '';
+  const inn = w.inUsd || 0, outd = w.outUsd || 0, mx = Math.max(inn, outd, 1);
+  const wpx = v => Math.max(2, Math.round(Math.min(1, v / mx) * 100));
+  const net = outd - inn;
+  return '<div class="wbar">' +
+    '<div class="wbar-row"><span class="k">Mua vào · holder lớn tăng vị thế (' + w.inCount + ' ví)</span>' +
+      '<span class="wbar-track"><i class="buy" style="width:' + wpx(inn) + '%"></i></span>' +
+      '<span class="v">' + usdExact(inn).replace('+', '') + '</span></div>' +
+    '<div class="wbar-row"><span class="k">Bán ra · holder lớn giảm vị thế (' + w.outCount + ' ví)</span>' +
+      '<span class="wbar-track"><i class="sell" style="width:' + wpx(outd) + '%"></i></span>' +
+      '<span class="v">' + usdExact(outd).replace('−', '') + '</span></div>' +
+    chartLegend([{ c:'var(--buy)', t:'mua · xanh' }, { c:'var(--sell)', t:'bán · đỏ' },
+      { c:'var(--muted)', t:'ròng', v:(net > 0 ? '−' : '+') + usdExact(Math.abs(net)).replace('−', '').replace('+', '') }]) + '</div>';
+}
+function poolBars(pools, max){
+  const ps = (pools || []).filter(x => x && x.liqUsd).sort((a, b) => b.liqUsd - a.liqUsd).slice(0, max || 8);
+  if (ps.length < 2) return '';
+  const mx = Math.max.apply(null, ps.map(x => x.liqUsd)) || 1;
+  const sum = ps.reduce((a, x) => a + x.liqUsd, 0);
+  return '<div class="card-h" style="margin-top:16px">Thanh khoản từng pool · ' + ps.length + ' pool lớn nhất</div>' +
+    '<div class="pbar">' + ps.map(x =>
+      '<div class="pbar-row"><span class="k" title="' + esc((x.address || '') + ' · ' + (x.exchange || '')) + '">' +
+        esc(String(x.exchange || x.address || '—').slice(0, 16)) + '</span>' +
+      '<span class="pbar-track"><i style="width:' + Math.max(2, Math.round(x.liqUsd / mx * 100)) + '%"></i></span>' +
+      '<span class="v">' + usd(x.liqUsd) + '</span></div>').join('') + '</div>' +
+    '<p class="caveat">Thanh dài hơn là thanh khoản dày hơn — <b>không</b> có nghĩa là an toàn hơn. ' +
+    'Pool lớn nhất chiếm ' + nf((ps[0].liqUsd / sum) * 100, 1) + '% trong ' + usd(sum) +
+    ' của nhóm này. Dùng <span class="mono">--chart-a</span> để tách khỏi thang rủi ro.</p>';
+}
+function sparkPath(h, get, X, Y){
+  let d = '', pen = false;
+  h.forEach((p, j) => {
+    const v = get(p);
+    if (typeof v !== 'number' || isNaN(v)){ pen = false; return; }
+    d += (pen ? 'L' : 'M') + X(j).toFixed(1) + ' ' + Y(v).toFixed(1) + ' ';
+    pen = true;
+  });
+  return d;
+}
+function holderLines(hist){
+  const h = (hist || []).filter(p => p);
+  if (h.length < 2) return '';
+  const W = 560, H = 150, L = 46, R = 12, T = 14, B = 24, iw = W - L - R, ih = H - T - B;
+  const ser = [];
+  if (h.filter(p => typeof p.holders === 'number').length >= 2)
+    ser.push({ n:'Holder', c:'var(--chart-a)', g: p => p.holders, f: v => nf(v) });
+  if (h.filter(p => typeof p.liquidityUsd === 'number').length >= 2)
+    ser.push({ n:'Thanh khoản USD', c:'var(--chart-b)', g: p => p.liquidityUsd, f: v => usd(v) });
+  if (!ser.length) return '';
+  const X = j => L + (h.length === 1 ? iw / 2 : (j / (h.length - 1)) * iw);
+  let body = '', lg = '';
+  ser.forEach(sr => {
+    const vs = h.map(sr.g).filter(v => typeof v === 'number');
+    const lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs);
+    const Y = v => T + ih - ((v - lo) / ((hi - lo) || 1)) * ih;
+    body += '<path d="' + sparkPath(h, sr.g, X, Y) + '" fill="none" stroke="' + sr.c + '" stroke-width="2" stroke-linejoin="round"/>' +
+      h.map((p, j) => typeof sr.g(p) === 'number'
+        ? '<circle cx="' + X(j).toFixed(1) + '" cy="' + Y(sr.g(p)).toFixed(1) + '" r="2.6" fill="' + sr.c + '"/>' : '').join('');
+    lg += '<span><i style="background:' + sr.c + '"></i>' + sr.n + ' · ' + sr.f(lo) + ' → ' + sr.f(hi) + '</span>';
+  });
+  return '<div class="hlines"><div class="card-h">Holder và thanh khoản qua ' + h.length + ' lần quét</div>' +
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Holder và thanh khoản theo thời gian">' +
+    '<line x1="' + L + '" y1="' + (T + ih) + '" x2="' + (W - R) + '" y2="' + (T + ih) + '" stroke="currentColor" opacity=".22"/>' +
+    body + '</svg><div class="legend">' + lg + '</div>' +
+    '<p class="caveat">Mỗi đường có <b>thang riêng</b> để nhìn ra xu hướng, nên đừng so độ dốc của hai đường với nhau.</p></div>';
+}
 function evidenceHTML(v){
   const p = v.proof;
   const t = v.token;
@@ -1302,6 +1424,7 @@ function evidenceHTML(v){
       '<p class="sub">' + pools.length + ' pool · tổng thanh khoản ' + usd(t.liquidityUsd) +
       '. Bấm địa chỉ để mở explorer — mỗi dòng kiểm chứng được độc lập.</p>' +
       evTable([{t:'Địa chỉ pool'},{t:'Sàn'},{t:'Thanh khoản',r:1},{t:'Tỷ trọng',r:1},{t:'Cặp'},{t:'Tạo cách đây',r:1},{t:''}], rows) +
+      poolBars(pools) +
       ((p.totals && p.totals.poolsSum) ?
         '<p class="caveat">Dữ liệu CMC cho <b>hai định nghĩa thanh khoản khác nhau</b>: <b>' +
         usd(p.totals.tluFromChange) + '</b> từ endpoint sự kiện thay đổi, và <b>' + usd(p.totals.poolsSum) +
@@ -1457,7 +1580,7 @@ function viewResult(chain, addr){
     const L = LEVELS[v.level];
     verdictCard = '<div class="verdict ' + L.cls + '"><div class="v-top">' +
       '<div><div class="v-lvl ' + L.cls + '">' + L.vn + '</div>' +
-      '<div class="v-score" data-ev="score" style="cursor:pointer" title="Bấm xem dẫn chứng của từng chiều">' + v.score + '</div></div>' +
+      '<div class="v-score" data-ev="score" style="cursor:pointer" title="Bấm xem dẫn chứng của từng chiều">' + v.score + '</div>' + radarSVG(v.dims) + '</div>' +
       coverageBlock(v) + '</div>' +
       '<div class="v-reasons">' +
       (v.reasons.length
@@ -1829,6 +1952,7 @@ function historyBlock(v){
       '<span class="v">' + usd(last.liquidityUsd) + '</span></div>' +
     '<div class="row"><span class="k">Holder</span><span class="lead"></span>' +
       '<span class="v">' + nf(last.holders) + '</span></div>' +
+    holderLines(h) +
     '<a class="btn sm ghost" style="margin-top:12px" href="#/watchlist/' + esc(v.key) + '">Xem lịch sử đầy đủ</a>' +
   '</div>';
 }

@@ -1,0 +1,2164 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exit Radar — Kiểm tra token DEX trước khi mua</title>
+<meta name="description" content="Chấm điểm rủi ro cấu trúc và dòng tiền ví lớn của token DEX, dựng trên dữ liệu CoinMarketCap.">
+<style>
+/* ==========================================================================
+   EXIT RADAR — design tokens
+   Đổi theme chỉ bằng khối [data-theme]. Không component nào hardcode màu.
+   ========================================================================== */
+:root{
+  /* bề mặt */
+  --bg:#17181B; --surface:#1D1F24; --surface-2:#24262C; --surface-3:#2C2F36;
+  --border:#2E3138; --border-strong:#41454E;
+  /* chữ */
+  --text:#FFFFFF; --muted:#A6B0C3; --faint:#858CA2;
+  /* mức rủi ro — CMC green-500 / orange-500 / cam đậm / red-500 */
+  --risk-low:#16C784; --risk-watch:#EE8B2A; --risk-high:#E4572E; --risk-critical:#EA3943;
+  /* nhấn — chỉ một màu */
+  --accent:#3861FB; --accent-2:#486DF7; --accent-ink:#FFFFFF;
+  --accent-soft:rgba(56,97,251,.14); --accent-line:rgba(56,97,251,.42);
+  /* trạng thái */
+  --ok:#16C784; --warn:#EE8B2A; --err:#EA3943;
+  --focus:#486DF7;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 34px -18px rgba(0,0,0,.75);
+  --sk-base:#24262C; --sk-hi:#33363E;
+  /* thang 4px */
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px;
+  --space-5:24px; --space-6:32px; --space-7:48px; --space-8:64px;
+  --radius-sm:6px; --radius-md:10px; --radius-lg:16px; --radius-full:999px;
+  /* chữ */
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans","DejaVu Sans",sans-serif;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono","DejaVu Sans Mono",Menlo,Consolas,monospace;
+  --t-xs:12px; --t-sm:13px; --t-base:15px; --t-md:17px;
+  --t-lg:20px; --t-xl:26px; --t-2xl:34px; --t-3xl:44px;
+  --nav-h:57px;
+}
+[data-theme="light"]{
+  --bg:#FFFFFF; --surface:#F8FAFD; --surface-2:#EFF2F5; --surface-3:#E1E6ED;
+  --border:#DCE1EA; --border-strong:#C7CDD8;
+  --text:#17181B; --muted:#616E85; --faint:#858CA2;
+  --risk-low:#0B8A5D; --risk-watch:#B4660F; --risk-high:#BE4A18; --risk-critical:#C4292F;
+  --accent:#2A4FD0; --accent-2:#3861FB; --accent-ink:#FFFFFF;
+  --accent-soft:rgba(42,79,208,.09); --accent-line:rgba(42,79,208,.4);
+  --ok:#0B8A5D; --warn:#B4660F; --err:#C4292F;
+  --focus:#3861FB;
+  --shadow:0 1px 2px rgba(20,24,31,.07), 0 14px 30px -18px rgba(20,24,31,.35);
+  --sk-base:#E7EBF1; --sk-hi:#F2F5F9;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:var(--sans); font-size:var(--t-base); line-height:1.55;
+  font-feature-settings:"tnum" 1;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+h1,h2,h3,h4,h5,p{margin:0}
+a{color:var(--accent);text-decoration:none}
+button{font:inherit;color:inherit}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.wrap{max-width:1120px;margin:0 auto;padding:0 var(--space-5)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skiplink{position:absolute;left:-9999px;top:0;background:var(--accent);color:var(--accent-ink);
+  padding:10px 16px;z-index:99;border-radius:0 0 var(--radius-sm) 0}
+.skiplink:focus{left:0}
+
+/* ==========================================================================
+   THANH ĐIỀU HƯỚNG
+   ========================================================================== */
+.topbar{position:sticky;top:0;z-index:40;background:var(--surface);
+  border-bottom:1px solid var(--border)}
+.topbar .wrap{display:flex;align-items:center;gap:var(--space-5);height:var(--nav-h)}
+.brand{font-family:var(--mono);font-size:var(--t-sm);letter-spacing:.14em;font-weight:700;
+  color:var(--text);display:flex;align-items:center;gap:8px;flex:none}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);
+  box-shadow:0 0 0 3px var(--accent-soft)}
+.nav{display:flex;gap:var(--space-5);align-items:center}
+.nav a{color:var(--muted);font-size:var(--t-sm);padding:4px 0;position:relative;white-space:nowrap}
+.nav a:hover{color:var(--text)}
+.nav a.on{color:var(--text)}
+.nav a.on::after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:2px;background:var(--accent)}
+.topright{margin-left:auto;display:flex;align-items:center;gap:var(--space-2);flex:none}
+.icon-btn{width:34px;height:34px;display:grid;place-items:center;background:transparent;
+  border:1px solid var(--border-strong);border-radius:var(--radius-sm);cursor:pointer;color:var(--muted)}
+.icon-btn:hover{color:var(--text);border-color:var(--accent-2)}
+.bottombar{display:none}
+@media (max-width:639px){
+  .nav{display:none}
+  .topbar .wrap{height:52px}
+  .bottombar{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;left:0;right:0;bottom:0;
+    z-index:45;background:var(--surface);border-top:1px solid var(--border);
+    padding-bottom:env(safe-area-inset-bottom)}
+  .bottombar a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    min-height:56px;font-size:10.5px;color:var(--muted);letter-spacing:.02em}
+  .bottombar a svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6}
+  .bottombar a.on{color:var(--accent)}
+  body{padding-bottom:64px}
+}
+
+/* ==========================================================================
+   NÚT
+   ========================================================================== */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:40px;padding:9px 16px;background:var(--surface-2);color:var(--text);
+  border:1px solid var(--border-strong);border-radius:var(--radius-sm);
+  font-size:var(--t-sm);font-weight:500;cursor:pointer;white-space:nowrap;
+  transition:background .12s ease,border-color .12s ease,transform .06s ease}
+.btn:hover{background:var(--surface-3)}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.pri:hover{filter:brightness(1.1)}
+.btn.ghost{background:transparent;border-color:var(--border)}
+.btn.ghost:hover{background:var(--surface-2)}
+.btn.danger{border-color:var(--err);color:var(--err);background:transparent}
+.btn.danger:hover{background:color-mix(in srgb,var(--err) 12%,transparent)}
+.btn.sm{min-height:32px;padding:5px 11px;font-size:var(--t-xs)}
+.btn.lg{min-height:46px;padding:12px 22px;font-size:var(--t-base)}
+.btn[disabled],.btn[aria-disabled="true"]{opacity:.45;cursor:not-allowed;transform:none}
+.btn.block{width:100%}
+.btn .spin{width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;
+  border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ==========================================================================
+   Ô NHẬP
+   ========================================================================== */
+.input{width:100%;min-height:44px;padding:10px 13px;background:var(--surface);
+  border:1px solid var(--border-strong);border-radius:var(--radius-sm);
+  color:var(--text);font-family:var(--mono);font-size:var(--t-sm)}
+.input::placeholder{color:var(--faint);font-family:var(--sans)}
+.input:focus{outline:2px solid var(--focus);outline-offset:1px;border-color:var(--accent-2)}
+.input[aria-invalid="true"]{border-color:var(--err)}
+select.input{font-family:var(--sans);cursor:pointer;appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--faint) 50%),linear-gradient(135deg,var(--faint) 50%,transparent 50%);
+  background-position:calc(100% - 17px) 20px,calc(100% - 12px) 20px;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px}
+.field-help{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:6px}
+.field-err{font-family:var(--mono);font-size:11.5px;color:var(--err);margin-top:6px;
+  display:flex;gap:6px;align-items:flex-start}
+
+/* ==========================================================================
+   BADGE
+   ========================================================================== */
+.badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.04em;padding:3px 9px;border-radius:var(--radius-full);
+  border:1px solid var(--border-strong);color:var(--muted);white-space:nowrap}
+.badge.full{color:var(--accent);border-color:var(--accent-line);background:var(--accent-soft)}
+.badge.off{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 50%,transparent)}
+.badge.low{color:var(--risk-low);border-color:color-mix(in srgb,var(--risk-low) 50%,transparent)}
+.badge.watch{color:var(--risk-watch);border-color:color-mix(in srgb,var(--risk-watch) 50%,transparent)}
+.badge.high{color:var(--risk-high);border-color:color-mix(in srgb,var(--risk-high) 50%,transparent)}
+.badge.crit{color:var(--risk-critical);border-color:color-mix(in srgb,var(--risk-critical) 50%,transparent)}
+
+/* ==========================================================================
+   THẺ
+   ========================================================================== */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md)}
+.card.pad{padding:var(--space-5)}
+.card-h{font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:var(--space-3);font-weight:600}
+.page-h{display:flex;align-items:flex-start;gap:var(--space-4);flex-wrap:wrap;
+  padding:var(--space-6) 0 var(--space-5)}
+.page-h h1{font-size:var(--t-xl);font-weight:650;letter-spacing:-.02em}
+.page-h .sub{color:var(--muted);font-size:var(--t-sm);margin-top:var(--space-1)}
+.page-h .right{margin-left:auto;display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap}
+.crumb{display:flex;gap:8px;align-items:center;font-family:var(--mono);font-size:11px;
+  color:var(--faint);margin-bottom:var(--space-2)}
+.crumb a{color:var(--faint)}
+.crumb a:hover{color:var(--accent)}
+
+/* dòng thông tin có đường dẫn chấm — thiết bị chữ ký */
+.led{padding:var(--space-3) 0}
+.row{display:flex;align-items:baseline;gap:var(--space-3);font-size:var(--t-sm);padding:7px 0}
+.row .lead{flex:1;border-bottom:1px dotted var(--border-strong);transform:translateY(-3px);min-width:12px}
+.row .v{font-family:var(--mono);white-space:nowrap;color:var(--text)}
+.row .k{color:var(--muted)}
+.row .v.pos{color:var(--warn)}
+.row .v.neg{color:var(--ok)}
+
+/* ==========================================================================
+   THẺ KẾT LUẬN — 4 mức
+   ========================================================================== */
+.verdict{border:1px solid var(--border-strong);border-radius:var(--radius-lg);
+  background:var(--surface);overflow:hidden;position:relative}
+.verdict::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--vc,var(--muted))}
+.verdict.low{--vc:var(--risk-low)} .verdict.watch{--vc:var(--risk-watch)}
+.verdict.high{--vc:var(--risk-high)} .verdict.crit{--vc:var(--risk-critical)}
+.verdict.none{--vc:var(--faint)}
+.v-top{display:flex;align-items:center;gap:var(--space-5);padding:var(--space-5) var(--space-5) var(--space-4);
+  border-bottom:1px solid var(--border)}
+.v-score{font-family:var(--mono);font-size:var(--t-3xl);line-height:1;font-weight:700;letter-spacing:-.03em}
+.v-lvl{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  font-weight:700;margin-bottom:6px}
+.v-lvl.low{color:var(--risk-low)} .v-lvl.watch{color:var(--risk-watch)}
+.v-lvl.high{color:var(--risk-high)} .v-lvl.crit{color:var(--risk-critical)}
+.v-lvl.none{color:var(--muted)}
+.v-cov{margin-left:auto;text-align:right;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.v-cov b{color:var(--text);font-weight:600}
+.track{height:5px;background:var(--surface-3);border-radius:var(--radius-full);
+  margin-top:6px;overflow:hidden;width:142px}
+.track i{display:block;height:100%;background:var(--accent);width:0;transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.v-reasons{padding:var(--space-2) var(--space-5) var(--space-4)}
+/* --- tầng bằng chứng: bảng số liệu + biểu đồ --- */
+.ev-sec{margin-top:22px;padding-top:18px;border-top:1px solid var(--border)}
+.ev-sec h3{font-size:var(--t-md);font-weight:600;margin:0 0 6px;line-height:1.35}
+.ev-sec p.sub{color:var(--muted);font-size:var(--t-sm);margin:0 0 12px;max-width:78ch}
+.ev-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin:0 0 16px}
+table.ev-table{border-collapse:collapse;width:100%;font-size:var(--t-sm)}
+table.ev-table th{text-align:left;font-weight:600;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+table.ev-table th.r,table.ev-table td.n{text-align:right}
+table.ev-table td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap}
+table.ev-table tr:last-child td{border-bottom:0}
+table.ev-table td.n{font-variant-numeric:tabular-nums}
+.addr{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px}
+a.addr-link{text-decoration:none;border-bottom:1px dotted var(--border)}
+a.addr-link:hover{border-bottom-style:solid}
+.side-buy{color:var(--risk-low);font-weight:600}
+.side-sell{color:var(--risk-high);font-weight:600}
+.sharebar{display:inline-block;height:7px;width:56px;border-radius:4px;background:var(--border);position:relative;vertical-align:middle;margin-left:6px}
+.sharebar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:currentColor;opacity:.55}
+.chart{width:100%;height:auto;display:block;margin:0 0 6px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin:4px 0 0}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.gate{border:1px dashed var(--border);border-radius:10px;padding:14px 16px;color:var(--muted);font-size:var(--t-sm);line-height:1.6}
+.gate b{color:inherit}
+.reason{display:flex;align-items:baseline;gap:var(--space-3);padding:9px 0;font-size:var(--t-sm)}
+.reason + .reason{border-top:1px solid var(--border)}
+.reason .n{font-family:var(--mono);font-size:11px;color:var(--faint);flex:0 0 14px}
+.reason .t{color:var(--text);flex:1}
+.reason .v{font-family:var(--mono);font-size:var(--t-xs);color:var(--muted);white-space:nowrap}
+.reason.neg .v{color:var(--ok)}
+.reason .src{display:block;font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:3px}
+
+/* ==========================================================================
+   THANH ĐO CHIỀU
+   ========================================================================== */
+.meter{margin-bottom:var(--space-3)}
+.meter .head{display:flex;align-items:baseline;gap:var(--space-2);font-size:var(--t-sm)}
+.meter .key{font-family:var(--mono);color:var(--faint);flex:0 0 20px}
+.meter .name{color:var(--muted)}
+.meter .val{margin-left:auto;font-family:var(--mono);color:var(--text);white-space:nowrap}
+.meter .track{width:100%;height:6px;margin-top:6px}
+.meter .track i{border-radius:var(--radius-full)}
+.meter.na .name,.meter.na .val{color:var(--faint)}
+.meter.na .track{background:repeating-linear-gradient(135deg,var(--surface-3) 0 5px,transparent 5px 10px)}
+.meter .ep{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:4px;display:block}
+
+/* ==========================================================================
+   KHỐI DÒNG TIỀN
+   ========================================================================== */
+.flow{border:1px solid var(--border);border-radius:var(--radius-md);
+  background:var(--surface-2);padding:var(--space-4) var(--space-5);margin-top:var(--space-4)}
+.flow .caveat{margin-top:var(--space-3);font-size:var(--t-sm);color:var(--muted)}
+.flow .caveat b{font-weight:600}
+
+/* ==========================================================================
+   BẢNG
+   ========================================================================== */
+.tbl{width:100%;border-collapse:collapse;font-size:var(--t-sm)}
+.tbl th{text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--faint);font-weight:500;padding:9px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+.tbl td{padding:12px 8px;border-bottom:1px solid var(--border);font-family:var(--mono);
+  font-variant-numeric:tabular-nums;vertical-align:middle}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl tbody tr:hover{background:var(--surface-2)}
+.tbl td.name{font-family:var(--sans);font-weight:600}
+.tbl .up{color:var(--risk-high)} .tbl .down{color:var(--ok)} .tbl .flat{color:var(--faint)}
+.tbl .ta-r{text-align:right}
+.tbl .mini{display:block;font-size:10.5px;color:var(--faint)}
+.pill{display:inline-block;margin-left:7px;font-size:9.5px;font-family:var(--mono);
+  border:1px solid currentColor;border-radius:var(--radius-full);padding:1px 6px;vertical-align:1px}
+.rowacts{display:flex;gap:6px;justify-content:flex-end}
+
+/* ==========================================================================
+   CHỌN TOKEN
+   ========================================================================== */
+.picker{display:flex;gap:var(--space-3);align-items:center;padding:var(--space-3) var(--space-4);
+  border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);
+  cursor:pointer;width:100%;text-align:left;margin-bottom:var(--space-2);min-height:56px}
+.picker:hover{border-color:var(--accent-2);background:var(--surface-2)}
+.picker:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.picker .radio{width:15px;height:15px;border-radius:50%;border:1.5px solid var(--border-strong);flex:0 0 15px}
+.picker.flag{border-color:color-mix(in srgb,var(--risk-critical) 55%,transparent)}
+.picker .nm{font-weight:600;font-size:var(--t-sm)}
+.picker .nm .warn{margin-left:8px;font-family:var(--mono);font-size:9.5px;color:var(--risk-critical);
+  border:1px solid var(--risk-critical);border-radius:var(--radius-full);padding:1px 6px}
+.picker .ch{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.picker .stat{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--muted);
+  text-align:right;white-space:nowrap;line-height:1.5}
+
+/* ==========================================================================
+   HỘP THÔNG BÁO
+   ========================================================================== */
+.note-box{display:flex;gap:var(--space-3);padding:var(--space-3) var(--space-4);
+  border:1px solid var(--border-strong);border-radius:var(--radius-md);background:var(--surface-2);
+  font-size:var(--t-sm);align-items:flex-start}
+.note-box .ic{flex:0 0 18px;font-family:var(--mono);font-weight:700;line-height:1.4}
+.note-box.warn{border-color:color-mix(in srgb,var(--warn) 55%,transparent)}
+.note-box.warn .ic{color:var(--warn)}
+.note-box.err{border-color:color-mix(in srgb,var(--err) 55%,transparent)}
+.note-box.err .ic{color:var(--err)}
+.note-box.info{border-color:var(--accent-line);background:var(--accent-soft)}
+.note-box.info .ic{color:var(--accent)}
+.note-box b{font-weight:600}
+.note-box .acts{margin-top:var(--space-3);display:flex;gap:var(--space-2);flex-wrap:wrap}
+
+/* ==========================================================================
+   TIẾN TRÌNH QUÉT
+   ========================================================================== */
+.steps{display:flex;flex-direction:column;gap:var(--space-3);margin-top:var(--space-5)}
+.step{display:flex;align-items:center;gap:var(--space-3);font-size:var(--t-sm);color:var(--faint)}
+.step .mark{width:16px;flex:0 0 16px;font-family:var(--mono);text-align:center}
+.step.done{color:var(--text)}
+.step.done .mark{color:var(--ok)}
+.step.run{color:var(--text)}
+.step.run .mark{color:var(--accent)}
+.step .t{font-family:var(--mono);font-size:10.5px;margin-left:auto;color:var(--faint)}
+
+/* ==========================================================================
+   RỖNG · KHUNG XƯƠNG
+   ========================================================================== */
+.empty{text-align:center;padding:var(--space-8) var(--space-5);border:1px dashed var(--border-strong);
+  border-radius:var(--radius-md);background:var(--surface)}
+.empty h3{font-size:var(--t-md);font-weight:600;margin-bottom:var(--space-2)}
+.empty p{color:var(--muted);font-size:var(--t-sm);max-width:44ch;margin:0 auto var(--space-5)}
+.sk{background:linear-gradient(90deg,var(--sk-base) 25%,var(--sk-hi) 37%,var(--sk-base) 63%);
+  background-size:400% 100%;animation:sh 1.4s ease infinite;border-radius:var(--radius-sm);display:block}
+@keyframes sh{0%{background-position:100% 50%}100%{background-position:0 50%}}
+
+/* ==========================================================================
+   NHẬT KÝ ENDPOINT
+   ========================================================================== */
+details.logbox{border:1px solid var(--border);border-radius:var(--radius-md);
+  background:var(--surface-2);margin-top:var(--space-4)}
+details.logbox > summary{cursor:pointer;padding:11px 15px;font-family:var(--mono);font-size:11.5px;
+  color:var(--muted);list-style:none;display:flex;align-items:center;gap:var(--space-2)}
+details.logbox > summary::-webkit-details-marker{display:none}
+details.logbox > summary::before{content:"▸";color:var(--faint)}
+details.logbox[open] > summary::before{content:"▾"}
+details.logbox[open] > summary{border-bottom:1px solid var(--border)}
+.logbody{padding:var(--space-3) 15px var(--space-4)}
+.logline{display:flex;gap:var(--space-3);font-family:var(--mono);font-size:11.5px;padding:3.5px 0;
+  align-items:baseline}
+.logline .path{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.logline .st{margin-left:auto;color:var(--ok);flex:none}
+.logline .st.bad{color:var(--err)}
+.logline .ms{color:var(--faint);flex:0 0 52px;text-align:right}
+
+/* ==========================================================================
+   BIỂU ĐỒ LỊCH SỬ
+   ========================================================================== */
+.chart{width:100%;height:190px;display:block;overflow:visible}
+.chart .grid{stroke:var(--border);stroke-width:1}
+.chart .axis{font-family:var(--mono);font-size:9.5px;fill:var(--faint)}
+.chart .line{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
+.chart .area{fill:var(--accent);opacity:.1}
+.chart .pt{fill:var(--bg);stroke:var(--accent);stroke-width:2}
+.chart .pt-mark{stroke:var(--text);stroke-width:2;fill:none}
+
+/* ==========================================================================
+   TOAST · MODAL
+   ========================================================================== */
+.toasts{position:fixed;right:var(--space-5);bottom:var(--space-5);z-index:80;
+  display:flex;flex-direction:column;gap:var(--space-2);max-width:min(380px,calc(100vw - 32px))}
+@media (max-width:639px){.toasts{left:var(--space-4);right:var(--space-4);bottom:74px;max-width:none}}
+.toast{display:flex;gap:var(--space-3);padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);
+  background:var(--surface-2);border:1px solid var(--border-strong);box-shadow:var(--shadow);
+  font-size:var(--t-sm);animation:tin .18s ease}
+.toast.ok{border-color:color-mix(in srgb,var(--ok) 55%,transparent)}
+.toast.err{border-color:color-mix(in srgb,var(--err) 55%,transparent)}
+.toast .ic{font-family:var(--mono);font-weight:700;flex:none}
+.toast.ok .ic{color:var(--ok)} .toast.err .ic{color:var(--err)} .toast.info .ic{color:var(--accent)}
+.toast .x{margin-left:auto;background:none;border:0;cursor:pointer;color:var(--faint);padding:0 2px}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}}
+
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:90;display:grid;place-items:center;
+  padding:var(--space-5);animation:fin .15s ease}
+@keyframes fin{from{opacity:0}}
+.modal{background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-lg);
+  max-width:440px;width:100%;padding:var(--space-5);box-shadow:var(--shadow)}
+.modal h3{font-size:var(--t-md);font-weight:650;margin-bottom:var(--space-2)}
+.modal p{color:var(--muted);font-size:var(--t-sm)}
+.modal .acts{display:flex;gap:var(--space-3);justify-content:flex-end;margin-top:var(--space-5)}
+
+/* ==========================================================================
+   LAYOUT RIÊNG TỪNG MÀN
+   ========================================================================== */
+.landing{min-height:calc(100vh - var(--nav-h) - 90px);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;padding:var(--space-7) 0}
+.landing h1{font-size:clamp(26px,5vw,40px);font-weight:650;letter-spacing:-.03em;line-height:1.15}
+.landing .sub{color:var(--muted);margin-top:var(--space-3);font-size:var(--t-base);max-width:52ch}
+.searchbar{display:flex;gap:var(--space-2);width:100%;max-width:560px;margin-top:var(--space-6)}
+.searchbar .input{min-height:48px;font-size:var(--t-base)}
+.hints{display:flex;gap:var(--space-4);flex-wrap:wrap;justify-content:center;margin-top:var(--space-4);
+  font-family:var(--mono);font-size:var(--t-xs);color:var(--muted)}
+.hints button{background:none;border:0;border-bottom:1px dotted var(--border-strong);
+  color:var(--muted);cursor:pointer;padding:0 0 1px;font-family:var(--mono);font-size:var(--t-xs)}
+.hints button:hover{color:var(--accent);border-color:var(--accent)}
+.suggest{margin-top:var(--space-3);width:100%;max-width:560px;text-align:left}
+.landing-foot{margin-top:var(--space-7);font-family:var(--mono);font-size:11px;color:var(--faint);
+  max-width:60ch;line-height:1.7}
+.cols{display:grid;grid-template-columns:1fr;gap:var(--space-5);align-items:start;
+  padding-bottom:var(--space-8)}
+@media (min-width:1024px){
+  .cols.two{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr)}
+  .cols.two > .sticky{position:sticky;top:calc(var(--nav-h) + var(--space-5))}
+}
+.stack > * + *{margin-top:var(--space-5)}
+.grid2{display:grid;grid-template-columns:1fr;gap:var(--space-4)}
+@media (min-width:640px){.grid2{grid-template-columns:1fr 1fr}}
+.src-attrib{font-family:var(--mono);font-size:11px;color:var(--faint);
+  padding:var(--space-2) 0 var(--space-5);display:flex;gap:var(--space-4);flex-wrap:wrap}
+.foot{background:var(--surface);border-top:1px solid var(--border);
+  padding:var(--space-5) 0;margin-top:var(--space-6)}
+.foot .wrap{display:flex;justify-content:space-between;gap:var(--space-5);flex-wrap:wrap;
+  font-family:var(--mono);font-size:11px;color:var(--faint)}
+/* Thanh hành động nằm trong luồng tài liệu, ngay sau nội dung. Không dùng
+   position:sticky vì thanh dính đáy sẽ phủ lên nội dung cuối ở màn hẹp. */
+.sticky-actions{background:var(--surface);border-top:1px solid var(--border);
+  padding:var(--space-4) 0 var(--space-2);display:flex;gap:var(--space-2);
+  flex-wrap:wrap;z-index:20;margin-top:var(--space-5)}
+@media (max-width:639px){
+  .sticky-actions .btn{flex:1 0 calc(50% - var(--space-2))}
+}
+.searchbar .btn{flex:0 0 auto}
+.stat-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:var(--space-3);
+  margin-bottom:var(--space-5)}
+.stat-strip .s{border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);
+  padding:var(--space-3) var(--space-4)}
+.stat-strip .s b{display:block;font-family:var(--mono);font-size:var(--t-lg);font-weight:650;
+  letter-spacing:-.02em;line-height:1.2}
+.stat-strip .s span{font-size:11px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms !important;animation-iteration-count:1 !important;
+    transition-duration:.001ms !important}
+  .track i{transition:none}
+}
+</style>
+</head>
+<body>
+<a class="skiplink" href="#main">Bỏ qua điều hướng</a>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#/"><span class="dot"></span>EXIT RADAR</a>
+    <nav class="nav" id="nav" aria-label="Điều hướng chính"></nav>
+    <div class="topright">
+      <a class="badge" id="modeBadge" href="#/settings" title="Đổi chế độ dữ liệu"></a>
+      <button class="icon-btn" id="themeBtn" aria-label="Đổi giao diện sáng hoặc tối"></button>
+      <a class="icon-btn" href="#/settings" aria-label="Cài đặt" id="settingsLink"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.2M12 19.2v2.2M4.6 12H2.4M21.6 12h-2.2M6.8 6.8 5.2 5.2M18.8 18.8l-1.6-1.6M6.8 17.2l-1.6 1.6M18.8 5.2l-1.6 1.6"/></svg></a>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="wrap" tabindex="-1"></main>
+
+<nav class="bottombar" id="bottombar" aria-label="Điều hướng dưới"></nav>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+<div id="modalHost"></div>
+
+<script>
+/* ==========================================================================
+   EXIT RADAR — Web UI một trang
+   Không tài khoản · không đăng nhập · không thanh toán.
+   Toàn bộ trạng thái nằm trong trình duyệt; chỉ có lời gọi ra CMC API.
+
+   HỢP ĐỒNG DỮ LIỆU — đây là cấu trúc duy nhất mà giao diện đọc.
+   Để nối vào lõi Python, thay `DEMO` bằng kết quả thật của
+   `exitradar scan <token> --json`:
+   {
+     token:  { chain, address, symbol, name, priceUsd, liquidityUsd, holders, poolAgeDays }
+     mode:   'public' | 'full' | 'offline'
+     dims:   { A:{score,max,label,endpoint,applicable}, B.., C.., D.., E.. }
+     reasons:[ { text, value, max, dim, endpoint } ]
+     whale:  { inCount, inUsd, outCount, outUsd, suspiciousPct, verdict }
+     history:[ { at, score, liquidityUsd, holders } ]
+     calls:  [ { path, status, ms } ]
+     fetchedAt: <ISO string>
+   }
+   ========================================================================== */
+
+/* ---------- lưu trữ an toàn: chế độ xem trước có thể chặn localStorage ---------- */
+const Store = (() => {
+  let ok = true;
+  try { localStorage.setItem('__er','1'); localStorage.removeItem('__er'); }
+  catch(e){ ok = false; }
+  const mem = {};
+  return {
+    available: ok,
+    get(k, fb){ try { const v = ok ? localStorage.getItem(k) : mem[k]; return v==null ? fb : JSON.parse(v); }
+                catch(e){ return fb; } },
+    set(k, v){ try { const s = JSON.stringify(v); if(ok) localStorage.setItem(k, s); else mem[k] = s; }
+               catch(e){} },
+    del(k){ try { if(ok) localStorage.removeItem(k); else delete mem[k]; } catch(e){} }
+  };
+})();
+
+/* ---------- hằng số ---------- */
+const LEVELS = {
+  low:      { vn:'Thấp',         cls:'low',  range:'0–24'   },
+  watch:    { vn:'Để mắt',       cls:'watch',range:'25–49'  },
+  high:     { vn:'Cao',          cls:'high', range:'50–74'  },
+  critical: { vn:'Nghiêm trọng', cls:'crit', range:'75–100' }
+};
+const MODES = {
+  public:  { vn:'Công khai', badge:'công khai · 3/5', cls:'',     dims:['A','B','E'],
+             desc:'Không cần key. Chấm được thanh khoản, holder và dòng tiền ví lớn.' },
+  full:    { vn:'Đầy đủ',    badge:'đầy đủ · 5/5',    cls:'full', dims:['A','B','C','D','E'],
+             desc:'Cần key CMC Pro. Chấm 5/5 chiều.' },
+  offline: { vn:'Dữ liệu mẫu', badge:'dữ liệu mẫu',   cls:'off',  dims:['A','B','C','D','E'],
+             desc:'Không gọi mạng. Đọc lại fixtures đã chụp.' }
+};
+const DIM_ORDER = ['A','B','C','D','E'];
+const CHAINS = { solana:'Solana', ethereum:'Ethereum', 'bnb-chain':'BNB Chain', base:'Base', arbitrum:'Arbitrum', polygon:'Polygon' };
+
+const levelOf = s => s >= 75 ? 'critical' : s >= 50 ? 'high' : s >= 25 ? 'watch' : 'low';
+
+/* ---------- định dạng số kiểu Việt Nam: phân cách nghìn bằng dấu chấm ---------- */
+function nf(n, d){
+  d = d || 0;
+  const neg = n < 0; n = Math.abs(n);
+  let s = d > 0 ? n.toFixed(d) : String(Math.round(n));
+  let p = s.split('.');
+  const int = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return (neg ? '−' : '') + int + (p[1] ? ',' + p[1] : '');
+}
+function usd(n){
+  const a = Math.abs(n), sg = n < 0 ? '−' : '';
+  if (a >= 1e9) return sg + '$' + nf(a/1e9, 1) + 'B';
+  if (a >= 1e6) return sg + '$' + nf(a/1e6, 1) + 'M';
+  if (a >= 1e3) return sg + '$' + nf(a/1e3, 0) + 'K';
+  return sg + '$' + nf(a, 0);
+}
+function usdExact(n){ return (n < 0 ? '−' : '') + '$' + nf(Math.abs(n), 0); }
+function price(n){
+  let s = nf(n, 7).replace(/0+$/, '').replace(/,$/, '');
+  return '$' + s;
+}
+function signed(n, d){ return (n > 0 ? '+' : n < 0 ? '−' : '') + nf(Math.abs(n), d || 0); }
+function ago(iso){
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return Math.round(s) + ' giây trước';
+  if (s < 3600) return Math.round(s/60) + ' phút trước';
+  if (s < 86400) return Math.round(s/3600) + ' giờ trước';
+  return Math.round(s/86400) + ' ngày trước';
+}
+function dtime(iso){
+  const d = new Date(iso);
+  const p = x => String(x).padStart(2, '0');
+  return p(d.getDate()) + '/' + p(d.getMonth()+1) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ==========================================================================
+   DỮ LIỆU DEMO — thay bằng lõi thật khi nối API
+   ========================================================================== */
+const iso = (minAgo) => new Date(Date.now() - minAgo*60000).toISOString();
+
+function demoCalls(list){ return list.map(([path,ms,status]) => ({ path, ms, status: status || 200 })); }
+
+const DEMO = {
+  'solana:DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263': {
+    token:{ chain:'solana', address:'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+      symbol:'BONK', name:'Bonk', priceUsd:0.0000231, liquidityUsd:4204118, holders:41208, poolAgeDays:412 },
+    dims:{
+      A:{ score:22, max:30, label:'Thanh khoản', endpoint:'dex/token-liquidity/query · dex/liquidity-change/list', applicable:true },
+      B:{ score:17, max:25, label:'Phân bố holder', endpoint:'dex/holders/list · dex/holders/count', applicable:true },
+      C:{ score:13, max:20, label:'An toàn hợp đồng', endpoint:'dex/security/detail', applicable:true },
+      D:{ score:0,  max:10, label:'Đòn bẩy & thanh lý', endpoint:'v5/derivatives/liquidations/cryptocurrency/list/latest', applicable:false },
+      E:{ score:6,  max:15, label:'Dòng tiền ví lớn', endpoint:'dex/holders/trend/list', applicable:true }
+    },
+    reasons:[
+      { text:'Thanh khoản giảm 34% trong 24h và 58% trong 7 ngày', value:22, max:30, dim:'A' },
+      { text:'Top 10 holder nắm 61% tổng cung', value:17, max:25, dim:'B' },
+      { text:'Hai ví mang nhãn đáng ngờ nắm 9% tổng cung, một ví đang rút', value:6, max:15, dim:'E' }
+    ],
+    whale:{ inCount:3, inUsd:412000, outCount:7, outUsd:1180000, suspiciousPct:9, verdict:'out' },
+    history:[
+      { at:iso(60*24*6), score:41, liquidityUsd:9840000, holders:42880 },
+      { at:iso(60*24*4), score:48, liquidityUsd:7210000, holders:42310 },
+      { at:iso(60*24*2), score:55, liquidityUsd:6380000, holders:41902 },
+      { at:iso(60*30),   score:51, liquidityUsd:5120000, holders:41440 },
+      { at:iso(60*3),    score:64, liquidityUsd:4204118, holders:41208 }
+    ],
+    calls: demoCalls([
+      ['/public-api/v1/dex/search', 118], ['/public-api/v1/dex/token', 96],
+      ['/public-api/v1/dex/token-liquidity/query', 244], ['/public-api/v1/dex/liquidity-change/list', 310],
+      ['/public-api/v1/dex/security/detail', 264], ['/public-api/v1/dex/holders/list', 402],
+      ['/public-api/v1/dex/holders/count', 143], ['/public-api/v1/dex/holders/trend/list', 338],
+      ['/public-api/v1/dex/tokens/transactions', 291], ['/public-api/v1/dex/token/pools', 187]
+    ]),
+    fetchedAt: iso(3)
+  },
+
+  'solana:EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm': {
+    token:{ chain:'solana', address:'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',
+      symbol:'WIF', name:'dogwifhat', priceUsd:1.84, liquidityUsd:12400000, holders:88310, poolAgeDays:688 },
+    dims:{
+      A:{ score:9,  max:30, label:'Thanh khoản', endpoint:'dex/token-liquidity/query', applicable:true },
+      B:{ score:7,  max:25, label:'Phân bố holder', endpoint:'dex/holders/list', applicable:true },
+      C:{ score:7,  max:20, label:'An toàn hợp đồng', endpoint:'dex/security/detail', applicable:true },
+      D:{ score:3,  max:10, label:'Đòn bẩy & thanh lý', endpoint:'v5/derivatives/liquidations/cryptocurrency/list/latest', applicable:true },
+      E:{ score:-5, max:15, label:'Dòng tiền ví lớn', endpoint:'dex/holders/trend/list', applicable:true }
+    },
+    reasons:[
+      { text:'Bốn ví lớn vừa tăng vị thế trong 6 giờ qua', value:-5, max:15, dim:'E' },
+      { text:'Thanh khoản tăng 6% trong 24h, pool khoá 12 tháng', value:9, max:30, dim:'A' },
+      { text:'Top 10 holder nắm 31% tổng cung — mức bình thường', value:7, max:25, dim:'B' }
+    ],
+    whale:{ inCount:4, inUsd:2680000, outCount:1, outUsd:190000, suspiciousPct:0, verdict:'in' },
+    history:[
+      { at:iso(60*24*4), score:26, liquidityUsd:11300000, holders:87120 },
+      { at:iso(60*24*2), score:24, liquidityUsd:11700000, holders:87740 },
+      { at:iso(60*6),    score:22, liquidityUsd:12050000, holders:88010 },
+      { at:iso(60),      score:21, liquidityUsd:12400000, holders:88310 }
+    ],
+    calls: demoCalls([
+      ['/public-api/v1/dex/search', 104], ['/public-api/v1/dex/token', 88],
+      ['/public-api/v1/dex/token-liquidity/query', 231], ['/public-api/v1/dex/security/detail', 258],
+      ['/public-api/v1/dex/holders/list', 366], ['/public-api/v1/dex/holders/trend/list', 402],
+      ['/v1/dex/holders/tag_count', 512], ['/v5/derivatives/liquidations/cryptocurrency/list/latest', 288]
+    ]),
+    fetchedAt: iso(1)
+  },
+
+  'ethereum:0x6982508145454ce325ddbe47a25d4ec3d2311933': {
+    token:{ chain:'ethereum', address:'0x6982508145454ce325ddbe47a25d4ec3d2311933',
+      symbol:'PEPE', name:'Pepe', priceUsd:0.0000098, liquidityUsd:4120000000, holders:212004, poolAgeDays:1102 },
+    dims:{
+      A:{ score:8,  max:30, label:'Thanh khoản', endpoint:'dex/token-liquidity/query', applicable:true },
+      B:{ score:12, max:25, label:'Phân bố holder', endpoint:'dex/holders/list', applicable:true },
+      C:{ score:14, max:20, label:'An toàn hợp đồng', endpoint:'dex/security/detail', applicable:true },
+      D:{ score:0,  max:10, label:'Đòn bẩy & thanh lý', endpoint:'v5/derivatives/liquidations/cryptocurrency/list/latest', applicable:false },
+      E:{ score:7,  max:15, label:'Dòng tiền ví lớn', endpoint:'dex/holders/trend/list', applicable:true }
+    },
+    reasons:[
+      { text:'Hợp đồng không có quyền mint thêm và không có phí chuyển nhượng', value:14, max:20, dim:'C' },
+      { text:'Top 10 holder nắm 44% tổng cung', value:12, max:25, dim:'B' },
+      { text:'Ba ví lớn rút ra tổng $2,1M trong 24h', value:7, max:15, dim:'E' }
+    ],
+    whale:{ inCount:2, inUsd:340000, outCount:5, outUsd:2440000, suspiciousPct:2, verdict:'out' },
+    history:[
+      { at:iso(60*24*5), score:38, liquidityUsd:4360000000, holders:209110 },
+      { at:iso(60*24*3), score:40, liquidityUsd:4280000000, holders:210220 },
+      { at:iso(60*12),   score:39, liquidityUsd:4190000000, holders:211400 },
+      { at:iso(60*2),    score:41, liquidityUsd:4120000000, holders:212004 }
+    ],
+    calls: demoCalls([
+      ['/public-api/v1/dex/search', 121], ['/public-api/v1/dex/token', 92],
+      ['/public-api/v1/dex/token-liquidity/query', 276], ['/public-api/v1/dex/holders/list', 448],
+      ['/public-api/v1/dex/security/detail', 239], ['/public-api/v1/dex/holders/trend/list', 371],
+      ['/public-api/v1/dex/tokens/transactions', 305]
+    ]),
+    fetchedAt: iso(2)
+  },
+
+  'solana:JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN': {
+    token:{ chain:'solana', address:'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
+      symbol:'JUP', name:'Jupiter', priceUsd:0.72, liquidityUsd:41200000, holders:941200, poolAgeDays:604 },
+    dims:{
+      A:{ score:3,  max:30, label:'Thanh khoản', endpoint:'dex/token-liquidity/query', applicable:true },
+      B:{ score:4,  max:25, label:'Phân bố holder', endpoint:'dex/holders/list', applicable:true },
+      C:{ score:6,  max:20, label:'An toàn hợp đồng', endpoint:'dex/security/detail', applicable:true },
+      D:{ score:1,  max:10, label:'Đòn bẩy & thanh lý', endpoint:'v5/derivatives/liquidations/cryptocurrency/list/latest', applicable:true },
+      E:{ score:-3, max:15, label:'Dòng tiền ví lớn', endpoint:'dex/holders/trend/list', applicable:true }
+    },
+    reasons:[
+      { text:'Sáu ví lớn tăng vị thế, dòng ròng vào $1,4M', value:-3, max:15, dim:'E' },
+      { text:'Thanh khoản sâu, trượt giá 0,4% ở lệnh $50K', value:3, max:30, dim:'A' },
+      { text:'Top 10 holder chỉ nắm 22% tổng cung', value:4, max:25, dim:'B' }
+    ],
+    whale:{ inCount:6, inUsd:1620000, outCount:2, outUsd:210000, suspiciousPct:0, verdict:'in' },
+    history:[
+      { at:iso(60*24*3), score:22, liquidityUsd:39800000, holders:938100 },
+      { at:iso(60*24),   score:19, liquidityUsd:40500000, holders:940000 },
+      { at:iso(60*4),    score:18, liquidityUsd:41200000, holders:941200 }
+    ],
+    calls: demoCalls([
+      ['/public-api/v1/dex/search', 99], ['/public-api/v1/dex/token', 84],
+      ['/public-api/v1/dex/token-liquidity/query', 218], ['/public-api/v1/dex/security/detail', 247],
+      ['/public-api/v1/dex/holders/list', 391]
+    ]),
+    fetchedAt: iso(1)
+  },
+
+  /* chỉ chấm được một chiều — dùng để minh hoạ cổng độ phủ 50% */
+  'base:0x4ed4e862860bed51a9570b96d89af5e1b0efefed': {
+    token:{ chain:'base', address:'0x4ed4e862860bed51a9570b96d89af5e1b0efefed',
+      symbol:'DEGEN', name:'Degen', priceUsd:0.0081, liquidityUsd:842000, holders:21400, poolAgeDays:31 },
+    dims:{
+      A:{ score:18, max:30, label:'Thanh khoản', endpoint:'dex/token-liquidity/query', applicable:true },
+      B:{ score:0,  max:25, label:'Phân bố holder', endpoint:'dex/holders/list', applicable:false },
+      C:{ score:0,  max:20, label:'An toàn hợp đồng', endpoint:'dex/security/detail', applicable:false },
+      D:{ score:0,  max:10, label:'Đòn bẩy & thanh lý', endpoint:'v5/derivatives/liquidations/cryptocurrency/list/latest', applicable:false },
+      E:{ score:0,  max:15, label:'Dòng tiền ví lớn', endpoint:'dex/holders/trend/list', applicable:false }
+    },
+    reasons:[],
+    whale:null,
+    history:[],
+    calls:[ { path:'/public-api/v1/dex/search', ms:132, status:200 },
+            { path:'/public-api/v1/dex/token-liquidity/query', ms:289, status:200 },
+            { path:'/public-api/v1/dex/holders/list', ms:1240, status:429 },
+            { path:'/public-api/v1/dex/security/detail', ms:640, status:503 } ],
+    fetchedAt: iso(1)
+  }
+};
+/* ==========================================================================
+   MÔ HÌNH HIỂN THỊ
+   Điểm hiển thị = tổng điểm các chiều áp dụng được, quy về thang 100.
+   Độ phủ = tổng trọng số các chiều áp dụng được → luôn nói rõ đã chấm bao nhiêu.
+   ========================================================================== */
+const LIVE = {};
+function rawOf(key){ return LIVE[key] || DEMO[key] || null; }
+
+/* Cầu nối tới máy chủ nội bộ. Không gọi thẳng CMC được: CMC không gửi
+   header CORS, đã kiểm chứng bằng thực nghiệm. */
+const API = {
+  base: Store.get('er.api', (location.origin && location.origin.indexOf('http') === 0)
+        ? location.origin : 'http://127.0.0.1:8787'),
+  state: { reachable:null, keyProvided:false, lastError:null, stats:null, health:null },
+  url(p){ return String(this.base).replace(/\/$/, '') + p; },
+  key(){ return Store.get('er.key', ''); },
+  headers(){ const h = {'Accept':'application/json'}; const k = this.key(); if (k) h['X-CMC-Key'] = k; return h; },
+  async get(p, ms){
+    const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    const t = setTimeout(() => { if (ctl) ctl.abort(); }, ms || 30000);
+    try {
+      const r = await fetch(this.url(p), { headers: this.headers(), signal: ctl ? ctl.signal : undefined });
+      const j = await r.json().catch(() => null);
+      this.state.reachable = true;
+      return { ok: r.ok, status: r.status, json: j };
+    } catch (e) {
+      this.state.reachable = false;
+      this.state.lastError = String((e && e.message) || e);
+      return { ok:false, status:0, json:null, error:this.state.lastError };
+    } finally { clearTimeout(t); }
+  },
+  async health(){
+    const r = await this.get('/api/health', 9000);
+    this.state.health = r.json || null;
+    if (r.json) this.state.keyProvided = !!r.json.keyProvided;
+    return r;
+  },
+  search(q){ return this.get('/api/search?q=' + encodeURIComponent(q), 20000).then(r => r.json); },
+  scan(chain, address){
+    return this.get('/api/scan?platform=' + encodeURIComponent(chain) + '&address=' + encodeURIComponent(address), 45000);
+  },
+  online(){ return State.mode !== 'offline'; }
+};
+function adopt(key, payload){
+  LIVE[key] = payload;
+  if (!DEMO[key]) DEMO[key] = payload;
+  return payload;
+}
+
+function applyMode(key, mode){
+  const raw = rawOf(key);
+  if (!raw) return null;
+  const allowed = MODES[mode].dims;
+  const dims = {}; let rawSum = 0, maxSum = 0, scored = 0;
+  DIM_ORDER.forEach(k => {
+    const d = raw.dims[k];
+    const ap = !!d.applicable && allowed.indexOf(k) !== -1;
+    dims[k] = Object.assign({}, d, { applicable: ap });
+    if (ap){ rawSum += d.score; maxSum += d.max; scored++; }
+  });
+  const coverage = maxSum;
+  const score = maxSum ? Math.max(0, Math.round(rawSum / maxSum * 100)) : 0;
+  return Object.assign({}, raw, {
+    key, mode, dims, scoreRaw: rawSum, scoreMax: maxSum, coverage, scored,
+    score, level: levelOf(score),
+    reasons: (raw.reasons || []).filter(r => dims[r.dim] && dims[r.dim].applicable)
+  });
+}
+const keyOf = (chain, addr) => chain + ':' + addr;
+const shortAddr = a => a.length > 12 ? a.slice(0,5) + '…' + a.slice(-4) : a;
+
+/* ==========================================================================
+   THANH ĐIỀU HƯỚNG · BADGE
+   ========================================================================== */
+const NAV_ITEMS = [
+  { href:'#/',          label:'Quét',        match:['#/','#/scan'], icon:'M3 11a9 9 0 1 0 18 0a9 9 0 1 0-18 0M11 3v8h8' },
+  { href:'#/watchlist', label:'Theo dõi',    match:['#/watchlist'], icon:'M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6M12 9a3 3 0 1 1 0 6a3 3 0 0 1 0-6' },
+  { href:'#/method',    label:'Phương pháp', match:['#/method'], icon:'M4 19V5h16v14H4m4-4h8M8 11h5' },
+  { href:'#/about',     label:'Về sản phẩm', match:['#/about'], icon:'M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18m0 5h.01M11 12h1v4h1' }
+];
+function renderNav(route){
+  const hit = i => i.match.some(m => route.startsWith(m)) ? ' class="on"' : '';
+  nav.innerHTML = NAV_ITEMS.map(i => '<a href="' + i.href + '"' + hit(i) + '>' + i.label + '</a>').join('');
+  bottombar.innerHTML = NAV_ITEMS.map(i =>
+    '<a href="' + i.href + '"' + hit(i) + ' aria-label="' + i.label + '">' +
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + i.icon + '"/></svg>' +
+    '<span>' + i.label + '</span></a>').join('');
+  const m = MODES[State.mode];
+  modeBadge.className = 'badge ' + m.cls;
+  modeBadge.textContent = m.badge;
+  modeBadge.title = m.desc + ' Bấm để đổi.';
+}
+
+/* ==========================================================================
+   MÀN 1 — QUÉT
+   ========================================================================== */
+const EXAMPLES = ['BONK','WIF','PEPE','JUP'];
+
+function searchIndex(q){
+  q = q.trim().toLowerCase();
+  if (!q) return [];
+  return Object.keys(DEMO).map(k => {
+    const t = rawOf(k).token;
+    return { key:k, chain:t.chain, address:t.address, symbol:t.symbol, name:t.name,
+             liquidityUsd:t.liquidityUsd, holders:t.holders,
+             hit: t.symbol.toLowerCase().indexOf(q) === 0 || t.name.toLowerCase().indexOf(q) === 0 };
+  }).filter(r => r.hit);
+}
+function pickerRow(r, flagged){
+  return '<button class="picker' + (flagged ? ' flag' : '') + '" data-open="' + esc(r.key) + '" type="button">' +
+    '<span class="radio"></span>' +
+    '<span><span class="nm">' + esc(r.symbol) + (flagged ? '<span class="warn">cảnh báo</span>' : '') + '</span><br>' +
+    '<span class="ch">' + esc(CHAINS[r.chain] || r.chain) + '</span></span>' +
+    '<span class="stat">' + usd(r.liquidityUsd) + ' thanh khoản<br>' + nf(r.holders) + ' holder</span></button>';
+}
+
+function viewLanding(){
+  const s = State.landing;
+  const extra = [];
+  if (s === 'idle' || !s) {
+    extra.push(''); // không có gì phụ trợ
+  }
+  if (s === 'suggest' && State.suggest.length === 1) {
+    extra.push('<div class="suggest">' + pickerRow(State.suggest[0], false) + '</div>');
+  }
+  if (s === 'ambiguous') {
+    extra.push('<div class="suggest" style="margin-top:24px">' +
+      '<div class="note-box warn" style="margin-bottom:12px"><span class="ic">!</span>' +
+      '<div>Có ' + State.ambiguous.length + ' token trùng tên <b>' + esc(State.query) + '</b>. ' +
+      'Hệ thống không tự chọn thay bạn. Xếp theo thanh khoản giảm dần.</div></div>' +
+      State.ambiguous.map((r,i) => pickerRow(r, i > 0 && r.liquidityUsd < 100000)).join('') +
+      '</div>');
+  }
+  if (s === 'scanning') {
+    extra.push('<div class="suggest" style="margin-top:28px"><div class="card pad">' +
+      '<div class="card-h">Đang quét ' + esc(State.scanLabel || '') + '</div>' +
+      '<div class="steps" id="scanSteps">' + scanStepsHTML(State.scanStep || 0) + '</div>' +
+      '<div style="margin-top:20px"><button class="btn ghost" id="cancelScan" type="button">Dừng</button></div>' +
+      '</div></div>');
+  }
+  if (s === 'notfound') {
+    extra.push(wrapExtra('<div class="note-box err"><span class="ic">✕</span><div>' +
+      '<b>Không tìm thấy token này.</b> Chuỗi “' + esc(State.query) + '” không khớp token nào trên ' +
+      'các chain đang hỗ trợ. Kiểm tra lại chính tả, hoặc dán trực tiếp địa chỉ hợp đồng.</div></div>' +
+      '<div><a class="btn ghost" href="#/method">Xem chain được hỗ trợ</a></div>'));
+  }
+  if (s === 'ratelimit') {
+    extra.push(wrapExtra('<div class="note-box warn"><span class="ic">⟳</span><div>' +
+      '<b>Đang chờ giới hạn API.</b> CMC trả về 429. Hệ thống tự thử lại sau ' +
+      '<span class="num" id="rlCount">' + (State.rateLeft || 0) + '</span> giây. Bạn không phải làm gì.</div></div>' +
+      '<div><button class="btn" id="useOffline" type="button">Chuyển sang dữ liệu mẫu</button></div>'));
+  }
+  if (s === 'nopool') {
+    extra.push(wrapExtra('<div class="note-box warn"><span class="ic">!</span><div>' +
+      '<b>Token chưa có thanh khoản.</b> Chưa có pool nào cho token này, nên chưa thể chấm điểm cấu trúc. ' +
+      'Quay lại sau khi pool được tạo và có giao dịch.</div></div>' +
+      '<div><button class="btn ghost" id="backIdle" type="button">Quét token khác</button></div>'));
+  }
+  if (s === 'netdown') {
+    extra.push(wrapExtra('<div class="note-box err"><span class="ic">✕</span><div>' +
+      '<b>Không kết nối được tới máy chủ dữ liệu.</b> Kiểm tra mạng, hoặc xem bản chụp sẵn có. ' +
+      'Chế độ dữ liệu mẫu đọc từ fixtures và không cần mạng.</div></div>' +
+      '<div><button class="btn pri" id="useOffline" type="button">Dùng dữ liệu mẫu</button>' +
+      '<button class="btn ghost" id="backIdle" type="button" style="margin-left:8px">Thử lại</button></div>'));
+  }
+
+  return '<section class="landing">' +
+    '<h1>Kiểm tra token trước khi bạn mua</h1>' +
+    '<p class="sub">Cấu trúc thanh khoản, phân bố holder và dòng tiền ví lớn — gộp thành một điểm 0–100 kèm ba lý do rõ ràng.</p>' +
+    '<form class="searchbar" id="searchForm" role="search" autocomplete="off">' +
+      '<label class="sr" for="q">Địa chỉ hợp đồng hoặc symbol</label>' +
+      '<input class="input" id="q" name="q" placeholder="dán địa chỉ contract hoặc gõ symbol" ' +
+        'value="' + esc(State.query || '') + '" spellcheck="false">' +
+      '<button class="btn pri lg" type="submit">Kiểm tra</button>' +
+    '</form>' +
+    '<div class="hints"><span>Ví dụ:</span>' +
+      EXAMPLES.map(x => '<button type="button" data-ex="' + x + '">' + x + '</button>').join('') +
+    '</div>' +
+    extra.join('') +
+    '<p class="landing-foot">Bằng chứng cấu trúc từ dữ liệu công khai. Không phải lời khuyên đầu tư.<br>' +
+      'Dữ liệu: CoinMarketCap API · <a href="#/method">phương pháp chấm điểm</a> · <a href="#/about">giới hạn</a></p>' +
+  '</section>';
+}
+function wrapExtra(inner, acts){
+  return '<div class="suggest" style="margin-top:28px">' + inner +
+    '<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">' + (acts || '') + '</div></div>';
+}
+function scanStepsHTML(step){
+  const steps = ['Định danh token','Thanh khoản','Holder','Hợp đồng','Dòng tiền ví lớn'];
+  return steps.map((s,i) => {
+    const cls = i < step ? 'done' : i === step ? 'run' : '';
+    const mk  = i < step ? '✓' : i === step ? '⋯' : '·';
+    return '<div class="step ' + cls + '"><span class="mark">' + mk + '</span><span>' + s + '</span>' +
+      (i < step ? '<span class="t">xong</span>' : '') + '</div>';
+  }).join('');
+}
+
+/* ==========================================================================
+   MÀN 2 — KẾT QUẢ QUÉT
+   ========================================================================== */
+function coverageBlock(v){
+  const c = v.coverage;
+  const muted = v.scored < 5;
+  return '<div class="v-cov">độ phủ dữ liệu<br><b>' + c + '% · ' + v.scored + '/5 chiều</b>' +
+    '<div class="track"><i data-w="' + c + '"' + (muted ? '' : '') + '></i></div></div>';
+}
+function meterHTML(k, d){
+  if (!d.applicable) {
+    return '<div class="meter na"><div class="head"><span class="key">' + k + '</span>' +
+      '<span class="name">' + esc(d.label) + '</span>' +
+      '<span class="val">không áp dụng</span></div>' +
+      '<div class="track"></div>' +
+      '<span class="ep">' + esc(d.endpoint) + '</span></div>';
+  }
+  const pct = d.max ? Math.round((d.score / d.max) * 100) : 0;
+  const col = pct >= 70 ? 'var(--risk-high)' : pct >= 45 ? 'var(--risk-watch)' : 'var(--risk-low)';
+  const shown = d.score < 0 ? signed(d.score) + ' / ' + d.max : d.score + ' / ' + d.max;
+  return '<div class="meter"><div class="head"><span class="key">' + k + '</span>' +
+    '<span class="name">' + esc(d.label) + '</span>' +
+    '<span class="val">' + shown + '</span></div>' +
+    '<div class="track"><i data-w="' + Math.max(0,pct) + '" style="background:' + col + '"></i></div>' +
+    '<span class="ep">' + esc(d.endpoint) + '</span></div>';
+}
+function whaleHTML(w){
+  if (!w) return '';
+  const out = w.verdict === 'out';
+  return '<div class="flow"><div class="card-h" style="margin-bottom:8px">Dòng tiền ví lớn · mẫu ' + (w.sampled || 0) + ' lệnh' +
+      (w.windowMinutes ? ' trong ' + Math.round(w.windowMinutes) + ' phút gần nhất' : '') + '</div>' +
+    '<div class="row"><span class="k">Holder lớn tăng vị thế</span><span class="lead"></span>' +
+      '<span class="v neg">' + w.inCount + ' ví · +' + usdExact(w.inUsd).replace('+','') + '</span></div>' +
+    '<div class="row"><span class="k">Holder lớn giảm vị thế</span><span class="lead"></span>' +
+      '<span class="v pos">' + w.outCount + ' ví · −' + usdExact(w.outUsd).replace('−','') + '</span></div>' +
+    '<div class="row"><span class="k">Ví bán lớn nhất chiếm</span><span class="lead"></span>' +
+      '<span class="v">' + w.suspiciousPct + '% giá trị bán trong mẫu</span></div>' +
+    '<div class="row"><span class="k">Lệnh gắn cờ bundle/bot</span><span class="lead"></span>' +
+      '<span class="v">' + (w.bundles || 0) + ' / ' + (w.sampled || 0) + '</span></div>' +
+    '<p class="caveat">Trong mẫu này dòng tiền <b>' + (out ? 'đang rút ra' : 'đang vào') + '</b> · ròng ' +
+      (out ? '−' : '+') + usdExact(Math.abs(w.outUsd - w.inUsd)).replace('−','').replace('+','') +
+      '. Đây là cơ sở của chiều E — và là mẫu, không phải tổng 24h.</p></div>';
+}
+/* ==========================================================================
+   TẦNG BẰNG CHỨNG — mỗi kết luận phải kèm số liệu tra được
+   Nguyên tắc: không có bảng số liệu thì không có kết luận.
+   ========================================================================== */
+const EXPL = {
+  'solana':    ['https://solscan.io/tx/',        'https://solscan.io/account/'],
+  'ethereum':  ['https://etherscan.io/tx/',      'https://etherscan.io/address/'],
+  'bnb-chain': ['https://bscscan.com/tx/',       'https://bscscan.com/address/'],
+  'base':      ['https://basescan.org/tx/',      'https://basescan.org/address/'],
+  'arbitrum':  ['https://arbiscan.io/tx/',       'https://arbiscan.io/address/']
+};
+function txURL(chain, tx){ const e = EXPL[chain]; return (e && tx) ? e[0] + tx : null; }
+function acctURL(chain, a){ const e = EXPL[chain]; return (e && a) ? e[1] + a : null; }
+
+function addrHTML(a, url){
+  if (!a) return '<span class="muted">—</span>';
+  const s = String(a).length > 20 ? String(a).slice(0,8) + '…' + String(a).slice(-6) : String(a);
+  const inner = '<span class="addr" title="' + esc(a) + '">' + esc(s) + '</span>';
+  return url ? '<a class="addr-link" href="' + esc(url) + '" target="_blank" rel="noopener">' + inner + '</a>' : inner;
+}
+function tsShort(ms){
+  if (!ms) return '—';
+  const d = new Date(Number(ms)), p = n => (n < 10 ? '0' : '') + n;
+  return p(d.getDate()) + '/' + p(d.getMonth() + 1) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function pctHTML(x){
+  if (x === null || x === undefined) return '—';
+  return nf(x > 1.5 ? x : x * 100, 2) + '%';
+}
+function evTable(head, rows){
+  return '<div class="ev-wrap"><table class="ev-table"><thead><tr>' +
+    head.map(h => '<th' + (h.r ? ' class="r"' : '') + '>' + esc(h.t) + '</th>').join('') +
+    '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
+}
+function shareBar(x){
+  const w = Math.max(2, Math.min(100, (x || 0) * 100));
+  return '<span class="sharebar"><i style="width:' + w.toFixed(1) + '%"></i></span>';
+}
+
+/* Biểu đồ thanh khoản: dữ liệu gốc chỉ là SỰ KIỆN thay đổi, nên phải lùi từ
+   mức hiện tại qua từng sự kiện. Sai số tích luỹ về quá khứ — có ghi rõ. */
+function liqChart(evts, tlu){
+  const ev = (evts || []).filter(e => e && e.ts && e.usd).sort((a,b) => a.ts - b.ts);
+  if (ev.length < 2 || !tlu) return '';
+  let cur = tlu;
+  const pts = [{ t: Date.now(), v: tlu }];
+  for (let i = ev.length - 1; i >= 0; i--){
+    const ch = (ev[i].side === 'remove' ? -1 : 1) * Math.abs(ev[i].usd);
+    cur = Math.max(0, cur - ch);
+    pts.unshift({ t: ev[i].ts, v: cur });
+  }
+  const W = 640, H = 170, PL = 8, PR = 8, PT = 16, PB = 20;
+  const vs = pts.map(p => p.v), mn = Math.min.apply(null, vs), mx = Math.max.apply(null, vs), span = (mx - mn) || 1;
+  const x = i => PL + (W - PL - PR) * (i / (pts.length - 1));
+  const y = v => PT + (H - PT - PB) * (1 - (v - mn) / span);
+  const line = pts.map((p,i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
+  const area = line + ' L' + x(pts.length-1).toFixed(1) + ' ' + (H-PB) + ' L' + PL + ' ' + (H-PB) + ' Z';
+  const rm = ev.filter(e => e.side === 'remove').reduce((a,e) => a + Math.abs(e.usd), 0);
+  const ad = ev.filter(e => e.side === 'add').reduce((a,e) => a + Math.abs(e.usd), 0);
+  return '<div class="card pad"><div class="card-h">Thanh khoản dựng lại từ ' + ev.length +
+      ' sự kiện thêm/rút · hiện tại ' + usd(tlu) + '</div>' +
+    '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Thanh khoản dựng lại theo thời gian">' +
+      '<path d="' + area + '" fill="currentColor" opacity="0.10"></path>' +
+      '<path d="' + line + '" fill="none" stroke="currentColor" stroke-width="2"></path>' +
+    '</svg>' +
+    '<div class="legend"><span><i style="background:currentColor;opacity:.5"></i>đường dựng lại</span>' +
+      '<span>+' + usd(ad) + ' thêm vào</span><span>−' + usd(rm) + ' rút ra</span>' +
+      '<span>thấp nhất ' + usd(mn) + ' · cao nhất ' + usd(mx) + '</span></div>' +
+    '<p class="caveat">Dữ liệu gốc là <b>sự kiện thay đổi</b>, không phải ảnh chụp thanh khoản theo thời gian. ' +
+      'Đường này lùi từ mức hiện tại ' + usd(tlu) + ' qua từng sự kiện, nên càng về quá khứ càng nhiều sai số.</p></div>';
+}
+
+function flowChart(rows){
+  const rs = (rows || []).filter(r => r && r.ts && r.usd);
+  if (rs.length < 4) return '';
+  const bk = {};
+  rs.forEach(r => {
+    const k = Math.floor(r.ts / 900000) * 900000;
+    const b = bk[k] || (bk[k] = { buy:0, sell:0 });
+    if (r.side === 'sell') b.sell += r.usd; else b.buy += r.usd;
+  });
+  const ks = Object.keys(bk).map(Number).sort((a,b) => a - b);
+  const W = 640, H = 150, PT = 12, PB = 22;
+  const mx = Math.max.apply(null, ks.map(k => Math.max(bk[k].buy, bk[k].sell))) || 1;
+  const bw = (W - 16) / ks.length;
+  let bars = '';
+  ks.forEach((k,i) => {
+    const b = bk[k], hb = (H - PT - PB) * (b.buy / mx), hs = (H - PT - PB) * (b.sell / mx), x = 8 + i * bw;
+    if (hb > 0.4) bars += '<rect x="' + x.toFixed(1) + '" y="' + (H-PB-hb).toFixed(1) + '" width="' + Math.max(1, bw*0.42).toFixed(1) + '" height="' + hb.toFixed(1) + '" fill="var(--risk-low)" opacity=".85"></rect>';
+    if (hs > 0.4) bars += '<rect x="' + (x + bw*0.45).toFixed(1) + '" y="' + (H-PB-hs).toFixed(1) + '" width="' + Math.max(1, bw*0.42).toFixed(1) + '" height="' + hs.toFixed(1) + '" fill="var(--risk-high)" opacity=".85"></rect>';
+  });
+  return '<div class="card pad"><div class="card-h">Mua/bán theo khung 15 phút · ' + rs.length + ' lệnh gần nhất</div>' +
+    '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Khối lượng mua bán theo khung 15 phút">' +
+      bars + '<line x1="0" y1="' + (H-PB) + '" x2="' + W + '" y2="' + (H-PB) + '" stroke="currentColor" opacity=".25"></line>' +
+    '</svg>' +
+    '<div class="legend"><span><i style="background:var(--risk-low)"></i>mua</span>' +
+      '<span><i style="background:var(--risk-high)"></i>bán</span>' +
+      '<span>khung lớn nhất ' + usdExact(mx) + '</span></div>' +
+    '<p class="caveat">Mỗi cột là tổng giá trị USD trong một khung 15 phút. Đây là màu của <b>chiều dòng tiền</b>, ' +
+      'không phải mức rủi ro — thang rủi ro bốn bậc nằm ở cột trái.</p></div>';
+}
+
+function evidenceHTML(v){
+  const p = v.proof;
+  const t = v.token;
+  if (!p) return '';
+  const out = [];
+
+  /* ---------- A · pool + sự kiện thanh khoản ---------- */
+  const pools = p.pools || [], evts = p.liqEvents || [];
+  if (pools.length){
+    const rows = pools.slice(0, 12).map(x =>
+      '<tr><td>' + addrHTML(x.address, x.url) + '</td>' +
+      '<td>' + esc(x.exchange || '—') + '</td>' +
+      '<td class="n">' + usdExact(x.liqUsd) + '</td>' +
+      '<td class="n">' + pctHTML(x.share) + ' ' + shareBar(x.share) + '</td>' +
+      '<td>' + (x.base ? esc(x.base) + ' / ' + esc(x.quote || '') : '—') + '</td>' +
+      '<td class="n">' + (x.createdAt ? Math.round((Date.now() - x.createdAt) / 86400000) + ' ngày' : '—') + '</td>' +
+      '<td>' + (x.primary ? 'pool chính' : '—') + '</td></tr>');
+    out.push('<div class="ev-sec"><h3>' + (v.dims.A.applicable ? v.dims.A.score + '/' + v.dims.A.max + ' · ' : '') +
+      'A · Từng pool một, không phải một con số tổng</h3>' +
+      '<p class="sub">' + pools.length + ' pool · tổng thanh khoản ' + usd(t.liquidityUsd) +
+      '. Bấm địa chỉ để mở explorer — mỗi dòng kiểm chứng được độc lập.</p>' +
+      evTable([{t:'Địa chỉ pool'},{t:'Sàn'},{t:'Thanh khoản',r:1},{t:'Tỷ trọng',r:1},{t:'Cặp'},{t:'Tạo cách đây',r:1},{t:''}], rows) +
+      '</div>');
+  }
+  if (evts.length){
+    const rows = evts.slice(0, 12).map(e =>
+      '<tr><td class="n">' + tsShort(e.ts) + '</td>' +
+      '<td class="' + (e.side === 'remove' ? 'side-sell' : 'side-buy') + '">' + (e.side === 'remove' ? 'rút ra' : 'thêm vào') + '</td>' +
+      '<td class="n">' + usdExact(e.usd) + '</td>' +
+      '<td>' + esc(e.pool || '—') + '</td>' +
+      '<td>' + (e.rawType ? '<span class="addr">' + esc(e.rawType) + '</span>' : '—') + '</td>' +
+      '<td>' + addrHTML(e.tx, e.url) + '</td></tr>');
+    out.push('<div class="ev-sec"><h3>Sự kiện thêm/rút thanh khoản · ' + evts.length + ' sự kiện gần nhất</h3>' +
+      '<p class="sub">Đây là căn cứ trực tiếp của điểm A. Mã giao dịch mở được trên explorer.</p>' +
+      evTable([{t:'Thời điểm',r:1},{t:'Chiều'},{t:'Giá trị',r:1},{t:'Pool'},{t:'Loại'},{t:'Mã giao dịch'}], rows) +
+      liqChart(evts, t.liquidityUsd) + '</div>');
+  }
+
+  /* ---------- B · top holder ---------- */
+  const B = v.dims.B, be = B._ev || {};
+  const ht = p.holdersTop || be.top_holders || null;
+  const hm = p.holdersMeta || {};
+  if (ht && ht.length){
+    const rows = ht.slice(0, 10).map((h,i) =>
+      '<tr><td class="n">' + (i+1) + '</td>' +
+      '<td>' + addrHTML(h.wallet, h.url) + '</td>' +
+      '<td class="n">' + pctHTML(h.percent) + '</td>' +
+      '<td class="n">' + (h.balance === null || h.balance === undefined ? '—' : nf(h.balance, 0)) + '</td>' +
+      '<td class="n">' + usdExact(h.buyUsd) + '</td>' +
+      '<td class="n">' + usdExact(h.sellUsd) + '</td>' +
+      '<td class="n">' + (h.realizedPnl === null || h.realizedPnl === undefined ? '—' : usdExact(h.realizedPnl)) + '</td>' +
+      '<td>' + (h.fundingSource ? '<span class="addr">' + esc(String(h.fundingSource).slice(0,12)) + '</span>' : '—') + '</td>' +
+      '<td>' + (h.name ? esc(h.name) + ' ' : '') + (h.tags ? esc(String(h.tags)).slice(0,22) : (h.name ? '' : '—')) + '</td></tr>');
+    out.push('<div class="ev-sec"><h3>' + v.dims.B.score + '/' + v.dims.B.max +
+      ' · B · Top ' + rows.length + ' holder: ví nào, bao nhiêu, đã mua bán gì</h3>' +
+      '<p class="sub">Nguồn <span class="addr">dex/holders/list</span>' +
+        (hm.shape ? ' · dạng tham số chạy được: ' + esc(Object.keys(hm.shape).join('+')) : '') +
+        '. Mỗi ví có số dư, phần trăm tổng cung, USD đã mua/bán, lãi/lỗ đã thực hiện và nguồn cấp vốn.</p>' +
+      evTable([{t:'#'},{t:'Ví'},{t:'% cung',r:1},{t:'Số dư',r:1},{t:'Đã mua',r:1},{t:'Đã bán',r:1},{t:'Lãi/lỗ',r:1},{t:'Nguồn vốn'},{t:'Nhãn'}], rows) +
+      '</div>');
+  } else {
+    out.push('<div class="ev-sec"><h3>B · Danh sách holder top</h3>' +
+      '<div class="gate"><b>Chưa lấy được bảng holder.</b> ' +
+      '<span class="addr">dex/holders/list</span> là POST và bộ ẩn danh của CMC chặn nó — đã thử ' +
+      ((hm.tried || []).length || 4) + ' dạng tham số, tất cả trả <span class="addr">' + (hm.status || 400) + '</span>. ' +
+      'Cắm key CMC Pro là bảng này hiện đủ: địa chỉ ví, % tổng cung, số dư, USD đã mua/bán, lãi/lỗ đã thực hiện, ' +
+      'nguồn cấp vốn, nhãn và 4 cờ rủi ro (blacklist · meme-pump · thanh khoản mỏng · mức rủi ro).</div>' +
+      '<p class="sub" style="margin-top:10px">Số liệu đang có: ' + nf(be.holders || t.holders || 0) + ' holder' +
+        (be.holders_per_mcap_m ? ' · ' + nf(be.holders_per_mcap_m, 1) + ' holder mỗi triệu USD vốn hoá' : '') +
+        (be.dilution ? ' · tổng cung gấp ' + nf(be.dilution, 2) + ' lần cung lưu hành' : '') + '</p></div></div>');
+  }
+
+  /* ---------- E · ví lớn + lệnh thô ---------- */
+  const w = v.whale, rows = (w && w.rows) || [];
+  if (rows.length){
+    const wsp = (w.wallets || []).slice(0, 10).map(d =>
+      '<tr><td>' + addrHTML(d.wallet, acctURL(t.chain, d.wallet)) + '</td>' +
+      '<td class="n">' + usdExact(d.buyUsd) + '</td>' +
+      '<td class="n">' + usdExact(d.sellUsd) + '</td>' +
+      '<td class="n">' + signed(d.buyUsd - d.sellUsd) + '</td>' +
+      '<td class="n">' + d.txs + '</td>' +
+      '<td>' + (d.bundle ? '<span class="warn">bundle/bot</span>' : '—') + '</td>' +
+      '<td class="n">' + tsShort(d.lastTs) + '</td></tr>');
+    const sw = rows.slice(0, 15).map(r =>
+      '<tr><td class="n">' + tsShort(r.ts) + '</td>' +
+      '<td>' + addrHTML(r.wallet, acctURL(t.chain, r.wallet)) + '</td>' +
+      '<td class="' + (r.side === 'sell' ? 'side-sell' : 'side-buy') + '">' + (r.side === 'sell' ? 'bán' : 'mua') + '</td>' +
+      '<td class="n">' + usdExact(r.usd) + '</td>' +
+      '<td class="n">' + (r.amount === null || r.amount === undefined ? '—' : nf(r.amount, 2)) + '</td>' +
+      '<td>' + esc(r.exchange || '—') + '</td>' +
+      '<td>' + (r.bundle ? '<span class="warn">bundle</span>' : '—') + '</td>' +
+      '<td>' + addrHTML(r.tx, txURL(t.chain, r.tx)) + '</td></tr>');
+    out.push('<div class="ev-sec"><h3>' + v.dims.E.score + '/' + v.dims.E.max +
+      ' · E · ' + (w.wallets || []).length + ' ví trong mẫu ' + (w.sampled || rows.length) + ' lệnh' +
+      (w.windowMinutes ? ' (' + Math.round(w.windowMinutes) + ' phút gần nhất)' : '') + '</h3>' +
+      '<div class="note-box warn" style="margin-bottom:12px"><span class="ic">!</span><div>' +
+      '<b>Đây là mẫu, không phải tổng 24h.</b> Endpoint chỉ trả ~20 lệnh mỗi trang, hệ thống lấy ' +
+      (v.window ? v.window.swapPages : 1) + ' trang. Cửa sổ thời gian thực tế của mẫu là ' +
+      (w.windowMinutes ? Math.round(w.windowMinutes) + ' phút' : 'chưa xác định') +
+      ' — không được đọc như số liệu cả ngày.</div></div>' +
+      evTable([{t:'Ví'},{t:'Đã mua',r:1},{t:'Đã bán',r:1},{t:'Ròng',r:1},{t:'Lệnh',r:1},{t:'Dấu hiệu'},{t:'Lần cuối',r:1}], wsp) +
+      '<p class="sub" style="margin-top:16px">Lệnh thô gần nhất — mỗi dòng có mã giao dịch mở được trên explorer:</p>' +
+      evTable([{t:'Thời điểm',r:1},{t:'Ví'},{t:'Chiều'},{t:'Giá trị USD',r:1},{t:'Số token',r:1},{t:'Sàn'},{t:'Dấu hiệu'},{t:'Mã giao dịch'}], sw) +
+      flowChart(rows) + '</div>');
+  }
+
+  if (!out.length) return '';
+  return '<div class="card pad"><div class="card-h">Bằng chứng · số liệu tra được cho từng kết luận</div>' +
+    '<p class="caveat" style="margin-bottom:14px">Mọi con số dưới đây đến từ dữ liệu CMC trả về trong lần quét này. ' +
+    'Địa chỉ ví, pool và mã giao dịch đều mở được trên explorer để bạn tự kiểm chứng. ' +
+    'Chỗ nào chưa lấy được thì nói rõ chưa lấy được, không suy diễn.</p>' +
+    out.join('') + '</div>';
+}
+
+function logHTML(calls){
+  const total = calls.reduce((a,c) => a + c.ms, 0);
+  return '<details class="logbox"><summary>Endpoint đã gọi · ' + calls.length + ' lời gọi · ' +
+    nf(total/1000, 1) + 's</summary><div class="logbody">' +
+    calls.map(c => '<div class="logline"><span class="path">' + esc(c.path) + '</span>' +
+      '<span class="st' + (c.status >= 400 ? ' bad' : '') + '">' + c.status + '</span>' +
+      '<span class="ms">' + c.ms + 'ms</span></div>').join('') +
+    '<p class="field-help" style="margin-top:12px">Mọi lời gọi đều đi qua một client duy nhất. ' +
+    'Nhật ký đầy đủ ở <a href="#/evidence">trang minh bạch</a>.</p></div></details>';
+}
+function actionsHTML(v, inWatch){
+  return '<div class="sticky-actions">' +
+    '<button class="btn pri" id="watchBtn" type="button"' + (inWatch ? ' aria-disabled="true"' : '') + '>' +
+      (inWatch ? '✓ Đang theo dõi' : 'Theo dõi') + '</button>' +
+    '<button class="btn" id="rerunBtn" type="button">Chạy lại</button>' +
+    '<button class="btn ghost" id="copyBtn" type="button">Sao chép liên kết</button>' +
+    '<a class="btn ghost" href="#/settings">Đổi chế độ dữ liệu</a>' +
+  '</div>';
+}
+
+function viewResult(chain, addr){
+  const key = keyOf(chain, addr);
+  const v = applyMode(key, State.mode);
+  if (!v) {
+    return '<div class="page-h"><h1>Không có kết quả cho token này</h1></div>' +
+      '<div class="empty"><h3>Chưa quét token này</h3>' +
+      '<p>Liên kết bạn mở không có trong dữ liệu cục bộ. Quét lại để tạo kết quả mới.</p>' +
+      '<a class="btn pri" href="#/">Quét token</a></div>';
+  }
+  const t = v.token;
+  const inWatch = State.watch.some(w => w.key === v.key);
+  const lowCoverage = v.coverage < 50;
+
+  /* thẻ kết luận — hoặc thay hẳn khi độ phủ dưới 50% (trạng thái 5) */
+  let verdictCard;
+  if (lowCoverage) {
+    verdictCard = '<div class="verdict none"><div class="v-top" style="align-items:flex-start">' +
+      '<div><div class="v-lvl none">Không đủ dữ liệu</div>' +
+      '<div style="font-size:var(--t-md);font-weight:600;margin-top:4px">Không đủ dữ liệu để kết luận</div>' +
+      '<p style="color:var(--muted);font-size:var(--t-sm);margin-top:8px;max-width:52ch">' +
+      'Chỉ chấm được ' + v.scored + '/5 chiều (' + v.coverage + '% trọng số). ' +
+      'Một điểm số dựng trên từng này dữ liệu sẽ trông chắc chắn hơn thực tế, nên hệ thống không đưa ra điểm.</p></div>' +
+      coverageBlock(v) + '</div>' +
+      '<div class="v-reasons"><div class="row"><span class="k">Lấy được</span><span class="lead"></span>' +
+      '<span class="v">' + DIM_ORDER.filter(k => v.dims[k].applicable).map(k => k + ' · ' + v.dims[k].label).join(', ') + '</span></div>' +
+      '<div class="row"><span class="k">Không lấy được</span><span class="lead"></span>' +
+      '<span class="v">' + (DIM_ORDER.filter(k => !v.dims[k].applicable).map(k => k + ' · ' + v.dims[k].label).join(', ') || '—') + '</span></div>' +
+      '<div class="row"><span class="k">Đã thử</span><span class="lead"></span>' +
+      '<span class="v">' + v.calls.length + ' lời gọi · ' + v.calls.filter(c => c.status >= 400).length + ' lỗi</span></div>' +
+      '</div></div>';
+  } else {
+    const L = LEVELS[v.level];
+    verdictCard = '<div class="verdict ' + L.cls + '"><div class="v-top">' +
+      '<div><div class="v-lvl ' + L.cls + '">' + L.vn + '</div>' +
+      '<div class="v-score">' + v.score + '</div></div>' +
+      coverageBlock(v) + '</div>' +
+      '<div class="v-reasons">' +
+      (v.reasons.length
+        ? v.reasons.map((r,i) => {
+            const neg = r.value < 0;
+            return '<div class="reason' + (neg ? ' neg' : '') + '"><span class="n">' + (i+1) + '</span>' +
+              '<span class="t">' + esc(r.text) +
+              '<span class="src">' + r.dim + ' · ' + esc(v.dims[r.dim].endpoint) + '</span></span>' +
+              '<span class="v">' + signed(r.value) + ' / ' + r.max + '</span></div>';
+          }).join('')
+        : '<div class="reason"><span class="t">Chưa có lý do nào vượt ngưỡng đáng kể.</span></div>') +
+      '</div></div>';
+  }
+
+  /* trạng thái 4 và 6 */
+  const missing = DIM_ORDER.filter(k => !v.dims[k].applicable);
+  const notices = [];
+  if (!lowCoverage && missing.length) {
+    notices.push('<div class="note-box"><span class="ic">i</span><div>' +
+      '<b>' + missing.length + ' chiều không áp dụng.</b> ' +
+      (State.mode === 'public'
+        ? 'Chế độ công khai chỉ chấm 3/5 chiều. Bật chế độ đầy đủ để chấm thêm ' + missing.join(', ') + '.'
+        : missing.map(k => k + ' · ' + v.dims[k].label + ' (' + v.dims[k].endpoint + ')').join(' · ')) +
+      '<div class="acts">' +
+      (State.mode === 'public' ? '<a class="btn sm" href="#/settings">Bật chế độ đầy đủ</a>' : '') +
+      '</div></div></div>');
+  }
+  if (State.mode === 'public') {
+    notices.push('<div class="note-box info"><span class="ic">◇</span><div>' +
+      '<b>Đang ở chế độ công khai.</b> Không cần key, chấm 3/5 chiều. ' +
+      'Dán key CMC Pro trong Cài đặt để mở thêm chiều D và E.' +
+      '<div class="acts"><a class="btn sm pri" href="#/settings">Bật chế độ đầy đủ</a></div></div></div>');
+  }
+  if (State.mode === 'offline') {
+    notices.push('<div class="note-box warn"><span class="ic">!</span><div>' +
+      '<b>Đang dùng dữ liệu mẫu.</b> Số liệu là bản chụp lúc ' + dtime(v.fetchedAt) +
+      ', không phải dữ liệu sống.</div></div>');
+  }
+
+  return '<div class="page-h">' +
+      '<div><div class="crumb"><a href="#/">Quét</a><span>/</span><span>' + esc(CHAINS[t.chain] || t.chain) +
+        '</span><span>/</span><span>' + esc(shortAddr(t.address)) + '</span></div>' +
+      '<h1>' + esc(t.symbol) + ' <span style="color:var(--faint);font-weight:400">· ' +
+        esc(CHAINS[t.chain] || t.chain) + '</span></h1>' +
+      '<div class="sub num">' + esc(t.name) + ' · ' + price(t.priceUsd) + ' · thanh khoản ' +
+        usd(t.liquidityUsd) + ' · ' + nf(t.holders) + ' holder</div></div>' +
+      '<div class="right"><span class="badge ' + MODES[State.mode].cls + '">' + MODES[State.mode].badge + '</span></div>' +
+    '</div>' +
+    '<div class="src-attrib"><span>Dữ liệu: CoinMarketCap API</span>' +
+      '<span>' + v.calls.length + ' lời gọi</span><span>cập nhật ' + ago(v.fetchedAt) + '</span>' +
+      '<span>chế độ ' + MODES[State.mode].vn.toLowerCase() + '</span></div>' +
+    '<div class="cols two"><div class="stack sticky">' + verdictCard + notices.join('') + '</div>' +
+      '<div class="stack">' + whaleHTML(v.whale) +
+        '<div class="card pad"><div class="card-h">5 chiều chấm điểm</div>' +
+          DIM_ORDER.map(k => meterHTML(k, v.dims[k])).join('') +
+          '<div class="row" style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">' +
+            '<span class="k">Tổng điểm thô</span><span class="lead"></span>' +
+            '<span class="v">' + v.scoreRaw + ' / ' + v.scoreMax + '</span></div>' +
+          '<div class="row"><span class="k">Quy về thang 100</span><span class="lead"></span>' +
+            '<span class="v">' + v.score + '</span></div>' +
+        '</div>' +
+        historyBlock(v) + logHTML(v.calls) +
+      '</div></div>' +
+    '<div class="stack" style="margin-top:28px">' + evidenceHTML(v) + '</div>' +
+    actionsHTML(v, inWatch);
+}
+function historyBlock(v){
+  const h = v.history || [];
+  if (h.length < 2) return '';
+  const prev = h[h.length - 2], last = h[h.length - 1];
+  const d = last.score - prev.score;
+  return '<div class="card pad"><div class="card-h">So với lần quét trước · ' + dtime(prev.at) + '</div>' +
+    '<div class="row"><span class="k">Điểm</span><span class="lead"></span>' +
+      '<span class="v">' + prev.score + ' → ' + last.score + ' (' + signed(d) + ')</span></div>' +
+    '<div class="row"><span class="k">Thanh khoản</span><span class="lead"></span>' +
+      '<span class="v">' + usd(last.liquidityUsd) + '</span></div>' +
+    '<div class="row"><span class="k">Holder</span><span class="lead"></span>' +
+      '<span class="v">' + nf(last.holders) + '</span></div>' +
+    '<a class="btn sm ghost" style="margin-top:12px" href="#/watchlist/' + esc(v.key) + '">Xem lịch sử đầy đủ</a>' +
+  '</div>';
+}
+/* ==========================================================================
+   DỮ LIỆU DEMO BỔ SUNG — token nhỏ, ít dữ liệu (minh hoạ cổng độ phủ)
+   Toàn bộ số liệu trong tệp này là hư cấu, trừ bốn token phổ biến ở trên.
+   ========================================================================== */
+DEMO['solana:PEPEsol1111111111111111111111111111111111'] = {
+  token:{ chain:'solana', address:'PEPEsol1111111111111111111111111111111111', symbol:'PEPE', name:'Pepe (Solana)',
+    priceUsd:0.00041, liquidityUsd:1200000, holders:3140, poolAgeDays:64 },
+  dims:{
+    A:{ score:9, max:30, label:'Thanh khoản', endpoint:'dex/token-liquidity/query', applicable:true },
+    B:{ score:4, max:25, label:'Phân bố holder', endpoint:'dex/holders/list', applicable:true },
+    C:{ score:0, max:20, label:'An toàn hợp đồng', endpoint:'dex/security/detail', applicable:false },
+    D:{ score:0, max:10, label:'Đòn bẩy & thanh lý', endpoint:'v5/derivatives/liquidations/cryptocurrency/list/latest', applicable:false },
+    E:{ score:0, max:15, label:'Dòng tiền ví lớn', endpoint:'dex/holders/trend/list', applicable:false }
+  },
+  reasons:[ { text:'Thanh khoản mỏng: trượt giá 6,4% ở lệnh $10K', value:9, max:30, dim:'A' },
+            { text:'Chỉ 3.140 holder, top 10 nắm 78% tổng cung', value:4, max:25, dim:'B' } ],
+  whale:null, history:[],
+  calls:[ { path:'/public-api/v1/dex/search', ms:108, status:200 },
+          { path:'/public-api/v1/dex/token-liquidity/query', ms:271, status:200 },
+          { path:'/public-api/v1/dex/holders/list', ms:318, status:200 },
+          { path:'/public-api/v1/dex/security/detail', ms:820, status:404 },
+          { path:'/public-api/v1/dex/holders/trend/list', ms:690, status:404 } ],
+  fetchedAt: iso(4)
+};
+DEMO['bnb-chain:PEPE2bnb11111111111111111111111111111'] = {
+  token:{ chain:'bnb-chain', address:'PEPE2bnb11111111111111111111111111111', symbol:'PEPE 2.0', name:'Pepe 2.0',
+    priceUsd:0.0000042, liquidityUsd:84000, holders:412, poolAgeDays:9 },
+  dims:{
+    A:{ score:14, max:30, label:'Thanh khoản', endpoint:'dex/token-liquidity/query', applicable:true },
+    B:{ score:0, max:25, label:'Phân bố holder', endpoint:'dex/holders/list', applicable:false },
+    C:{ score:0, max:20, label:'An toàn hợp đồng', endpoint:'dex/security/detail', applicable:false },
+    D:{ score:0, max:10, label:'Đòn bẩy & thanh lý', endpoint:'v5/derivatives/liquidations/cryptocurrency/list/latest', applicable:false },
+    E:{ score:0, max:15, label:'Dòng tiền ví lớn', endpoint:'dex/holders/trend/list', applicable:false }
+  },
+  reasons:[], whale:null, history:[],
+  calls:[ { path:'/public-api/v1/dex/search', ms:141, status:200 },
+          { path:'/public-api/v1/dex/token-liquidity/query', ms:1180, status:429 },
+          { path:'/public-api/v1/dex/holders/list', ms:920, status:429 } ],
+  fetchedAt: iso(2)
+};
+DEMO['base:PEPEbase111111111111111111111111111111111'] = {
+  token:{ chain:'base', address:'PEPEbase111111111111111111111111111111111', symbol:'Pepe', name:'Pepe (Base)',
+    priceUsd:0.00000012, liquidityUsd:12000, holders:97, poolAgeDays:3 },
+  dims:{
+    A:{ score:11, max:30, label:'Thanh khoản', endpoint:'dex/token-liquidity/query', applicable:true },
+    B:{ score:0, max:25, label:'Phân bố holder', endpoint:'dex/holders/list', applicable:false },
+    C:{ score:0, max:20, label:'An toàn hợp đồng', endpoint:'dex/security/detail', applicable:false },
+    D:{ score:0, max:10, label:'Đòn bẩy & thanh lý', endpoint:'v5/derivatives/liquidations/cryptocurrency/list/latest', applicable:false },
+    E:{ score:0, max:15, label:'Dòng tiền ví lớn', endpoint:'dex/holders/trend/list', applicable:false }
+  },
+  reasons:[], whale:null, history:[],
+  calls:[ { path:'/public-api/v1/dex/search', ms:126, status:200 },
+          { path:'/public-api/v1/dex/token-liquidity/query', ms:302, status:200 } ],
+  fetchedAt: iso(1)
+};
+
+/* ---------- trạng thái ---------- */
+const State = {
+  mode: Store.get('er.mode', 'public'),
+  theme: Store.get('er.theme', null),
+  landing: 'idle', query: '', suggest: [], ambiguous: [],
+  scanLabel: '', scanStep: 0, rateLeft: 0,
+  watch: Store.get('er.watch', [
+    { key:'solana:DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', symbol:'BONK', chain:'solana', score:64, prev:51, at:iso(3),   whale:'out' },
+    { key:'solana:EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', symbol:'WIF',  chain:'solana', score:21, prev:25, at:iso(1200), whale:'in'  },
+    { key:'ethereum:0x6982508145454ce325ddbe47a25d4ec3d2311933',  symbol:'PEPE', chain:'ethereum', score:46, prev:46, at:iso(2400), whale:'out' },
+    { key:'solana:JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',   symbol:'JUP',  chain:'solana', score:11, prev:13, at:iso(3600), whale:'in'  }
+  ])
+};
+const saveWatch = () => Store.set('er.watch', State.watch);
+
+/* ==========================================================================
+   MÀN 3 — THEO DÕI
+   ========================================================================== */
+function viewWatchlist(){
+  if (!State.watch.length) {
+    return '<div class="page-h"><div><h1>Theo dõi</h1>' +
+      '<div class="sub">Danh sách token bạn đang để mắt. Dữ liệu nằm trong trình duyệt.</div></div></div>' +
+      '<div class="empty"><h3>Chưa theo dõi token nào</h3>' +
+      '<p>Mở một kết quả quét và bấm “Theo dõi”. Lần quét sau hệ thống sẽ so sánh và báo thay đổi.</p>' +
+      '<a class="btn pri" href="#/">Quét một token</a></div>';
+  }
+  return '<div class="page-h">' +
+      '<div><h1>Theo dõi <span class="num" style="color:var(--faint)">(' + State.watch.length + ')</span></h1>' +
+      '<div class="sub">Điểm tăng nghĩa là rủi ro tăng. Cột thay đổi dùng đúng màu mức rủi ro, không dùng màu giá.</div></div>' +
+      '<div class="right"><button class="btn" id="rerunAll" type="button">Chạy lại tất cả</button>' +
+      '<a class="btn ghost" href="#/">Thêm token</a></div></div>' +
+    '<div class="card" style="overflow-x:auto"><table class="tbl"><thead><tr>' +
+      '<th>Token</th><th>Chain</th><th class="ta-r">Điểm</th><th>Mức</th><th class="ta-r">Thay đổi</th>' +
+      '<th>Quét lúc</th><th></th></tr></thead><tbody>' +
+      State.watch.map(w => {
+        const L = LEVELS[levelOf(w.score)], d = w.score - w.prev;
+        const dir = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+        const arrow = d > 0 ? '▲' : d < 0 ? '▼' : '—';
+        const flag = w.whale === 'out' ? '<span class="pill">đang rút</span>'
+                   : w.whale === 'in'  ? '<span class="pill">đang vào</span>' : '';
+        return '<tr><td class="name"><a href="#/scan/' + esc(w.key).replace(':','/') + '">' + esc(w.symbol) + '</a>' +
+            '<span class="mini">' + esc(shortAddr(w.key.split(':')[1])) + '</span></td>' +
+          '<td>' + esc(CHAINS[w.chain] || w.chain) + '</td>' +
+          '<td class="ta-r ' + L.cls + '" style="color:var(--risk-' + (L.cls === 'crit' ? 'critical' : L.cls) + ')">' + w.score + '</td>' +
+          '<td><span class="badge ' + L.cls + '">' + L.vn + '</span></td>' +
+          '<td class="' + dir + ' ta-r">' + arrow + ' ' + signed(d) + flag + '</td>' +
+          '<td style="color:var(--muted)">' + dtime(w.at) + '</td>' +
+          '<td><div class="rowacts">' +
+            '<button class="btn sm ghost" data-rescan="' + esc(w.key) + '" type="button">Quét</button>' +
+            '<button class="btn sm danger" data-del="' + esc(w.key) + '" type="button" aria-label="Xoá ' + esc(w.symbol) + '">Xoá</button>' +
+          '</div></td></tr>';
+      }).join('') +
+    '</tbody></table></div>' +
+    '<p class="field-help" style="margin-top:14px">' +
+      (Store.available ? 'Lưu trong localStorage của trình duyệt này. Không gửi lên máy chủ nào.'
+                       : 'Trình duyệt đang chặn lưu trữ cục bộ — danh sách chỉ tồn tại trong phiên này.') +
+    '</p>';
+}
+
+/* ==========================================================================
+   MÀN 4 — LỊCH SỬ MỘT TOKEN
+   ========================================================================== */
+function chartSVG(hist){
+  const W = 560, H = 190, L = 36, R = 12, T = 14, B = 30;
+  const iw = W - L - R, ih = H - T - B;
+  const ys = hist.map(p => p.score);
+  let lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys);
+  if (hi - lo < 10){ lo -= 5; hi += 5; }
+  lo = Math.max(0, Math.floor(lo - 2)); hi = Math.min(100, Math.ceil(hi + 2));
+  if (hi <= lo) hi = lo + 10;
+  const X = i => L + (hist.length === 1 ? iw/2 : (i/(hist.length-1))*iw);
+  const Y = v => T + ih - ((v - lo)/(hi - lo))*ih;
+  const line = hist.map((p,i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(p.score).toFixed(1)).join(' ');
+  const area = line + ' L' + X(hist.length-1).toFixed(1) + ' ' + (T+ih) + ' L' + X(0).toFixed(1) + ' ' + (T+ih) + ' Z';
+  const grid = [lo, Math.round((lo+hi)/2), hi].map(v =>
+    '<line class="grid" x1="' + L + '" y1="' + Y(v).toFixed(1) + '" x2="' + (W-R) + '" y2="' + Y(v).toFixed(1) + '"/>' +
+    '<text class="axis" x="' + (L-7) + '" y="' + (Y(v)+3.5).toFixed(1) + '" text-anchor="end">' + v + '</text>').join('');
+  const pts = hist.map((p,i) => '<circle class="pt" cx="' + X(i).toFixed(1) + '" cy="' + Y(p.score).toFixed(1) + '" r="3.5"/>').join('');
+  const labs = hist.map((p,i) => {
+    if (hist.length > 6 && i % 2) return '';
+    return '<text class="axis" x="' + X(i).toFixed(1) + '" y="' + (H-10) + '" text-anchor="middle">' + dtime(p.at).split(' ')[0] + '</text>';
+  }).join('');
+  return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" ' +
+    'aria-label="Biểu đồ điểm rủi ro theo thời gian">' +
+    grid + '<path class="area" d="' + area + '"/><path class="line" d="' + line + '"/>' +
+    pts + labs + '</svg>';
+}
+function viewHistory(key){
+  const v = applyMode(key, State.mode);
+  if (!v || !v.history.length) {
+    return '<div class="page-h"><div><div class="crumb"><a href="#/watchlist">Theo dõi</a><span>/</span>' +
+      '<span>lịch sử</span></div><h1>Chưa có lịch sử</h1></div></div>' +
+      '<div class="empty"><h3>Token này mới được quét một lần</h3>' +
+      '<p>Cần ít nhất hai lần quét để vẽ được thay đổi theo thời gian. Quét lại sau, hoặc thêm vào theo dõi.</p>' +
+      '<a class="btn pri" href="#/">Quét token</a></div>';
+  }
+  const t = v.token, first = v.history[0], last = v.history[v.history.length-1];
+  const d = last.score - first.score;
+  return '<div class="page-h">' +
+      '<div><div class="crumb"><a href="#/watchlist">Theo dõi</a><span>/</span>' +
+        '<a href="#/scan/' + esc(v.key).replace(':','/') + '">' + esc(t.symbol) + '</a><span>/</span><span>lịch sử</span></div>' +
+      '<h1>' + esc(t.symbol) + ' <span style="color:var(--faint);font-weight:400">· ' + esc(CHAINS[t.chain] || t.chain) + '</span></h1>' +
+      '<div class="sub">' + v.history.length + ' lần quét · từ ' + dtime(first.at) + ' đến ' + dtime(last.at) + '</div></div>' +
+      '<div class="right"><a class="btn pri" href="#/scan/' + esc(v.key).replace(':','/') + '">Xem kết quả mới nhất</a></div></div>' +
+    '<div class="stat-strip">' +
+      '<div class="s"><b>' + last.score + '</b><span>điểm hiện tại</span></div>' +
+      '<div class="s"><b style="color:var(--risk-' + (d > 0 ? 'high' : 'low') + ')">' + signed(d) + '</b><span>thay đổi cả kỳ</span></div>' +
+      '<div class="s"><b>' + usd(last.liquidityUsd) + '</b><span>thanh khoản</span></div>' +
+      '<div class="s"><b>' + nf(last.holders) + '</b><span>holder</span></div>' +
+    '</div>' +
+    '<div class="card pad"><div class="card-h">Điểm rủi ro theo thời gian</div>' + chartSVG(v.history) +
+      '<p class="field-help">Trục tung là điểm quy về thang 100. Bấm một mốc dưới bảng để xem chi tiết lần quét đó.</p></div>' +
+    '<div class="card" style="margin-top:24px;overflow-x:auto"><table class="tbl">' +
+      '<thead><tr><th>Lần quét</th><th class="ta-r">Điểm</th><th class="ta-r">Thay đổi</th>' +
+      '<th class="ta-r">Thanh khoản</th><th class="ta-r">Holder</th></tr></thead><tbody>' +
+      v.history.slice().reverse().map((p,i,arr) => {
+        const prev = arr[i+1], dd = prev ? p.score - prev.score : 0;
+        const dir = dd > 0 ? 'up' : dd < 0 ? 'down' : 'flat';
+        return '<tr><td>' + dtime(p.at) + '</td><td class="ta-r">' + p.score + '</td>' +
+          '<td class="' + dir + ' ta-r">' + (prev ? signed(dd) : '—') + '</td>' +
+          '<td class="ta-r">' + usd(p.liquidityUsd) + '</td><td class="ta-r">' + nf(p.holders) + '</td></tr>';
+      }).join('') +
+    '</tbody></table></div>';
+}
+
+/* ==========================================================================
+   MÀN 5 — CÀI ĐẶT
+   ========================================================================== */
+function viewSettings(){
+  const key = Store.get('er.key', '');
+  return '<div class="page-h"><div><h1>Cài đặt</h1>' +
+    '<div class="sub">Không tài khoản, không đăng nhập, không thanh toán. Mọi thứ ở đây nằm trong trình duyệt của bạn.</div></div></div>' +
+  '<div class="stack" style="max-width:720px">' +
+
+    '<div class="card pad"><div class="card-h">Chế độ dữ liệu</div>' +
+      '<div class="grid2">' + Object.keys(MODES).map(m => {
+        const M = MODES[m], on = State.mode === m;
+        return '<button class="picker" data-mode="' + m + '" type="button" style="align-items:flex-start;' +
+          (on ? 'border-color:var(--accent);background:var(--accent-soft)' : '') + '">' +
+          '<span class="radio" style="' + (on ? 'border-color:var(--accent);box-shadow:inset 0 0 0 3.5px var(--accent)' : '') + '"></span>' +
+          '<span><span class="nm">' + M.vn + (on ? ' · đang dùng' : '') + '</span><br>' +
+          '<span class="ch" style="font-family:var(--sans)">' + M.desc + '</span></span></button>';
+      }).join('') + '</div>' +
+      '<p class="field-help">Chế độ quyết định số chiều chấm được, và do đó quyết định độ phủ hiển thị trên mọi kết quả.</p>' +
+    '</div>' +
+
+    '<div class="card pad"><div class="card-h">Key CMC Pro · mở chế độ đầy đủ</div>' +
+      '<label class="sr" for="cmcKey">Key CMC Pro</label>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<input class="input" id="cmcKey" type="password" style="flex:1;min-width:220px" ' +
+          'placeholder="dán key vào đây" value="' + esc(key) + '" spellcheck="false" autocomplete="off">' +
+        '<button class="btn" id="testKey" type="button">Kiểm tra key</button>' +
+        '<button class="btn ghost" id="clearKey" type="button">Xoá</button>' +
+      '</div>' +
+      '<p class="field-help"><b>Key được lưu trong trình duyệt của bạn</b> và không gửi lên máy chủ nào. ' +
+      'Không có máy chủ trung gian trong sản phẩm này.</p>' +
+      '<div id="keyResult"></div>' +
+    '</div>' +
+
+    '<div class="card pad"><div class="card-h">Giao diện</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        ['dark','light','system'].map(x =>
+          '<button class="btn' + (State.themePref === x ? ' pri' : '') + '" data-theme-set="' + x + '" type="button">' +
+          (x === 'dark' ? 'Tối' : x === 'light' ? 'Sáng' : 'Theo hệ thống') + '</button>').join('') +
+      '</div></div>' +
+
+    '<div class="card pad"><div class="card-h">Máy chủ dữ liệu</div>' +
+      '<div class="row"><span class="k">Địa chỉ máy chủ</span><span class="lead"></span>' +
+        '<span class="v">' + esc(API.base) + '</span></div>' +
+      '<div class="row"><span class="k">Trạng thái</span><span class="lead"></span>' +
+        '<span class="v" id="srvState">chưa kiểm tra</span></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">' +
+        '<button class="btn sm" id="srvCheck" type="button">Kiểm tra máy chủ</button>' +
+        '<button class="btn sm ghost" id="srvEdit" type="button">Đổi địa chỉ</button>' +
+      '</div>' +
+      '<p class="field-help">Trình duyệt không gọi thẳng CMC được — CMC không gửi header CORS. ' +
+      'Máy chủ nội bộ nhận yêu cầu từ trang này rồi gọi CMC, và chạy trên chính máy bạn.</p>' +
+    '</div>' +
+
+    '<div class="card pad"><div class="card-h">Dữ liệu cục bộ</div>' +
+      '<div class="row"><span class="k">Token đang theo dõi</span><span class="lead"></span>' +
+        '<span class="v">' + State.watch.length + '</span></div>' +
+      '<div class="row"><span class="k">Nơi lưu</span><span class="lead"></span>' +
+        '<span class="v">' + (Store.available ? 'localStorage trình duyệt' : 'bộ nhớ tạm của phiên') + '</span></div>' +
+      '<button class="btn danger" id="wipe" type="button" style="margin-top:16px">Xoá toàn bộ dữ liệu cục bộ</button>' +
+    '</div>' +
+
+    '<div class="card pad"><div class="card-h">Trạng thái giao diện · chỉ để xem thử</div>' +
+      '<p class="field-help" style="margin-bottom:12px">Tám trạng thái lỗi mà sản phẩm phải xử lý. Bấm để xem giao diện thật của từng trạng thái.</p>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        [['notfound','1 · Không tìm thấy token'],['ambiguous','2 · Trùng tên'],
+         ['ratelimit','3 · Chạm giới hạn 429'],['partial','4 · Thiếu một phần dữ liệu'],
+         ['lowcov','5 · Độ phủ dưới 50%'],['nokey','6 · Chưa có key'],
+         ['netdown','7 · Mất mạng'],['nopool','8 · Chưa có pool']].map(d =>
+          '<button class="btn sm ghost" data-state="' + d[0] + '" type="button">' + d[1] + '</button>').join('') +
+      '</div></div>' +
+
+  '</div>';
+}
+
+/* ==========================================================================
+   MÀN 6 — PHƯƠNG PHÁP
+   ========================================================================== */
+const DIM_DOC = [
+  { k:'A', name:'Thanh khoản', max:30, eps:['dex/token-liquidity/query','dex/liquidity-change/list','dex/token/pools'],
+    what:'Độ sâu của pool và tốc độ rút thanh khoản theo thời gian. Đây là chiều nặng nhất — thanh khoản rút đi là dấu hiệu sớm nhất và rõ nhất.' },
+  { k:'B', name:'Phân bố holder', max:25, eps:['dex/holders/list','dex/holders/detail','dex/holders/count'],
+    what:'Mức cô đặc quyền nắm giữ và số lượng holder. Một token bị vài ví nắm gần hết thì giá phụ thuộc vào quyết định của số ít người.' },
+  { k:'C', name:'An toàn hợp đồng', max:20, eps:['dex/security/detail'],
+    what:'Quyền của chủ hợp đồng, khả năng mint thêm, phí chuyển nhượng, dấu hiệu honeypot.' },
+  { k:'D', name:'Đòn bẩy & thanh lý', max:10, eps:['v5/derivatives/liquidations/cryptocurrency/list/latest','v5/derivatives/liquidations/quotes/latest'],
+    what:'Mức đòn bẩy phái sinh quanh token. Chỉ áp dụng cho token có thị trường phái sinh — token nhỏ thường không áp dụng.' },
+  { k:'E', name:'Dòng tiền ví lớn', max:15, eps:['dex/holders/trend/list','dex/holders/tag_count','dex/tokens/transactions'],
+    what:'Ví lớn đang vào hay đang ra, và có ví mang nhãn đáng ngờ nào không. Chiều duy nhất chạy hai hướng: từ −15 đến +15, nên có thể trừ điểm.' }
+];
+function viewMethod(){
+  return '<div class="page-h"><div><h1>Phương pháp</h1>' +
+    '<div class="sub">Toàn bộ ngưỡng chấm điểm được công bố ở đây, kèm endpoint CMC sinh ra từng chiều.</div></div></div>' +
+  '<div class="stack">' +
+
+    '<div class="card pad"><div class="card-h">Điểm được tính thế nào</div>' +
+      '<div class="row"><span class="k">Tổng điểm các chiều áp dụng được</span><span class="lead"></span>' +
+        '<span class="v">điểm thô</span></div>' +
+      '<div class="row"><span class="k">Quy về thang 100</span><span class="lead"></span>' +
+        '<span class="v">điểm thô ÷ trọng số khả dụng × 100</span></div>' +
+      '<div class="row"><span class="k">Độ phủ dữ liệu</span><span class="lead"></span>' +
+        '<span class="v">trọng số khả dụng trên tổng 100</span></div>' +
+      '<div class="row"><span class="k">Cổng chặn</span><span class="lead"></span>' +
+        '<span class="v">độ phủ dưới 50% → không hiện điểm</span></div>' +
+      '<p class="field-help" style="margin-top:12px">Chiều không có dữ liệu bị loại khỏi <b>cả tử số lẫn mẫu số</b>. ' +
+      'Nó không bao giờ được tính là 0 — nếu tính là 0, token càng ít dữ liệu công khai sẽ càng trông an toàn.</p>' +
+      '<div class="row" style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">' +
+        '<span class="k">Có được khi không có key</span><span class="lead"></span>' +
+        '<span class="v">A · B · E — 70% trọng số</span></div>' +
+      '<div class="row"><span class="k">Cần key</span><span class="lead"></span>' +
+        '<span class="v">C · D</span></div>' +
+      '<p class="field-help" style="margin-top:10px">Đo bằng thực nghiệm trên bộ công khai của CMC: ' +
+      'sáu endpoint trả dữ liệu không cần key, <span class="mono">holders/trend/list</span> và nhóm phái sinh ' +
+      'trả 403 đòi key. Bộ ẩn danh cũng có hạn mức riêng — vượt thì CMC trả 429 và sản phẩm chuyển sang ' +
+      'trạng thái chờ, tự thử lại.</p>' +
+    '</div>' +
+
+    '<div class="card pad"><div class="card-h">Năm chiều</div>' +
+      DIM_DOC.map(d => '<div style="padding:14px 0;border-top:1px solid var(--border)">' +
+        '<div class="row" style="padding:0"><span class="key mono" style="color:var(--accent);flex:0 0 20px">' + d.k + '</span>' +
+        '<span style="font-weight:600">' + d.name + '</span><span class="lead"></span>' +
+        '<span class="v">' + d.max + ' điểm</span></div>' +
+        '<p style="color:var(--muted);font-size:var(--t-sm);margin:6px 0 8px">' + d.what + '</p>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+          d.eps.map(e => '<span class="badge">' + e + '</span>').join('') + '</div>' +
+      '</div>').join('') +
+    '</div>' +
+
+    '<div class="card pad"><div class="card-h">Bốn mức kết luận</div>' +
+      ['low','watch','high','critical'].map(k => {
+        const L = LEVELS[k];
+        return '<div style="display:flex;gap:14px;align-items:center;padding:11px 0;border-top:1px solid var(--border)">' +
+          '<span style="width:4px;height:22px;border-radius:2px;background:var(--risk-' +
+            (k === 'critical' ? 'critical' : k) + ');flex:none"></span>' +
+          '<b style="color:var(--risk-' + (k === 'critical' ? 'critical' : k) + ');letter-spacing:.04em">' +
+            L.vn.toUpperCase() + '</b><span class="lead" style="border-bottom:1px dotted var(--border-strong)"></span>' +
+          '<span class="v mono" style="font-family:var(--mono)">' + L.range + '</span></div>';
+      }).join('') +
+      '<p class="field-help" style="margin-top:12px">Mỗi mức luôn có nhãn chữ và con số đi kèm, nên người mù màu đọc được đầy đủ thông tin.</p>' +
+    '</div>' +
+
+    '<div class="note-box info"><span class="ic">◇</span><div>' +
+      '<b>Nguồn dữ liệu.</b> Toàn bộ số liệu lấy từ CMC API. Bộ công khai gồm 18 endpoint Standard và 17 endpoint DEX, ' +
+      'không cần key. Hai endpoint <span class="mono">holders/trend/list</span> và <span class="mono">holders/tag_count</span> ' +
+      'cần key bậc trả phí, nên chiều E chỉ chấm được ở chế độ đầy đủ.</div></div>' +
+
+  '</div>';
+}
+
+/* ==========================================================================
+   MÀN 7 — NHẬT KÝ API
+   ========================================================================== */
+function viewEvidence(){
+  const keys = Object.keys(DEMO), agg = {};
+  keys.forEach(k => DEMO[k].calls.forEach(c => {
+    const a = agg[c.path] || (agg[c.path] = { path:c.path, n:0, ms:0, err:0, max:0 });
+    a.n++; a.ms += c.ms; a.max = Math.max(a.max, c.ms);
+    if (c.status >= 400) a.err++;
+  }));
+  const rows = Object.values(agg).sort((a,b) => (b.ms/b.n) - (a.ms/a.n));
+  const slow = rows[0], errs = rows.filter(r => r.err);
+
+  return '<div class="page-h"><div><h1>Nhật ký lời gọi API</h1>' +
+    '<div class="sub">Mọi lời gọi ra CMC đều được ghi lại. Trang này để kiểm chứng, không phải để trang trí.</div></div></div>' +
+  '<div class="stack">' +
+
+    '<div class="card pad"><div class="card-h">Phản hồi API · tổng hợp từ nhật ký thật</div>' +
+      '<div class="row"><span class="k">Endpoint chậm nhất (trung bình)</span><span class="lead"></span>' +
+        '<span class="v">' + esc(slow.path.split('/').slice(-2).join('/')) + ' · ' + Math.round(slow.ms/slow.n) + 'ms</span></div>' +
+      '<div class="row"><span class="k">Endpoint có lỗi</span><span class="lead"></span>' +
+        '<span class="v">' + (errs.length || 0) + ' / ' + rows.length + '</span></div>' +
+      '<div class="row"><span class="k">Tỉ lệ lỗi trên toàn bộ lời gọi</span><span class="lead"></span>' +
+        '<span class="v">' + nf(rows.reduce((a,r)=>a+r.err,0) / Math.max(1,rows.reduce((a,r)=>a+r.n,0)) * 100, 1) + '%</span></div>' +
+      '<p class="field-help" style="margin-top:12px">Ba điểm ma sát đáng báo lại cho đội CMC, kèm bằng chứng từ chính nhật ký này:</p>' +
+      '<div style="margin-top:10px">' +
+        '<div class="row"><span class="k">1. Token nhỏ, pool mới: <span class="mono">security/detail</span> và <span class="mono">holders/trend/list</span> trả 404 thay vì một cấu trúc rỗng</span><span class="lead"></span>' +
+          '<span class="v">2 lỗi / 5 token</span></div>' +
+        '<div class="row"><span class="k">2. <span class="mono">holders/list</span> ghi POST trong tài liệu endpoint nhưng GET trong trang Keyless</span><span class="lead"></span>' +
+          '<span class="v">lệch tài liệu</span></div>' +
+        '<div class="row"><span class="k">3. Chưa có endpoint cho dữ liệu NFT, nên phạm vi chỉ là token DEX</span><span class="lead"></span>' +
+          '<span class="v">thiếu nhóm dữ liệu</span></div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="card" style="overflow-x:auto"><div class="pad" style="padding:var(--space-5) var(--space-5) 0">' +
+      '<div class="card-h">Bảng lời gọi · ' + keys.length + ' token · ' + rows.reduce((a,r)=>a+r.n,0) + ' lời gọi</div></div>' +
+      '<table class="tbl"><thead><tr><th>Endpoint</th><th class="ta-r">Số lần</th>' +
+      '<th class="ta-r">Trung bình</th><th class="ta-r">Chậm nhất</th><th class="ta-r">Lỗi</th></tr></thead><tbody>' +
+      rows.map(r => '<tr><td style="font-family:var(--mono);font-size:12px">' + esc(r.path) + '</td>' +
+        '<td class="ta-r">' + r.n + '</td><td class="ta-r">' + Math.round(r.ms/r.n) + 'ms</td>' +
+        '<td class="ta-r">' + r.max + 'ms</td>' +
+        '<td class="ta-r"' + (r.err ? ' style="color:var(--err)"' : '') + '>' + (r.err || '—') + '</td></tr>').join('') +
+      '</tbody></table></div>' +
+
+    '<div class="note-box"><span class="ic">i</span><div>Nhật ký chỉ giữ đường dẫn, mã trạng thái và thời gian. ' +
+      'Không lưu nội dung phản hồi, và không có key nào xuất hiện trong nhật ký.</div></div>' +
+
+  '</div>';
+}
+
+/* ==========================================================================
+   MÀN 8 — VỀ SẢN PHẨM
+   ========================================================================== */
+function viewAbout(){
+  return '<div class="page-h"><div><h1>Về sản phẩm</h1>' +
+    '<div class="sub">Exit Radar là công cụ dự thi, không phải sản phẩm tài chính. Nói rõ giới hạn trước khi ai đó tin nhầm.</div></div></div>' +
+  '<div class="stack" style="max-width:820px">' +
+
+    '<div class="card pad"><div class="card-h">Sản phẩm làm gì</div>' +
+      '<p style="color:var(--muted)">Đọc cấu trúc on-chain của một token DEX — thanh khoản, phân bố holder, an toàn hợp đồng, ' +
+      'đòn bẩy phái sinh và dòng tiền ví lớn — rồi gộp thành một điểm 0–100 kèm ba lý do đóng góp nhiều nhất và bằng chứng thô ' +
+      'đứng sau mỗi lý do.</p></div>' +
+
+    '<div class="card pad"><div class="card-h">Ba giới hạn đã biết</div>' +
+      '<div class="row"><span class="k"><b>1. CMC chưa có endpoint cho NFT</b></span><span class="lead"></span>' +
+        '<span class="v">phạm vi: token DEX</span></div>' +
+      '<p class="field-help" style="margin:0 0 14px">Nhóm dữ liệu NFT không tồn tại trong bộ API hiện tại, nên sản phẩm không nhận NFT làm đầu vào.</p>' +
+      '<div class="row"><span class="k"><b>2. Chế độ công khai thiếu hai chiều</b></span><span class="lead"></span>' +
+        '<span class="v">D và E</span></div>' +
+      '<p class="field-help" style="margin:0 0 14px"><span class="mono">holders/trend/list</span> và <span class="mono">holders/tag_count</span> ' +
+        'cần key bậc trả phí. Không có key thì độ phủ tối đa là 75%, và giao diện luôn ghi rõ điều đó.</p>' +
+      '<div class="row"><span class="k"><b>3. Đây là suy luận, không phải lời khuyên đầu tư</b></span><span class="lead"></span>' +
+        '<span class="v">chỉ đọc cấu trúc</span></div>' +
+      '<p class="field-help" style="margin:0">Kết quả nói cấu trúc trông thế nào ở thời điểm quét. Nó không dự đoán giá, ' +
+        'và không thay thế việc tự tìm hiểu.</p>' +
+    '</div>' +
+
+    '<div class="card pad"><div class="card-h">Những gì sản phẩm cố tình không có</div>' +
+      '<div class="row"><span class="k">Tài khoản và đăng nhập</span><span class="lead"></span><span class="v">không có</span></div>' +
+      '<div class="row"><span class="k">Thanh toán</span><span class="lead"></span><span class="v">không có</span></div>' +
+      '<div class="row"><span class="k">Phân quyền người dùng</span><span class="lead"></span><span class="v">thay bằng 3 chế độ dữ liệu</span></div>' +
+      '<div class="row"><span class="k">Máy chủ lưu dữ liệu người dùng</span><span class="lead"></span><span class="v">không có</span></div>' +
+      '<p class="field-help" style="margin-top:12px">Bớt được phần tài khoản nghĩa là toàn bộ thời gian dồn vào phần chấm điểm.</p>' +
+    '</div>' +
+
+    '<div class="card pad"><div class="card-h">Ranh giới thương hiệu</div>' +
+      '<p style="color:var(--muted)">Bảng màu lấy từ ngôn ngữ thị giác công khai của CoinMarketCap, và dữ liệu lấy từ CMC API. ' +
+      'Sản phẩm <b>không</b> dùng logo CMC, <b>không</b> ngụ ý quan hệ đối tác hay bảo trợ chính thức, và <b>không</b> dùng ' +
+      'màu thương hiệu để ngụ ý chứng thực. Đây là một bài dự thi.</p></div>' +
+
+    '<div class="card pad"><div class="card-h">Kỹ thuật</div>' +
+      '<div class="row"><span class="k">Bề mặt</span><span class="lead"></span><span class="v">Web app một trang + CLI dùng chung một lõi</span></div>' +
+      '<div class="row"><span class="k">Dữ liệu</span><span class="lead"></span><span class="v">CMC API · public-api keyless + key</span></div>' +
+      '<div class="row"><span class="k">Lưu trữ</span><span class="lead"></span>' +
+        '<span class="v">' + (Store.available ? 'localStorage trình duyệt' : 'bộ nhớ tạm của phiên') + '</span></div>' +
+      '<div class="row"><span class="k">Giao diện này</span><span class="lead"></span><span class="v">một tệp HTML duy nhất, không phụ thuộc ngoài</span></div>' +
+    '</div>' +
+
+  '</div>';
+}
+
+/* ==========================================================================
+   TOAST · MODAL · PAINT
+   ========================================================================== */
+function toast(msg, kind, sub){
+  const el = document.createElement('div');
+  el.className = 'toast ' + (kind || 'info');
+  el.innerHTML = '<span class="ic">' + (kind === 'ok' ? '✓' : kind === 'err' ? '✕' : 'i') + '</span>' +
+    '<div>' + esc(msg) + (sub ? '<div class="field-help" style="margin-top:2px">' + esc(sub) + '</div>' : '') + '</div>' +
+    '<button class="x" aria-label="Đóng">✕</button>';
+  el.querySelector('.x').onclick = () => el.remove();
+  toasts.appendChild(el);
+  setTimeout(() => el.remove(), 6000);
+}
+function confirmModal(o){
+  modalHost.innerHTML =
+    '<div class="backdrop" id="bd"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt">' +
+    '<h3 id="mt">' + esc(o.title) + '</h3><p>' + o.body + '</p>' +
+    '<div class="acts"><button class="btn ghost" id="mNo" type="button">Huỷ</button>' +
+    '<button class="btn ' + (o.danger ? 'danger' : 'pri') + '" id="mYes" type="button">' + esc(o.ok) + '</button></div>' +
+    '</div></div>';
+  const close = () => { modalHost.innerHTML = ''; };
+  document.getElementById('mNo').onclick = close;
+  document.getElementById('bd').onclick = e => { if (e.target.id === 'bd') close(); };
+  document.getElementById('mYes').onclick = () => { close(); o.onOk(); };
+  document.getElementById('mNo').focus();
+  document.addEventListener('keydown', function esc_(e){
+    if (e.key === 'Escape'){ close(); document.removeEventListener('keydown', esc_); }
+  });
+}
+function paint(){
+  document.querySelectorAll('[data-w]').forEach(el => {
+    const w = el.getAttribute('data-w');
+    requestAnimationFrame(() => { el.style.width = w + '%'; });
+  });
+}
+function applyTheme(){
+  const pref = State.themePref || 'system';
+  const sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  const t = pref === 'system' ? sysDark : pref;
+  document.documentElement.setAttribute('data-theme', t);
+  if (themeBtn) themeBtn.textContent = t === 'dark' ? '☾' : '☀';
+}
+/* ==========================================================================
+   ĐIỀU PHỐI
+   ========================================================================== */
+const $ = id => document.getElementById(id);
+const nav = $('nav'), bottombar = $('bottombar'), modeBadge = $('modeBadge'),
+      themeBtn = $('themeBtn'), toasts = $('toasts'), modalHost = $('modalHost'), main = $('main');
+
+State.themePref = Store.get('er.themePref', 'system');
+
+/* ---------- định tuyến ---------- */
+function parseRoute(){
+  const h = (location.hash || '#/').replace(/^#/, '');
+  return h.split('/').filter(Boolean);
+}
+function routePath(){ const p = parseRoute(); return '#/' + p.join('/'); }
+
+const SCAN_STEPS = 5;
+let scanTimer = null, rlTimer = null;
+
+function stopTimers(){ clearInterval(scanTimer); clearInterval(rlTimer); scanTimer = rlTimer = null; }
+
+function scanPhases(key){
+  const raw = rawOf(key);
+  const sym = raw ? raw.token.symbol : key.split(':')[1].slice(0, 7);
+  State.landing = 'scanning'; State.scanStep = 1; State.scanLabel = sym;
+  render();
+  const timer = setInterval(() => {
+    if (State.scanStep < SCAN_STEPS - 1){
+      State.scanStep++;
+      const host = $('scanSteps');
+      if (host) host.innerHTML = scanStepsHTML(State.scanStep);
+    }
+  }, 380);
+  return timer;
+}
+function finishScan(key){
+  State.landing = 'idle'; State.query = '';
+  location.hash = '#/scan/' + key.replace(':', '/');
+}
+function startScan(key){
+  stopTimers();
+  if (State.mode === 'offline' || !API.online()){
+    scanTimer = scanPhases(key);
+    setTimeout(() => { clearInterval(scanTimer); scanTimer = null; finishScan(key); }, 1500);
+    return;
+  }
+  scanTimer = scanPhases(key);
+  const parts = key.split(':');
+  API.scan(parts[0], parts.slice(1).join(':')).then(r => {
+    clearInterval(scanTimer); scanTimer = null;
+    const j = r.json;
+    if (r.status === 0 || !j){
+      State.landing = 'netdown'; render();
+      toast('Không gọi được máy chủ dữ liệu.', 'err',
+            'Chạy: python3 exit_radar_server.py — hoặc dùng chế độ dữ liệu mẫu.');
+      return;
+    }
+    if (j.error === 'nopool'){ State.landing = 'nopool'; render(); return; }
+    if (j.error === 'token'){
+      if (j.status === 429 || /limit|429/i.test(String(j.detail || ''))){
+        State.landing = 'ratelimit'; render(); startCountdown(key); return;
+      }
+      if (j.status === 404){ State.query = parts[1] || ''; State.landing = 'notfound'; render(); return; }
+      State.landing = 'netdown'; render();
+      toast('CMC trả lỗi ' + j.status, 'err', String(j.detail || '').slice(0, 120));
+      return;
+    }
+    adopt(key, j);
+    const scored = DIM_ORDER.filter(k => j.dims[k] && j.dims[k].applicable).length;
+    toast('Quét xong bằng dữ liệu thật từ CMC.', 'ok',
+          j.calls.length + ' lời gọi · ' + scored + '/5 chiều · ' + (j.elapsedMs || 0) + 'ms');
+    finishScan(key);
+  });
+}
+function startCountdown(key){
+  stopTimers();
+  State.rateLeft = 12;
+  rlTimer = setInterval(() => {
+    State.rateLeft--;
+    const el = $('rlCount');
+    if (el) el.textContent = State.rateLeft;
+    if (State.rateLeft <= 0){
+      clearInterval(rlTimer); rlTimer = null;
+      toast('Giới hạn API đã hết, quét tiếp.', 'ok');
+      startScan(key);
+    }
+  }, 1000);
+}
+
+function resolveQuery(q){
+  const low = q.trim().toLowerCase();
+  if (!low) return { state:'idle' };
+  if (low === 'zzz' || low === 'khongco') return { state:'notfound' };
+  if (low === '429') return { state:'ratelimit' };
+  if (low === 'new') return { state:'nopool' };
+  if (low === 'offline') return { state:'netdown' };
+  const hits = searchIndex(low);
+  if (!hits.length) return { state:'notfound' };
+  if (hits.length === 1) return { state:'go', key:hits[0].key };
+  return { state:'ambiguous', list:hits.slice(0,6) };
+}
+function runScan(q){
+  State.query = q;
+  const t = q.trim();
+  if (API.online() && t.length >= 2 && /^[A-Za-z0-9]{4,}$/.test(t) && !/^(429|new|offline|zzz)$/i.test(t)){
+    State.landing = 'scanning'; State.scanStep = 1; State.scanLabel = t.toUpperCase(); render();
+    API.search(t).then(js => {
+      if (!js || !js.ok || !js.items || !js.items.length){
+        const r = resolveQuery(q);
+        if (r.state === 'go'){ startScan(r.key); return; }
+        State.landing = (js && js.status === 429) ? 'ratelimit' : 'notfound'; render();
+        if (State.landing === 'ratelimit') startCountdown('solana:DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263');
+        return;
+      }
+      State.ambiguous = js.items.map(x => ({ key: keyOf(x.chain, x.address), chain: x.chain,
+        address: x.address, symbol: x.symbol, name: x.name,
+        liquidityUsd: x.liquidityUsd || 0, holders: x.holders || 0 }));
+      if (State.ambiguous.length === 1) startScan(State.ambiguous[0].key);
+      else { State.landing = 'ambiguous'; render(); }
+    });
+    return;
+  }
+  const r = resolveQuery(q);
+  if (r.state === 'go'){ startScan(r.key); return; }
+  if (r.state === 'ambiguous'){
+    State.ambiguous = r.list.sort((a,b) => b.liquidityUsd - a.liquidityUsd);
+    State.landing = 'ambiguous'; render(); return;
+  }
+  if (r.state === 'ratelimit'){
+    State.landing = 'ratelimit'; render();
+    startCountdown('solana:DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263'); return;
+  }
+  State.landing = r.state === 'idle' ? 'idle' : r.state;
+  render();
+}
+
+/* ---------- vẽ ---------- */
+function render(){
+  stopTimers();
+  const p = parseRoute();
+  renderNav('#/' + p.join('/'));
+  applyTheme();
+
+  if (p.length === 0) main.innerHTML = viewLanding();
+  else if (p[0] === 'scan' && p.length >= 3) main.innerHTML = viewResult(p[1], p.slice(2).join('/'));
+  else if (p[0] === 'watchlist' && p.length >= 3) main.innerHTML = viewHistory(p[1] + ':' + p.slice(2).join('/'));
+  else if (p[0] === 'watchlist') main.innerHTML = viewWatchlist();
+  else if (p[0] === 'settings') main.innerHTML = viewSettings();
+  else if (p[0] === 'method') main.innerHTML = viewMethod();
+  else if (p[0] === 'evidence') main.innerHTML = viewEvidence();
+  else if (p[0] === 'about') main.innerHTML = viewAbout();
+  else main.innerHTML = viewLanding();
+
+  bind(p);
+  paint();
+}
+
+/* ---------- gắn sự kiện theo màn ---------- */
+function bind(p){
+  /* --- màn quét --- */
+  const form = $('searchForm');
+  if (form){
+    form.addEventListener('submit', e => { e.preventDefault(); runScan($('q').value); });
+    const q = $('q');
+    if (q){
+      if (document.activeElement !== q) q.focus();
+      let deb = null;
+      q.addEventListener('input', () => {
+        const v = q.value;
+        State.query = v;
+        if (API.online()){
+          clearTimeout(deb);
+          deb = setTimeout(() => {
+            API.search(v).then(js => {
+              if (!js || !js.ok || !js.items || !js.items.length) return;
+              State.ambiguous = js.items.map(x => ({ key: keyOf(x.chain, x.address), chain: x.chain,
+                address: x.address, symbol: x.symbol, name: x.name,
+                liquidityUsd: x.liquidityUsd || 0, holders: x.holders || 0 }));
+              State.landing = 'ambiguous'; render();
+              const f = $('q'); if (f){ f.focus(); f.setSelectionRange(f.value.length, f.value.length); }
+            });
+          }, 320);
+          return;
+        }
+        const hits = searchIndex(v);
+        State.suggest = hits.slice(0,6);
+        const extra = $('landingExtra');
+        if (hits.length > 1 && v.trim().length >= 2){
+          State.ambiguous = hits.sort((a,b) => b.liquidityUsd - a.liquidityUsd);
+          State.landing = 'ambiguous'; render(); const q2 = $('q');
+          if (q2){ q2.focus(); q2.setSelectionRange(v.length, v.length); }
+        } else if (State.landing === 'ambiguous' && hits.length <= 1){
+          State.landing = hits.length ? 'suggest' : 'idle'; render();
+          const q3 = $('q'); if (q3){ q3.focus(); q3.setSelectionRange(v.length, v.length); }
+        }
+      });
+      q.addEventListener('keydown', e => {
+        if (e.key === 'Escape'){ q.value = ''; State.landing = 'idle'; State.query = ''; render(); }
+      });
+    }
+    document.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => {
+      const v = b.getAttribute('data-ex'); const q4 = $('q'); if (q4) q4.value = v; runScan(v);
+    });
+    document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => startScan(b.getAttribute('data-open')));
+    const cs = $('cancelScan'); if (cs) cs.onclick = () => { stopTimers(); State.landing = 'idle'; render(); };
+    const uo = $('useOffline'); if (uo) uo.onclick = () => {
+      State.mode = 'offline'; Store.set('er.mode', 'offline'); stopTimers();
+      toast('Đã chuyển sang dữ liệu mẫu.', 'ok', 'Không cần mạng, đọc từ fixtures.');
+      State.landing = 'idle'; render();
+    };
+    const bi = $('backIdle'); if (bi) bi.onclick = () => { stopTimers(); State.landing = 'idle'; State.query = ''; render(); };
+  }
+
+  /* --- màn kết quả --- */
+  const wb = $('watchBtn');
+  if (wb) wb.onclick = () => {
+    const p2 = parseRoute(), chain = p2[1], addr = p2.slice(2).join('/'), key = keyOf(chain, addr);
+    if (State.watch.some(w => w.key === key)) return;
+    const v = applyMode(key, State.mode);
+    State.watch.unshift({ key, symbol:v.token.symbol, chain, score:v.score, prev:v.score,
+      at:new Date().toISOString(), whale:v.whale ? v.whale.verdict : null });
+    saveWatch();
+    toast('Đã thêm ' + v.token.symbol + ' vào theo dõi.', 'ok', 'Lần quét sau sẽ hiện chênh lệch.');
+    render();
+  };
+  const rb = $('rerunBtn');
+  if (rb) rb.onclick = () => {
+    const p2 = parseRoute();
+    stopTimers();
+    const host = document.querySelector('.cols.two');
+    if (host) host.style.opacity = '.45';
+    toast('Đang quét lại…', 'info');
+    setTimeout(() => { window.location.reload(); }, 900);
+  };
+  const cb = $('copyBtn');
+  if (cb) cb.onclick = () => {
+    const url = location.href;
+    const done = () => toast('Đã sao chép liên kết.', 'ok', url);
+    if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, done);
+    else done();
+  };
+
+  /* --- màn theo dõi --- */
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    const key = b.getAttribute('data-del');
+    const w = State.watch.find(x => x.key === key);
+    confirmModal({ title:'Xoá ' + (w ? w.symbol : 'token') + ' khỏi theo dõi?',
+      body:'Token này sẽ bị xoá khỏi danh sách cục bộ. Không thể hoàn tác.', ok:'Xoá', danger:true,
+      onOk(){ State.watch = State.watch.filter(x => x.key !== key); saveWatch();
+              toast('Đã xoá khỏi theo dõi.', 'ok'); render(); } });
+  });
+  document.querySelectorAll('[data-rescan]').forEach(b => b.onclick = () => {
+    startScan(b.getAttribute('data-rescan'));
+  });
+  const ra = $('rerunAll');
+  if (ra) ra.onclick = () => {
+    ra.setAttribute('aria-disabled','true');
+    ra.innerHTML = '<span class="spin"></span>Đang chạy';
+    let i = 0;
+    const tick = setInterval(() => {
+      i++;
+      if (i >= State.watch.length){
+        clearInterval(tick);
+        const stamp = new Date().toISOString();
+        State.watch.forEach(w => { w.prev = w.score; w.at = stamp; });
+        saveWatch();
+        toast('Đã quét lại ' + State.watch.length + ' token.', 'ok', 'Chênh lệch đã được cập nhật.');
+        render();
+      }
+    }, 380);
+  };
+
+  /* --- màn cài đặt --- */
+  document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
+    State.mode = b.getAttribute('data-mode');
+    Store.set('er.mode', State.mode);
+    toast('Chế độ dữ liệu: ' + MODES[State.mode].vn + '.', 'ok', MODES[State.mode].desc);
+    render();
+  });
+  const tk = $('testKey');
+  if (tk) tk.onclick = () => {
+    const k = $('cmcKey').value.trim(), host = $('keyResult');
+    if (!k){
+      host.innerHTML = '<div class="field-err" style="margin-top:12px"><span>✕</span>' +
+        '<span>Chưa nhập key. Dán key CMC vào ô trên rồi thử lại.</span></div>'; return;
+    }
+    host.innerHTML = '<div class="note-box" style="margin-top:14px"><span class="ic">⋯</span>' +
+      '<div>Đang hỏi máy chủ nội bộ và gọi thử CMC bằng key này…</div></div>';
+    Store.set('er.key', k);
+    API.health().then(r => {
+      const h = r.json;
+      if (!h){
+        host.innerHTML = '<div class="note-box err" style="margin-top:14px"><span class="ic">✕</span>' +
+          '<div><b>Không gọi được máy chủ nội bộ.</b> Chạy <span class="mono">python3 exit_radar_server.py</span> ' +
+          'rồi thử lại. Key chưa được dùng ở đâu cả.</div></div>'; return;
+      }
+      if (h.cmcReachable && h.keyProvided){
+        State.mode = 'full'; Store.set('er.mode', 'full');
+        toast('Key đã nhận. Đã bật chế độ đầy đủ.', 'ok', 'Máy chủ sẽ dùng key cho các endpoint cần quyền.');
+        render(); return;
+      }
+      host.innerHTML = '<div class="note-box err" style="margin-top:14px"><span class="ic">✕</span>' +
+        '<div><b>Key chưa dùng được.</b> CMC trả mã <span class="mono">' + h.cmcStatus + '</span>. ' +
+        'Key sai, chưa kích hoạt, hoặc đang cạn hạn mức. Key không được gửi đi đâu ngoài máy này.</div></div>';
+    });
+  };
+  const ck = $('clearKey');
+  if (ck) ck.onclick = () => {
+    Store.del('er.key');
+    if (State.mode === 'full'){ State.mode = 'public'; Store.set('er.mode','public'); }
+    toast('Đã xoá key khỏi trình duyệt.', 'ok'); render();
+  };
+  document.querySelectorAll('[data-theme-set]').forEach(b => b.onclick = () => {
+    State.themePref = b.getAttribute('data-theme-set');
+    Store.set('er.themePref', State.themePref);
+    applyTheme(); render();
+  });
+  const sc = $('srvCheck');
+  if (sc) sc.onclick = () => {
+    const el = $('srvState'); if (el) el.textContent = 'đang kiểm tra…';
+    API.health().then(r => {
+      const h = r.json, e2 = $('srvState');
+      if (!h){ if (e2) e2.textContent = 'không kết nối được'; toast('Không kết nối được máy chủ.', 'err', API.url('/api/health')); return; }
+      if (e2) e2.textContent = 'tốt · CMC trả ' + h.cmcStatus + ' · key ' + (h.keyProvided ? 'có' : 'không');
+      toast('Máy chủ hoạt động.', 'ok', 'CMC: ' + h.cmcStatus + ' · cache ' + h.cacheTtlSec + 's');
+    });
+  };
+  const se = $('srvEdit');
+  if (se) se.onclick = () => {
+    const v = window.prompt('Địa chỉ máy chủ dữ liệu:', API.base);
+    if (v){ API.base = v.trim(); Store.set('er.api', API.base); toast('Đã đổi địa chỉ máy chủ.', 'ok', API.base); render(); }
+  };
+  const wipe = $('wipe');
+  if (wipe) wipe.onclick = () => confirmModal({
+    title:'Xoá toàn bộ dữ liệu cục bộ?',
+    body:'Watchlist, key CMC và tuỳ chọn giao diện sẽ bị xoá khỏi trình duyệt này. <b>Không thể hoàn tác.</b>',
+    ok:'Xoá tất cả', danger:true,
+    onOk(){
+      ['er.watch','er.key','er.mode','er.themePref'].forEach(k => Store.del(k));
+      State.watch = []; State.mode = 'public'; State.themePref = 'system';
+      toast('Đã xoá toàn bộ dữ liệu cục bộ.', 'ok'); render();
+    }
+  });
+  document.querySelectorAll('[data-state]').forEach(b => b.onclick = () => {
+    const s = b.getAttribute('data-state');
+    const G = k => '#/scan/' + DEMO[k].token.chain + '/' + DEMO[k].token.address;
+    const BONK = 'solana:DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263';
+    const LOW  = 'bnb-chain:PEPE2bnb11111111111111111111111111111';
+    if (s === 'notfound'){ State.query = '0x0000000000000000000000000000000000000000'; State.landing = 'notfound'; location.hash = '#/'; render(); return; }
+    if (s === 'ambiguous'){
+      State.query = 'PEPE'; State.landing = 'ambiguous';
+      State.ambiguous = searchIndex('pepe').sort((a,b) => b.liquidityUsd - a.liquidityUsd);
+      location.hash = '#/'; render(); return;
+    }
+    if (s === 'ratelimit'){ State.landing = 'ratelimit'; location.hash = '#/'; render(); startCountdown(BONK); return; }
+    if (s === 'netdown'){ State.landing = 'netdown'; location.hash = '#/'; render(); return; }
+    if (s === 'nopool'){ State.landing = 'nopool'; location.hash = '#/'; render(); return; }
+    if (s === 'partial' || s === 'nokey'){
+      State.mode = 'public'; Store.set('er.mode','public');
+      toast(s === 'nokey' ? 'Chế độ công khai — chưa có key.' : 'Chế độ công khai: chỉ 3/5 chiều.',
+        'info', s === 'nokey' ? 'Bật chế độ đầy đủ để chấm thêm D và E.' : 'Chiều D và E hiện “không áp dụng”.');
+      location.hash = G(BONK); return;
+    }
+    if (s === 'lowcov'){ location.hash = G(LOW); return; }
+  });
+}
+
+/* ---------- khởi động ---------- */
+window.addEventListener('hashchange', render);
+if (window.matchMedia) window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyTheme);
+themeBtn.onclick = () => {
+  const order = ['dark','light','system'];
+  State.themePref = order[(order.indexOf(State.themePref) + 1) % 3];
+  Store.set('er.themePref', State.themePref);
+  applyTheme();
+  toast('Giao diện: ' + (State.themePref === 'dark' ? 'tối' : State.themePref === 'light' ? 'sáng' : 'theo hệ thống'), 'info');
+};
+
+applyTheme();
+render();
+
+</script>
+</body>
+</html>

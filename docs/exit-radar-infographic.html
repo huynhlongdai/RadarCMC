@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Exit Radar — Luồng người dùng &amp; Kiến trúc hệ thống</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --ink:#0B0E14; --ink2:#2A3242; --muted:#616E85; --faint:#8B95A7;
+  --rule:#DFE5EE; --rule2:#EBF0F7; --paper:#F8FAFD; --panel:#EFF2F5; --card:#FFFFFF;
+  --blue:#3861FB; --blue2:#486DF7; --bsoft:#E8EDFE; --bdark:#2B4FD6;
+  --low:#16C784; --watch:#EE8B2A; --high:#E4572E; --severe:#EA3943;
+  --mono:'IBM Plex Mono','Noto Sans Mono','DejaVu Sans Mono',ui-monospace,monospace;
+  --sans:'IBM Plex Sans','Noto Sans','Noto Sans Display','DejaVu Sans',system-ui,sans-serif;
+}
+
+html{background:var(--paper)}
+body{
+  width:1360px;margin:0 auto;padding-bottom:60px;background:var(--paper);
+  font-family:var(--sans);font-size:13px;line-height:1.55;color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  background-image:linear-gradient(90deg,rgba(56,97,251,.05) 1px,transparent 1px),
+                   linear-gradient(rgba(56,97,251,.05) 1px,transparent 1px);
+  background-size:34px 34px;
+}
+.wrap{padding:0 54px}
+.mono{font-family:var(--mono)}
+
+/* ---------- MASTHEAD ---------- */
+.mast{padding-top:34px}
+.topbar{
+  display:flex;justify-content:space-between;gap:16px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--faint);
+  text-transform:uppercase;border-bottom:1.5px solid var(--ink);padding-bottom:9px;
+}
+.hero{display:grid;grid-template-columns:1fr 384px;gap:52px;align-items:center;padding:46px 0 50px}
+.kicker{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--blue);margin-bottom:16px;
+}
+.hero h1{font-size:74px;line-height:.94;font-weight:700;letter-spacing:-.035em}
+.hero h2{font-size:21px;font-weight:400;color:var(--muted);letter-spacing:-.005em;margin-top:14px}
+.lede{margin-top:22px;font-size:14px;line-height:1.66;color:var(--ink2);max-width:600px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:30px;border-top:1px solid var(--rule);padding-top:18px}
+.stat b{display:block;font-family:var(--mono);font-size:25px;font-weight:600;letter-spacing:-.03em;line-height:1.1}
+.stat span{display:block;font-size:11px;color:var(--muted);margin-top:5px}
+
+/* ---------- RADAR ---------- */
+.radar{position:relative;width:384px;height:384px;margin:0 auto}
+.radar-disc{
+  position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from 0deg,
+    #3861FB 0deg 106.6deg,   #F8FAFD 106.6deg 108deg,
+    #4B72F9 108deg 196.6deg, #F8FAFD 196.6deg 198deg,
+    #6C8CF8 198deg 268.6deg, #F8FAFD 268.6deg 270deg,
+    #B6C5FB 270deg 304.6deg, #F8FAFD 304.6deg 306deg,
+    #93A9F9 306deg 358.6deg,#F8FAFD 358.6deg 360deg);
+  -webkit-mask:radial-gradient(circle at 50% 50%,transparent 0 84px,#000 84px 150px,transparent 150px);
+          mask:radial-gradient(circle at 50% 50%,transparent 0 84px,#000 84px 150px,transparent 150px);
+}
+.radar-rings{
+  position:absolute;inset:0;border-radius:50%;
+  background:repeating-radial-gradient(circle at 50% 50%,rgba(255,255,255,.6) 0 1px,transparent 1px 22px);
+  -webkit-mask:radial-gradient(circle at 50% 50%,transparent 0 83px,#000 83px 151px,transparent 151px);
+          mask:radial-gradient(circle at 50% 50%,transparent 0 83px,#000 83px 151px,transparent 151px);
+}
+.radar-hub{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:1px;text-align:center;
+}
+.radar-hub i{font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--faint);font-style:normal;text-transform:uppercase}
+.radar-hub b{font-family:var(--mono);font-size:46px;font-weight:600;letter-spacing:-.05em;line-height:1}
+.radar-hub span{font-size:10.5px;color:var(--muted)}
+.spoke{position:absolute;inset:0;transform:rotate(var(--a))}
+.spoke>div{position:absolute;left:50%;top:0;transform:translate(-50%,-50%) rotate(calc(-1 * var(--a)));
+  display:flex;align-items:center;gap:5px;white-space:nowrap;
+  font-family:var(--mono);font-size:10.5px;font-weight:500;background:var(--paper);padding:2px 6px;border-radius:20px}
+.spoke i{width:7px;height:7px;border-radius:50%;display:block;flex:none}
+.radar-cap{text-align:center;margin-top:14px;font-size:11px;color:var(--muted);max-width:330px;margin-left:auto;margin-right:auto;line-height:1.5}
+.radar-cap b{color:var(--ink);font-weight:600}
+
+/* ---------- SECTIONS ---------- */
+section{margin-top:66px}
+.sec{display:grid;grid-template-columns:96px 1fr;gap:26px;align-items:start;border-top:2px solid var(--ink);padding-top:16px}
+.sec-n{font-family:var(--mono);font-size:40px;font-weight:600;letter-spacing:-.05em;color:var(--blue);line-height:.85}
+.sec h3{font-size:24px;font-weight:600;letter-spacing:-.02em}
+.sec p{font-size:13px;color:var(--muted);margin-top:5px;max-width:820px}
+.body{margin-top:30px}
+
+/* ---------- FLOW ---------- */
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:26px;row-gap:32px}
+.step{
+  position:relative;background:var(--card);border:1px solid var(--rule);border-radius:11px;
+  padding:15px 16px 14px;display:flex;flex-direction:column;gap:9px;min-height:236px;
+  box-shadow:0 1px 2px rgba(11,14,20,.04);
+}
+.step:not(:nth-child(4n))::after{
+  content:'→';position:absolute;right:-20px;top:50%;transform:translateY(-50%);
+  font-family:var(--mono);font-size:16px;color:var(--blue);line-height:1;
+}
+.step-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.step-n{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--faint);letter-spacing:.06em}
+.actor{font-family:var(--mono);font-size:8.5px;letter-spacing:.11em;text-transform:uppercase;padding:2.5px 7px;border-radius:4px;white-space:nowrap}
+.actor.u{background:var(--ink);color:#fff}
+.actor.s{background:var(--blue);color:#fff}
+.step h4{font-size:15px;font-weight:600;letter-spacing:-.015em;line-height:1.25}
+.step p{font-size:12.5px;line-height:1.56;color:var(--ink2)}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:auto;padding-top:9px}
+.chip{font-family:var(--mono);font-size:10px;letter-spacing:.01em;background:var(--panel);color:var(--ink2);padding:2.5px 7px;border-radius:4px;white-space:nowrap}
+.chip.api{background:var(--bsoft);color:var(--bdark)}
+.branch{font-size:11.5px;line-height:1.5;color:var(--muted);border-left:2px solid var(--rule);padding-left:9px}
+.btag{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-right:5px}
+
+/* ---------- EXIT CODES ---------- */
+.exitbar{display:grid;grid-template-columns:196px 1fr;gap:22px;align-items:center;
+  margin-top:26px;border:1px solid var(--rule);background:var(--card);border-radius:11px;padding:16px 20px}
+.exitbar>div:first-child b{display:block;font-size:13px;font-weight:600}
+.exitbar>div:first-child span{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:4px}
+.codes{display:flex;flex-wrap:wrap;gap:9px}
+.code{display:flex;align-items:center;gap:8px;border:1px solid var(--rule);border-radius:7px;padding:6px 11px;background:var(--paper)}
+.code em{font-family:var(--mono);font-size:14px;font-weight:600;font-style:normal;color:var(--blue);min-width:12px;text-align:center}
+.code.ok em{color:var(--low)}
+.code span{font-size:11.5px;color:var(--ink2)}
+
+/* ---------- MODES ---------- */
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.mode{background:var(--card);border:1px solid var(--rule);border-radius:11px;padding:19px 20px;display:flex;flex-direction:column;gap:11px;
+  box-shadow:0 1px 2px rgba(11,14,20,.04)}
+.mode.rec{border-color:#A9BCF5;box-shadow:0 0 0 3px var(--bsoft)}
+.mode-tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.mode h4{font-size:18px;font-weight:600;letter-spacing:-.02em}
+.mode p{font-size:12.5px;line-height:1.6;color:var(--ink2)}
+.mode .dims{display:flex;gap:5px;flex-wrap:wrap}
+.dim-pill{font-family:var(--mono);font-size:10.5px;padding:3px 8px;border-radius:4px;background:var(--bsoft);color:var(--bdark);font-weight:500}
+.dim-pill.off{background:var(--panel);color:var(--faint);text-decoration:line-through}
+.mode .foot{border-top:1px solid var(--rule2);padding-top:10px;margin-top:auto;font-size:11.5px;color:var(--muted);line-height:1.5}
+.mode .foot b{color:var(--ink);font-weight:600}
+
+/* ---------- LAYERS ---------- */
+.stack{display:flex;flex-direction:column;gap:11px}
+.layer{display:grid;grid-template-columns:214px 1fr;border:1px solid var(--rule);background:var(--card);border-radius:11px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(11,14,20,.04)}
+.layer-l{background:var(--panel);padding:14px 16px;border-right:1px solid var(--rule);display:flex;flex-direction:column;gap:5px}
+.layer-l em{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--blue);font-style:normal}
+.layer-l b{font-size:14.5px;font-weight:600;letter-spacing:-.015em}
+.layer-l span{font-family:var(--mono);font-size:10px;color:var(--faint);line-height:1.45}
+.layer-r{padding:13px 17px;display:flex;flex-direction:column;gap:9px}
+.layer-r p{font-size:12.5px;color:var(--ink2);line-height:1.55}
+.modrow{display:flex;flex-wrap:wrap;gap:6px}
+.mod{font-family:var(--mono);font-size:10.5px;padding:3px 9px;border-radius:5px;background:var(--bsoft);color:var(--bdark);font-weight:500;white-space:nowrap}
+.mod b{font-weight:600;color:#1F3FC7}
+.mod.plain{background:var(--panel);color:var(--ink2)}
+.mod.plain b{color:var(--ink)}
+.below{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:22px}
+.panel{border:1px solid var(--rule);background:var(--card);border-radius:11px;padding:18px 20px}
+.panel.api{border:1px dashed #9FB3E8;background:#F4F7FE}
+.panel h5{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:12px}
+.panel.api h5{color:var(--blue)}
+.arow{display:grid;grid-template-columns:104px 1fr;gap:14px;padding:9px 0;border-top:1px solid var(--rule2);font-size:12px;line-height:1.55}
+.arow:first-of-type{border-top:0;padding-top:0}
+.arow em{font-family:var(--mono);font-size:10px;font-style:normal;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);padding-top:2px}
+.arow span{color:var(--ink2)}
+.arow code{font-family:var(--mono);font-size:11px;background:var(--panel);padding:1.5px 5px;border-radius:3px;color:var(--ink)}
+.pr{display:grid;grid-template-columns:22px 1fr;gap:12px;padding:10px 0;border-top:1px solid var(--rule2);font-size:12.5px;line-height:1.55;color:var(--ink2)}
+.pr:first-of-type{border-top:0;padding-top:0}
+.pr u{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--blue);text-decoration:none;padding-top:1px}
+.pr b{color:var(--ink);font-weight:600}
+.chain{margin-top:22px;border-top:1px solid var(--rule);padding-top:18px;display:grid;grid-template-columns:150px 1fr;gap:22px;align-items:start}
+.chain>div>em{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);font-style:normal}
+.chain-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-family:var(--mono);font-size:11px}
+.chain-row+.chain-row{margin-top:9px}
+.chain-row i{color:var(--blue);font-style:normal}
+.chain-row u{text-decoration:none;background:var(--bsoft);color:var(--bdark);padding:3px 8px;border-radius:4px;font-weight:500}
+.chain-row u.end{background:var(--ink);color:#fff}
+.chain-row u.off{background:var(--panel);color:var(--muted)}
+.chain-row span{font-family:var(--sans);font-size:11.5px;color:var(--muted);margin-left:4px}
+
+/* ---------- SCORING ---------- */
+.score{display:grid;grid-template-columns:1fr 400px;gap:40px}
+.dimrow{display:grid;grid-template-columns:206px 1fr 74px;gap:16px;align-items:center;padding:13px 0;border-top:1px solid var(--rule2)}
+.dimrow:first-child{border-top:0;padding-top:0}
+.dimrow .nm b{font-size:13.5px;font-weight:600;display:block;letter-spacing:-.01em}
+.dimrow .nm span{font-family:var(--mono);font-size:10px;color:var(--faint)}
+.track{height:22px;background:var(--panel);border-radius:4px;position:relative;overflow:hidden}
+.fill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--blue)}
+.fill.o1{background:#3861FB}.fill.o2{background:#4B72F9}.fill.o3{background:#6C8CF8}.fill.o4{background:#B6C5FB}
+.track.neg{background:linear-gradient(90deg,#EFF2F5 0 49.4%,#D6DEEA 49.4% 50.6%,#EFF2F5 50.6% 100%)}
+.fill.both{left:9%;right:9%;background:linear-gradient(90deg,#93A9F9,#6C8CF8)}
+.dimrow .pt{font-family:var(--mono);font-size:15px;font-weight:600;text-align:right;letter-spacing:-.02em}
+.dimrow .pt u{display:block;text-decoration:none;font-size:9.5px;font-weight:400;color:var(--faint);letter-spacing:.04em}
+.levels{display:flex;flex-direction:column;gap:0;border:1px solid var(--rule);border-radius:11px;overflow:hidden;background:var(--card)}
+.lv{display:grid;grid-template-columns:1fr 88px;align-items:center;gap:14px;padding:13px 17px;border-top:1px solid var(--rule2);position:relative}
+.lv:first-child{border-top:0}
+.lv::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
+.lv b{font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--c)}
+.lv span{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right}
+.lv i{font-size:11px;color:var(--muted);font-style:normal;display:block;margin-top:2px}
+.lv.l1{--c:var(--low)}.lv.l2{--c:var(--watch)}.lv.l3{--c:var(--high)}.lv.l4{--c:var(--severe)}
+.gate{grid-column:1/-1;margin-top:24px;border:1px solid #A9BCF5;background:#F4F7FE;border-radius:11px;
+  padding:16px 20px;display:grid;grid-template-columns:34px 1fr;gap:16px;align-items:center}
+.gate b{font-family:var(--mono);font-size:22px;font-weight:600;color:var(--blue);text-align:center}
+.gate p{font-size:13px;line-height:1.6;color:var(--ink2)}
+.gate p strong{color:var(--ink);font-weight:600}
+
+/* ---------- RULES ---------- */
+.rules{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.rule{background:var(--card);border:1px solid var(--rule);border-radius:11px;padding:17px 19px;display:grid;grid-template-columns:26px 1fr;gap:14px;align-items:start;
+  box-shadow:0 1px 2px rgba(11,14,20,.04)}
+.rule u{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--blue);text-decoration:none;padding-top:1px}
+.rule b{display:block;font-size:13.5px;font-weight:600;letter-spacing:-.01em;margin-bottom:4px}
+.rule p{font-size:12.5px;color:var(--ink2);line-height:1.58}
+
+/* ---------- FOOTER ---------- */
+footer{margin-top:62px;border-top:2px solid var(--ink);padding-top:18px;display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
+footer .fl{font-size:12px;color:var(--muted);max-width:640px;line-height:1.6}
+footer .fl b{color:var(--ink);font-weight:600}
+footer .fr{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);text-align:right;line-height:1.9;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<div class="mast wrap">
+  <div class="topbar">
+    <span>Build with CMC · API Hackathon</span>
+    <span>Track · AI Agents and Automation</span>
+    <span>Sơ đồ hệ thống · v2</span>
+  </div>
+
+  <div class="hero">
+    <div>
+      <div class="kicker">Sơ đồ hệ thống</div>
+      <h1>Exit Radar</h1>
+      <h2>Luồng người dùng &amp; kiến trúc hệ thống</h2>
+      <p class="lede">Chấm điểm rủi ro cấu trúc và dòng tiền ví lớn của một token, dựng trên dữ liệu DEX của CoinMarketCap. Một lần quét trả về điểm 0–100, mức rủi ro, ba lý do hàng đầu, và bằng chứng thô phía sau mỗi lý do.</p>
+      <div class="stats">
+        <div class="stat"><b>14</b><span>module</span></div>
+        <div class="stat"><b>49</b><span>tính năng</span></div>
+        <div class="stat"><b>97,5</b><span>giờ dự kiến</span></div>
+        <div class="stat"><b>3</b><span>chế độ dữ liệu</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="radar">
+        <div class="radar-disc"></div>
+        <div class="radar-rings"></div>
+        <div class="radar-hub">
+          <i>Mô hình</i>
+          <b>100</b>
+          <span>điểm · 5 chiều</span>
+        </div>
+        <div class="spoke" style="--a:54deg"><div><i style="background:#3861FB"></i>A · 30</div></div>
+        <div class="spoke" style="--a:153deg"><div><i style="background:#4B72F9"></i>B · 25</div></div>
+        <div class="spoke" style="--a:234deg"><div><i style="background:#6C8CF8"></i>C · 20</div></div>
+        <div class="spoke" style="--a:288deg"><div><i style="background:#B6C5FB"></i>D · 10</div></div>
+        <div class="spoke" style="--a:333deg"><div><i style="background:#93A9F9"></i>E · ±15</div></div>
+      </div>
+      <p class="radar-cap">Diện tích mỗi cung tỉ lệ với trọng số của chiều đó. <b>E là chiều duy nhất chạy hai hướng</b> — dòng tiền ví lớn rút ra sẽ trừ thẳng vào tổng điểm.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 01 ============ -->
+<section class="wrap">
+  <div class="sec">
+    <div class="sec-n">01</div>
+    <div>
+      <h3>Luồng người dùng</h3>
+      <p>Một lần quét đi qua tám bước. Người dùng chỉ ra quyết định ở ba chỗ; phần còn lại hệ thống tự chạy và không bước nào được phép chặn cả tiến trình.</p>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="flow">
+
+      <div class="step">
+        <div class="step-top"><span class="step-n">01</span><span class="actor u">Người dùng</span></div>
+        <h4>Nhập token</h4>
+        <p>Gõ <span class="mono">exitradar scan &lt;token&gt;</span> trên dòng lệnh, hoặc dán vào ô nhập trên Web UI. Nhận địa chỉ hợp đồng, ticker, hoặc tên token.</p>
+        <div class="branch"><span class="btag">Nhánh</span>Đầu vào rỗng hoặc sai định dạng thì nhắc lại tại chỗ, không gọi mạng.</div>
+        <div class="chips"><span class="chip">CLI</span><span class="chip">Web UI</span><span class="chip">M10</span></div>
+      </div>
+
+      <div class="step">
+        <div class="step-top"><span class="step-n">02</span><span class="actor s">Hệ thống</span></div>
+        <h4>Định danh token</h4>
+        <p>Tra qua <span class="mono">GET /v1/dex/search</span>, nhận về danh sách ứng viên kèm chain và thanh khoản để phân biệt các token trùng tên.</p>
+        <div class="branch"><span class="btag">Nhánh</span>Nhiều ứng viên thì người dùng chọn. Không có kết quả nào thì dừng với mã thoát 3.</div>
+        <div class="chips"><span class="chip api">dex/search</span><span class="chip">M4</span></div>
+      </div>
+
+      <div class="step">
+        <div class="step-top"><span class="step-n">03</span><span class="actor u">Người dùng</span></div>
+        <h4>Chọn chế độ dữ liệu</h4>
+        <p>Ba chế độ quyết định số chiều chấm được: công khai, đầy đủ, hoặc dữ liệu mẫu. Chi tiết ở mục 02.</p>
+        <div class="branch"><span class="btag">Nhánh</span>Chọn “đầy đủ” mà thiếu key thì tự hạ về “công khai” và nói rõ lý do, không báo lỗi.</div>
+        <div class="chips"><span class="chip">công khai</span><span class="chip">đầy đủ</span><span class="chip">dữ liệu mẫu</span></div>
+      </div>
+
+      <div class="step">
+        <div class="step-top"><span class="step-n">04</span><span class="actor s">Hệ thống</span></div>
+        <h4>Thu thập dữ liệu</h4>
+        <p>Các collector gọi song song theo từng chiều. Cache 60 giây, backoff khi bị chặn hạn mức, và mọi response thô đều được lưu lại làm bằng chứng.</p>
+        <div class="branch"><span class="btag">Nhánh</span>Một chiều lỗi thì không chặn cả lần quét — chỉ ghi nhận là thiếu dữ liệu.</div>
+        <div class="chips"><span class="chip">M2</span><span class="chip">M4</span><span class="chip">cache 60s</span></div>
+      </div>
+
+      <div class="step">
+        <div class="step-top"><span class="step-n">05</span><span class="actor s">Hệ thống</span></div>
+        <h4>Chấm điểm 5 chiều</h4>
+        <p>Năm hàm thuần A–E chạy độc lập, mỗi hàm trả về điểm, độ tin cậy, và lý do. Không hàm nào đọc dữ liệu của hàm khác.</p>
+        <div class="branch"><span class="btag">Nguyên tắc</span>Dữ liệu thiếu là “không áp dụng” — không bao giờ tính thành 0 điểm.</div>
+        <div class="chips"><span class="chip">M5</span><span class="chip">M6</span></div>
+      </div>
+
+      <div class="step">
+        <div class="step-top"><span class="step-n">06</span><span class="actor s">Hệ thống</span></div>
+        <h4>Cổng độ phủ</h4>
+        <p>Đo tỉ lệ trọng số thực sự chấm được trên tổng 100 điểm trước khi cho ra kết luận.</p>
+        <div class="branch"><span class="btag">Nhánh</span>Độ phủ dưới 50% thì dừng: trả về đúng câu “không đủ dữ liệu”, tuyệt đối không hiện điểm.</div>
+        <div class="chips"><span class="chip">M7</span><span class="chip">ngưỡng 50%</span></div>
+      </div>
+
+      <div class="step">
+        <div class="step-top"><span class="step-n">07</span><span class="actor s">Hệ thống</span></div>
+        <h4>Kết luận</h4>
+        <p>Điểm 0–100, xếp vào một trong bốn mức, kèm ba lý do đóng góp nhiều nhất và con số thô đứng sau mỗi lý do.</p>
+        <div class="branch"><span class="btag">Quy tắc</span>Xanh và đỏ chỉ dành cho mức rủi ro; biến động giá và thanh khoản hiện bằng chữ mono trung tính.</div>
+        <div class="chips"><span class="chip">M7</span><span class="chip">M9</span></div>
+      </div>
+
+      <div class="step">
+        <div class="step-top"><span class="step-n">08</span><span class="actor u">Người dùng</span></div>
+        <h4>Theo dõi &amp; so sánh</h4>
+        <p>Lưu token vào watchlist. Lần quét sau hệ thống đối chiếu và báo ba loại thay đổi: ví lớn mới xuất hiện, đã rút, hoặc điểm tăng vọt.</p>
+        <div class="branch"><span class="btag">Ghi chú</span>Watchlist là một tệp cục bộ — không tài khoản, không đăng nhập, không thanh toán.</div>
+        <div class="chips"><span class="chip">M8</span><span class="chip">delta</span></div>
+      </div>
+
+    </div>
+
+    <div class="exitbar">
+      <div>
+        <span>Hợp đồng dòng lệnh</span>
+        <b>Mã thoát</b>
+      </div>
+      <div class="codes">
+        <div class="code ok"><em>0</em><span>Quét xong</span></div>
+        <div class="code"><em>2</em><span>Đầu vào không hợp lệ</span></div>
+        <div class="code"><em>3</em><span>Không tìm thấy token</span></div>
+        <div class="code"><em>4</em><span>Không đủ dữ liệu</span></div>
+        <div class="code"><em>5</em><span>Lỗi mạng / hạn mức</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 ============ -->
+<section class="wrap">
+  <div class="sec">
+    <div class="sec-n">02</div>
+    <div>
+      <h3>Ba chế độ dữ liệu</h3>
+      <p>Vì sản phẩm không có tài khoản hay đăng nhập, chế độ dữ liệu là thứ duy nhất thay đổi phạm vi chấm điểm. Mỗi chế độ nói thẳng mình thiếu gì.</p>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="modes">
+
+      <div class="mode rec">
+        <span class="mode-tag">Mặc định · không cần key</span>
+        <h4>Công khai</h4>
+        <p>Chạy thẳng trên bộ endpoint mở của CMC, không cần đăng ký gì.</p>
+        <div class="dims">
+          <span class="dim-pill">A · Thanh khoản</span>
+          <span class="dim-pill">B · Holder</span>
+          <span class="dim-pill">C · Hợp đồng</span>
+          <span class="dim-pill off">D · Đòn bẩy</span>
+          <span class="dim-pill off">E · Ví lớn</span>
+        </div>
+        <div class="foot">Độ phủ <b>75%</b> — vẫn ra điểm, nhưng kết quả ghi rõ hai chiều chưa chấm được.</div>
+      </div>
+
+      <div class="mode">
+        <span class="mode-tag">Cần key Startup tier</span>
+        <h4>Đầy đủ</h4>
+        <p>Mở thêm hai endpoint holder chỉ có ở bậc trả phí, đủ để chấm cả chiều dòng tiền ví lớn và đòn bẩy.</p>
+        <div class="dims">
+          <span class="dim-pill">A · Thanh khoản</span>
+          <span class="dim-pill">B · Holder</span>
+          <span class="dim-pill">C · Hợp đồng</span>
+          <span class="dim-pill">D · Đòn bẩy</span>
+          <span class="dim-pill">E · Ví lớn</span>
+        </div>
+        <div class="foot">Độ phủ <b>100%</b> — gồm cả chiều E, chiều có thể trừ điểm.</div>
+      </div>
+
+      <div class="mode">
+        <span class="mode-tag">Không gọi mạng</span>
+        <h4>Dữ liệu mẫu</h4>
+        <p>Đọc lại các response đã chụp sẵn trong kho fixtures. Dùng cho demo, cho kiểm thử, và cho lúc mạng hỏng.</p>
+        <div class="dims">
+          <span class="dim-pill">A · Thanh khoản</span>
+          <span class="dim-pill">B · Holder</span>
+          <span class="dim-pill">C · Hợp đồng</span>
+          <span class="dim-pill">D · Đòn bẩy</span>
+          <span class="dim-pill">E · Ví lớn</span>
+        </div>
+        <div class="foot">Độ phủ <b>100%</b> trên dữ liệu cũ — luôn gắn nhãn thời điểm chụp để không ai nhầm là số liệu sống.</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 ============ -->
+<section class="wrap">
+  <div class="sec">
+    <div class="sec-n">03</div>
+    <div>
+      <h3>Kiến trúc hệ thống</h3>
+      <p>Năm tầng, một biên ngoài duy nhất. Mọi lệnh gọi mạng đều đi qua đúng một client, và toàn bộ phần chấm điểm là hàm thuần nên kiểm thử được mà không cần mạng.</p>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="stack">
+
+      <div class="layer">
+        <div class="layer-l">
+          <em>Tầng 1</em>
+          <b>Giao diện &amp; đầu ra</b>
+          <span>không tài khoản · không thanh toán</span>
+        </div>
+        <div class="layer-r">
+          <div class="modrow">
+            <span class="mod"><b>M10</b> CLI</span>
+            <span class="mod"><b>M14</b> Web UI</span>
+            <span class="mod"><b>M9</b> Báo cáo terminal &amp; JSON</span>
+          </div>
+          <p>CLI lo tham số, mã thoát và đầu ra terminal tô màu theo mức rủi ro. Web UI là HTML tĩnh với bốn màn và tám trạng thái lỗi đã vẽ sẵn. Cả hai chỉ đọc cùng một cấu trúc kết quả, nên không có logic nào bị lặp ở hai nơi.</p>
+        </div>
+      </div>
+
+      <div class="layer">
+        <div class="layer-l">
+          <em>Tầng 2</em>
+          <b>Điều phối</b>
+          <span>một lần quét = một hàm</span>
+        </div>
+        <div class="layer-r">
+          <div class="modrow">
+            <span class="mod"><b>M7</b> Máy quét</span>
+            <span class="mod plain"><b>M4</b> Resolver</span>
+          </div>
+          <p>Điều khiển trình tự: định danh → gọi collector → chấm điểm → cổng độ phủ → kết luận → xuất. Cô lập lỗi theo từng chiều, nên một endpoint hỏng chỉ làm giảm độ phủ chứ không làm hỏng cả lần quét.</p>
+        </div>
+      </div>
+
+      <div class="layer">
+        <div class="layer-l">
+          <em>Tầng 3</em>
+          <b>Miền nghiệp vụ</b>
+          <span>hàm thuần · không I/O</span>
+        </div>
+        <div class="layer-r">
+          <div class="modrow">
+            <span class="mod"><b>M3</b> Mô hình dữ liệu</span>
+            <span class="mod"><b>M5</b> Chấm A · B · C</span>
+            <span class="mod"><b>M6</b> Chấm D · E</span>
+            <span class="mod"><b>M7</b> Gộp điểm &amp; xếp mức</span>
+          </div>
+          <p>Toàn bộ phép tính nằm ở đây: năm hàm chấm điểm, hàm gộp, hàm tính độ phủ, hàm chọn ba lý do hàng đầu. Vì là hàm thuần nên bộ kiểm thử chạy được trên dữ liệu giả, không cần gọi mạng lần nào.</p>
+        </div>
+      </div>
+
+      <div class="layer">
+        <div class="layer-l">
+          <em>Tầng 4</em>
+          <b>Truy cập dữ liệu</b>
+          <span>nơi duy nhất biết về HTTP</span>
+        </div>
+        <div class="layer-r">
+          <div class="modrow">
+            <span class="mod"><b>M2</b> CMC client</span>
+            <span class="mod"><b>M4</b> Collector theo chiều</span>
+            <span class="mod plain">endpoints.py</span>
+          </div>
+          <p>Client giữ hai chế độ xác thực, cache 60 giây, backoff khi gặp hạn mức, và nhật ký từng lệnh gọi. <span class="mono">endpoints.py</span> là nguồn duy nhất khai báo đường dẫn kèm động từ HTTP — cần thiết vì tài liệu và trang endpoint của CMC không thống nhất GET với POST ở vài chỗ.</p>
+        </div>
+      </div>
+
+      <div class="layer">
+        <div class="layer-l">
+          <em>Tầng 5</em>
+          <b>Hạ tầng dùng chung</b>
+          <span>cắt ngang mọi tầng</span>
+        </div>
+        <div class="layer-r">
+          <div class="modrow">
+            <span class="mod"><b>M1</b> Cấu hình &amp; nhật ký</span>
+            <span class="mod"><b>M11</b> Cache · bằng chứng · fixtures</span>
+            <span class="mod"><b>M8</b> Watchlist</span>
+            <span class="mod"><b>M12</b> Kiểm thử</span>
+          </div>
+          <p>Kho bằng chứng giữ nguyên response thô để mỗi lý do trong báo cáo đều truy ngược được về con số gốc. Fixtures chụp từ chính kho này, nên chế độ dữ liệu mẫu luôn khớp với dữ liệu thật về cấu trúc.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="below">
+      <div class="panel api">
+        <h5>Biên ngoài duy nhất · CMC API</h5>
+        <div class="arow">
+          <em>Không cần key</em>
+          <span><code>/public-api/v1/dex/*</code> — 18 endpoint Standard và 17 endpoint DEX, đủ cho cả ba chiều A, B, C.</span>
+        </div>
+        <div class="arow">
+          <em>Cần key</em>
+          <span><code>/v1/dex/*</code> — mở thêm <code>holders/trend/list</code> và <code>holders/tag_count</code>, tức là mở chiều E.</span>
+        </div>
+        <div class="arow">
+          <em>Dùng kèm</em>
+          <span><code>/v4/dex/spot-pairs/latest</code> cho giá và pool, <code>/v5/derivatives/liquidations/*</code> cho chiều đòn bẩy.</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h5>Quyết định kiến trúc đáng chú ý</h5>
+        <div class="pr"><u>01</u><span><b>Không tự dựng MCP server.</b> CMC đã có MCP server chính thức, CLI và bộ Agent Skills — dựng lại chỉ trùng lặp và mất điểm ở tiêu chí cách dùng API.</span></div>
+        <div class="pr"><u>02</u><span><b>Điểm thiếu không phải điểm 0.</b> Một chiều không có dữ liệu bị loại khỏi mẫu số, không bị tính là an toàn — nếu không, token càng ít dữ liệu sẽ càng trông an toàn.</span></div>
+        <div class="pr"><u>03</u><span><b>Cổng độ phủ chặn trước khi hiện điểm.</b> Thà nói “không đủ dữ liệu” còn hơn đưa ra một con số trông chắc chắn nhưng dựng trên một phần ba dữ liệu.</span></div>
+      </div>
+    </div>
+
+    <div class="chain">
+      <div><em>Thứ tự phụ thuộc</em></div>
+      <div>
+        <div class="chain-row">
+          <span>Đường găng</span>
+          <u>M1</u><i>→</i><u>M2</u><i>→</i><u>M3</u><i>→</i><u>M4</u><i>→</i><u>M5</u><i>→</i><u>M7</u><i>→</i><u>M9</u><i>→</i><u>M10</u><i>→</i><u>M11</u><i>→</i><u>M13</u><i>→</i><u class="end">nộp</u>
+        </div>
+        <div class="chain-row">
+          <span>Ngoài đường găng</span>
+          <u class="off">M6</u><span>chiều D và E — cắt được nếu trễ</span>
+          <u class="off">M14</u><span>Web UI</span>
+          <u class="off">M12</u><span>kiểm thử chạy song song</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 04 ============ -->
+<section class="wrap">
+  <div class="sec">
+    <div class="sec-n">04</div>
+    <div>
+      <h3>Phễu chấm điểm</h3>
+      <p>Năm chiều cộng lại thành 100 điểm, rồi cắt thành bốn mức. Chiều E là ngoại lệ duy nhất: nó chạy từ −15 đến +15 nên có thể kéo tổng điểm xuống.</p>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="score">
+      <div>
+        <div class="dimrow">
+          <div class="nm"><b>A · Thanh khoản</b><span>depth · pools · biến động</span></div>
+          <div class="track"><div class="fill o1" style="width:100%"></div></div>
+          <div class="pt">30<u>điểm</u></div>
+        </div>
+        <div class="dimrow">
+          <div class="nm"><b>B · Phân bố holder</b><span>tập trung · số lượng · thay đổi</span></div>
+          <div class="track"><div class="fill o2" style="width:83.3%"></div></div>
+          <div class="pt">25<u>điểm</u></div>
+        </div>
+        <div class="dimrow">
+          <div class="nm"><b>C · An toàn hợp đồng</b><span>quyền · honeypot · thuế</span></div>
+          <div class="track"><div class="fill o3" style="width:66.6%"></div></div>
+          <div class="pt">20<u>điểm</u></div>
+        </div>
+        <div class="dimrow">
+          <div class="nm"><b>D · Đòn bẩy &amp; thanh lý</b><span>derivatives · liquidation</span></div>
+          <div class="track"><div class="fill o4" style="width:33.3%"></div></div>
+          <div class="pt">10<u>điểm</u></div>
+        </div>
+        <div class="dimrow">
+          <div class="nm"><b>E · Dòng tiền ví lớn</b><span>nhãn ví · dòng ròng · hai hướng</span></div>
+          <div class="track neg"><div class="fill both"></div></div>
+          <div class="pt">±15<u>điểm</u></div>
+        </div>
+
+        <div class="gate">
+          <b>◆</b>
+          <p><strong>Cổng độ phủ.</strong> Trước khi hiện điểm, hệ thống đo tỉ lệ trọng số thật sự chấm được. Dưới 50% thì kết quả trả về đúng một câu — “không đủ dữ liệu” — kèm danh sách những gì đã lấy được và những gì còn thiếu. Không có điểm, không có mức rủi ro.</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="levels">
+          <div class="lv l1"><div><b>THẤP</b><i>Cấu trúc vững, chưa thấy dấu hiệu rút ra</i></div><span>0–24</span></div>
+          <div class="lv l2"><div><b>ĐỂ MẮT</b><i>Một vài chỉ số lệch khỏi mức thường</i></div><span>25–49</span></div>
+          <div class="lv l3"><div><b>CAO</b><i>Nhiều dấu hiệu cùng lúc, nên kiểm lại</i></div><span>50–74</span></div>
+          <div class="lv l4"><div><b>NGHIÊM TRỌNG</b><i>Cấu trúc yếu và dòng tiền lớn đang rút</i></div><span>75–100</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 05 ============ -->
+<section class="wrap">
+  <div class="sec">
+    <div class="sec-n">05</div>
+    <div>
+      <h3>Nguyên tắc &amp; giới hạn</h3>
+      <p>Bốn quy tắc không được vi phạm trong suốt quá trình dựng, và ba giới hạn nói thẳng ra để không ai hiểu nhầm phạm vi.</p>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="rules">
+      <div class="rule">
+        <u>01</u>
+        <div><b>Dữ liệu thiếu là “không áp dụng”</b>
+        <p>Không bao giờ quy về 0. Nếu làm vậy, token càng ít dữ liệu công khai sẽ càng trông an toàn — đúng ngược với điều công cụ này cần chỉ ra.</p></div>
+      </div>
+      <div class="rule">
+        <u>02</u>
+        <div><b>Độ phủ dưới 50% thì không hiện điểm</b>
+        <p>Chỉ hiện phần dữ liệu đã lấy được và nói rõ còn thiếu gì. Một con số trông chắc chắn nhưng dựng trên một phần ba dữ liệu còn tệ hơn không có con số nào.</p></div>
+      </div>
+      <div class="rule">
+        <u>03</u>
+        <div><b>Xanh và đỏ chỉ dành cho mức rủi ro</b>
+        <p>Mọi biến động giá và thanh khoản hiển thị bằng chữ mono trung tính. Nếu tô màu tất cả, màu cảnh báo sẽ mất hết ý nghĩa.</p></div>
+      </div>
+      <div class="rule">
+        <u>04</u>
+        <div><b>Không tài khoản, không đăng nhập, không thanh toán</b>
+        <p>Watchlist là một tệp cục bộ. Bỏ được toàn bộ phần xác thực nghĩa là toàn bộ thời gian dồn vào phần chấm điểm.</p></div>
+      </div>
+    </div>
+
+    <div class="exitbar" style="margin-top:22px">
+      <div>
+        <span>Nói thẳng</span>
+        <b>Ba giới hạn đã biết</b>
+      </div>
+      <div class="arow" style="border-top:0;padding:0;grid-template-columns:1fr;gap:9px">
+        <span><b style="font-weight:600">CMC chưa có endpoint cho NFT</b> — nhóm dữ liệu này không tồn tại trong bộ API, nên phạm vi chỉ là token DEX.</span>
+        <span><b style="font-weight:600">Chế độ công khai thiếu hai chiều.</b> <code>holders/trend/list</code> và <code>holders/tag_count</code> cần key Startup tier, nên D và E chỉ chấm được ở chế độ đầy đủ.</span>
+        <span><b style="font-weight:600">Đây là suy luận từ dữ liệu công khai,</b> không phải lời khuyên đầu tư. Kết quả chỉ nói cấu trúc trông thế nào, không nói giá sẽ đi đâu.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap">
+  <div class="fl"><b>Exit Radar</b> · Build with CMC: API Hackathon · Track AI Agents and Automation.<br>Sơ đồ này là bản thiết kế, không phải kết quả chạy thật — mọi con số về giờ và tính năng lấy từ bảng theo dõi sprint 49 tính năng.</div>
+  <div class="fr">Sơ đồ hệ thống · v2<br>18 · 09 · 2026</div>
+</footer>
+
+</body>
+</html>

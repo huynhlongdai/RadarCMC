@@ -1556,7 +1556,7 @@ function evOpen(title, sub, bodyHTML, foot, after){
     '<div style="flex:1"><div style="font-size:var(--t-md);font-weight:600">' + esc(title) + '</div>' +
     (sub ? '<div style="color:var(--muted);font-size:var(--t-sm);margin-top:5px">' + sub + '</div>' : '') + '</div>' +
     '<button class="btn sm ghost" type="button" id="evX">Đóng</button></div>' +
-    '<div style="padding:16px 18px">' + bodyHTML + '</div>' +
+    '<div style="padding:16px 18px;overflow-x:auto">' + bodyHTML + '</div>' +
     (foot ? '<div style="padding:12px 18px;border-top:1px solid var(--border,#2b3140);color:var(--muted);' +
       'font-size:var(--t-xs)">' + foot + '</div>' : '') + '</div>';
   document.body.appendChild(wrap);
@@ -1585,7 +1585,7 @@ function evCells(list, max){
   list = (list || []).filter(x => x && typeof x === 'object').slice(0, max || 40);
   if (!list.length) return '';
   const keys = [];
-  list.forEach(o => Object.keys(o).forEach(k => { if (keys.indexOf(k) < 0 && keys.length < 11) keys.push(k); }));
+  list.forEach(o => Object.keys(o).forEach(k => { if (keys.indexOf(k) < 0 && keys.length < 9) keys.push(k); }));
   const head = keys.map(k => ({ t: k }));
   const rows = list.map(o => '<tr>' + keys.map(k => {
     let x = o[k];
@@ -1595,7 +1595,7 @@ function evCells(list, max){
     if (/^https?:\/\//.test(s)) return '<td><a href="' + esc(s) + '" target="_blank" rel="noopener">xem</a></td>';
     if (typeof x === 'number') return '<td class="n">' + nf(x, Math.abs(x) < 10 ? 4 : 2) + '</td>';
     if (/^[0-9a-fA-Fx]{18,}$/.test(s)) return '<td class="mono" title="' + esc(s) + '">' + esc(s.slice(0, 8)) + '…' + esc(s.slice(-6)) + '</td>';
-    return '<td>' + esc(s.length > 30 ? s.slice(0, 30) + '…' : s) + '</td>';
+    return '<td>' + esc(s.length > 22 ? s.slice(0, 22) + '…' : s) + '</td>';
   }).join('') + '</tr>');
   return evTable(head, rows) + '<p class="caveat">' + list.length + ' dòng — bảng hiện mọi trường CMC trả về, không lọc bớt.</p>';
 }

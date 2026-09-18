@@ -253,7 +253,8 @@ table.ev-table th[data-dir="desc"]:after{content:' ▼'}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chip.f{cursor:pointer;background:transparent}
 .chip.f.on{border-color:var(--accent-2);color:var(--text);background:color-mix(in srgb,var(--chart-a) 16%,transparent)}
-.chip.rwa{color:#fff;background:color-mix(in srgb,var(--chart-b) 70%,transparent);border-color:transparent;font-weight:600}
+.chip.rwa{color:#fff;background:color-mix(in srgb,var(--chart-b) 78%,transparent);border-color:transparent;font-weight:600;
+  font-size:9.5px;letter-spacing:.07em;padding:1px 7px;vertical-align:1px;margin-left:6px}
 .chip.rwa-t{cursor:pointer;background:transparent;font-family:var(--mono)}
 .chip.rwa-t:hover{border-color:var(--accent-2);background:var(--surface-2)}
 .chip.rwa-t b{font-weight:600}
@@ -905,8 +906,6 @@ function viewLanding(){
     extra.push('<div id="marketStrip" class="market">' +
       '<div class="mkt-h">Thị trường hôm nay · CoinMarketCap</div>' +
       '<p class="caveat">Đang tải dữ liệu thị trường…</p></div>');
-    extra.push('<div id="rwaStrip" class="market"><div class="mkt-h">Nhóm RWA · tài sản thực trên chuỗi</div>' +
-      '<p class="caveat">Đang tải danh sách RWA…</p></div>');
   }
   if (s === 'suggest' && State.suggest.length === 1) {
     extra.push('<div class="suggest">' + pickerRow(State.suggest[0], false) + '</div>');
@@ -1049,6 +1048,17 @@ function mktPct(x){
   if (x === null || x === undefined || isNaN(x)) return '<span class="mv sm">—</span>';
   return '<span class="mv ' + (x >= 0 ? 'up' : 'down') + '">' + (x >= 0 ? '▲' : '▼') + ' ' + Math.abs(Number(x)).toFixed(2) + '%</span>';
 }
+function rwaTags(v){
+  const c = (v && v.contact) || {};
+  return c.tags || ((v && v.token && v.token.tags) || []);
+}
+function isRwaTag(tags){
+  return (tags || []).some(t => /real world|rwa|tokenized asset/i.test(String(t)));
+}
+function rwaChip(tags){
+  return isRwaTag(tags)
+    ? '<span class="chip rwa" title="CMC gắn tag tài sản thực (Real World Assets) cho token này">RWA</span>' : '';
+}
 function cmcChipHTML(v){
   const t = v.token || {};
   // Ba trang thai, khong gop hai cai khac nhau lam mot:
@@ -1061,7 +1071,7 @@ function cmcChipHTML(v){
   else chip = 'Chưa tra được hồ sơ CMC';
   const extra = (t.website || t.twitter)
     ? ' <a href="' + esc(t.website || t.twitter) + '" target="_blank" rel="noopener">trang chính thức</a>' : '';
-  return '<div style="margin-top:8px"><span class="chip">' + chip + '</span>' + extra + '</div>';
+  return '<div style="margin-top:8px"><span class="chip">' + chip + '</span>' + rwaChip(rwaTags(v)) + extra + '</div>';
 }
 function barRow(vals, max){
   vals = (vals || []).filter(v => v !== null && v !== undefined && !isNaN(v));
@@ -1995,8 +2005,7 @@ function contactHTML(v){
   const chains = (c.chains || []).map(ch => '<div class="row"><span class="k">' + esc(ch.chain || '—') +
     '</span><span class="lead"></span><span class="v mono">' + esc(shortAddr(ch.address)) + '</span></div>').join('');
   const tagList = c.tags || [];
-  const isRwa = tagList.some(t => /real world|rwa|tokenized asset/i.test(String(t)));
-  const tags = (isRwa ? '<span class="chip rwa" title="CMC xếp token này vào nhóm tài sản thực">RWA</span> ' : '') +
+  const tags = rwaChip(tagList) +
     tagList.map(t => '<span class="mono" style="display:inline-block;border:1px solid var(--border);' +
     'border-radius:999px;padding:2px 9px;margin:3px 4px 0 0;font-size:var(--t-xs);color:var(--muted)">' +
     esc(t) + '</span>').join('');
@@ -3093,62 +3102,12 @@ function loadPrice(){
       el.innerHTML = head + priceChart(d.points, d.endpoint, d.status);
     });
 }
-function loadRwa(){
-  const el = document.getElementById('rwaStrip');
-  if (!el || el.getAttribute('data-done')) return;
-  el.setAttribute('data-done', '1');
-  fetch(API.base + '/api/evidence?kind=rwa&limit=16', { headers: API.headers(), cache: 'no-store' })
-    .then(r => r.json()).catch(() => null).then(d => {
-      const ts = (d && d.tokens) || [];
-      if (!ts.length){
-        el.innerHTML = '<div class="mkt-h">Nhóm RWA · tài sản thực trên chuỗi</div>' +
-          '<p class="caveat">Chưa lấy được danh sách RWA' + (d && d.status ? ' (mã ' + esc(String(d.status)) + ')' : '') +
-          '. CMC có nhóm <b>Real World Assets Protocols</b> (ID 6400b58c1701313dc2e853a9) nhưng cần key CMC Pro ở máy chủ.</p>';
-        return;
-      }
-      el.innerHTML = '<div class="mkt-h">Nhóm RWA · tài sản thực trên chuỗi · ' + ts.length + ' mã đầu</div>' +
-        '<div class="filterbar"><input type="search" id="rwaQ" placeholder="Lọc token RWA…" aria-label="Lọc token RWA">' +
-        '<select id="rwaSort" aria-label="Sắp xếp RWA"><option value="mcap">Vốn hoá cao nhất</option>' +
-        '<option value="chg">Tăng 24h mạnh nhất</option><option value="sym">Ký hiệu A→Z</option></select>' +
-        '<span class="cnt" id="rwaCnt"></span></div><div class="chips" id="rwaList">' +
-        ts.map(t => '<button class="chip rwa-t" type="button" data-mk="' + esc(t.symbol) + '" data-nm="' +
-          esc(stripVN(String(t.symbol) + ' ' + String(t.name || ''))) + '" data-mcap="' + (t.mcap == null ? '' : t.mcap) +
-          '" data-chg="' + (t.chg24h == null ? '' : t.chg24h) + '" title="Bấm để quét ' + esc(String(t.name || '')) + '">' +
-          esc(t.symbol) + (t.chg24h == null ? '' : ' <b class="' + (t.chg24h >= 0 ? 'up' : 'down') + '">' +
-          (t.chg24h >= 0 ? '▲' : '▼') + Math.abs(t.chg24h).toFixed(2) + '%</b>') + '</button>').join('') + '</div>' +
-        '<p class="caveat">Bấm một mã để quét token đó. Danh sách theo nhóm <b>' + esc(String(d.category || 'Real World Assets Protocols')) +
-        '</b> của CMC — đây là cách nhận ra <b>ký hiệu token RWA</b> trong kết quả.</p>';
-      const list = document.getElementById('rwaList'), q = document.getElementById('rwaQ'),
-            srt = document.getElementById('rwaSort'), cnt = document.getElementById('rwaCnt');
-      const rows = Array.prototype.slice.call(list.querySelectorAll('button'));
-      const nv = (b, k) => { const v = parseFloat(b.getAttribute(k)); return isNaN(v) ? -Infinity : v; };
-      function applyR(){
-        const qq = stripVN(q ? q.value : '');
-        rows.forEach(b => { b.style.display = (!qq || (b.getAttribute('data-nm') || '').indexOf(qq) >= 0) ? '' : 'none'; });
-        const vis = rows.filter(b => b.style.display !== 'none');
-        const key = srt ? srt.value : 'mcap';
-        vis.sort((a, b) => key === 'sym' ? (a.getAttribute('data-mk') || '').localeCompare(b.getAttribute('data-mk') || '')
-          : key === 'chg' ? nv(b, 'data-chg') - nv(a, 'data-chg') : nv(b, 'data-mcap') - nv(a, 'data-mcap'));
-        vis.forEach(b => list.appendChild(b));
-        if (cnt) cnt.textContent = vis.length + '/' + rows.length + ' mã';
-      }
-      if (q) q.addEventListener('input', applyR);
-      if (srt) srt.addEventListener('change', applyR);
-      applyR();
-      rows.forEach(b => b.addEventListener('click', () => {
-        const inp = document.getElementById('q'); if (inp) inp.value = b.getAttribute('data-mk');
-        const f = document.getElementById('searchForm');
-        if (f) f.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-      }));
-    });
-}
 function enhanceDom(){
   try {
     moveActions();
     enhanceTables(document);
     enhanceAmb();
     loadPrice();
-    loadRwa();
     document.querySelectorAll('[data-ev]').forEach(el => {
       if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
       if (!el.hasAttribute('role')) el.setAttribute('role', 'button');

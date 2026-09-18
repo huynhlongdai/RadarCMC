@@ -480,6 +480,132 @@ def build_evidence(raw, platform, address):
                        'txSampleWindowMin': None}}
 
 
+def _fng(key=None):
+    """Chi so So hai & Tham lam cua CMC (/v3/fear-and-greed): 0 = so hai cuc do,
+    100 = tham lam cuc do. Da kiem chung: tra 200 bang key, credit 1."""
+    r = retry('/v3/fear-and-greed/latest', None, key)
+    h = retry('/v3/fear-and-greed/historical', {'limit': 8}, key)
+    out = {'ok': bool(r.get('ok')), 'endpoint': 'v3/fear-and-greed'}
+    if r.get('ok'):
+        d = r.get('data') or {}
+        out.update({'value': _num(d.get('value')), 'label': d.get('value_classification'),
+                    'updateTime': d.get('update_time')})
+    else:
+        out['status'] = r.get('status'); out['error'] = r.get('error')
+    if h.get('ok'):
+        out['history'] = [{'t': x.get('timestamp'), 'value': _num(x.get('value')),
+                           'label': x.get('value_classification')} for x in (h.get('data') or [])]
+    return out
+
+
+def _altseason(key=None):
+    """Chi so mua altcoin cua CMC: 75-100 = mua altcoin, 25-49 = mua BTC,
+    <=24 = mua chi BTC. Da kiem chung: tra 200 bang key."""
+    r = retry('/v1/altcoin-season-index/latest', None, key)
+    h = retry('/v1/altcoin-season-index/historical', {'limit': 7}, key)
+    out = {'ok': bool(r.get('ok')), 'endpoint': 'v1/altcoin-season-index'}
+    if r.get('ok'):
+        d = r.get('data') or {}
+        out.update({'index': _num(d.get('altcoin_index')), 'altMcap': _num(d.get('altcoin_marketcap')),
+                    'snapshotTime': d.get('snapshot_time'), 'yearlyHigh': _num(d.get('yearly_high')),
+                    'yearlyHighDate': d.get('yearly_high_date'), 'yearlyLow': _num(d.get('yearly_low')),
+                    'yearlyLowDate': d.get('yearly_low_date')})
+    else:
+        out['status'] = r.get('status'); out['error'] = r.get('error')
+    if h.get('ok'):
+        pts = (h.get('data') or {}).get('points') or []
+        out['history'] = [{'t': x.get('timestamp'), 'index': _num(x.get('altcoin_index')),
+                           'altMcap': _num(x.get('altcoin_marketcap'))} for x in pts]
+    return out
+
+
+def _flow(key=None, count=8):
+    """Dong tien theo chuoi ngay: von hoa, khoi luong, altcoin mcap.
+
+    DINH NGHIA phai noi ro: "dong tien vao/ra" o day la THAY DOI VON HOA theo
+    ngay, khong phai dong tien rong do duoc (thi truong khong co so do dong tien
+    thuan tu endpoint nay). Muc quay vong = khoi luong 24h / von hoa.
+    """
+    r = retry('/v1/global-metrics/quotes/historical', {'count': count, 'interval': 'daily'}, key)
+    if not r.get('ok'):
+        return {'ok': False, 'status': r.get('status'), 'error': r.get('error'),
+                'endpoint': 'v1/global-metrics/quotes/historical'}
+    rows = []
+    for q in ((r.get('data') or {}).get('quotes') or []):
+        u = (q.get('quote') or {}).get('USD') or {}
+        rows.append({'date': q.get('timestamp'), 'mcap': _num(u.get('total_market_cap')),
+                     'volume': _num(u.get('total_volume_24h')), 'altMcap': _num(u.get('altcoin_market_cap')),
+                     'btcDominance': _num(u.get('btc_dominance')), 'ethDominance': _num(u.get('eth_dominance'))})
+    rows.sort(key=lambda x: x.get('date') or '')
+    for i, x in enumerate(rows):
+        pv = rows[i - 1] if i else None
+        if pv and pv.get('mcap') and x.get('mcap'):
+            x['dMcap'] = x['mcap'] - pv['mcap']
+            x['dMcapPct'] = x['dMcap'] / pv['mcap'] * 100
+        else:
+            x['dMcap'] = None; x['dMcapPct'] = None
+        x['turnover'] = (x['volume'] / x['mcap']) if (x.get('volume') and x.get('mcap')) else None
+        x['altShare'] = (x['altMcap'] / x['mcap'] * 100) if (x.get('altMcap') and x.get('mcap')) else None
+    return {'ok': True, 'rows': rows, 'endpoint': 'v1/global-metrics/quotes/historical'}
+
+
+def market_context(key=None):
+    """Bo canh thi truong cho trang chu: so hai & tham lam, mua altcoin, dong tien."""
+    t0 = time.time()
+    out = {'ok': True, 'source': 'live-cmc', 'needKey': not bool(key)}
+    m = markets(key)
+    out['globals'] = m.get('globals'); out['top'] = m.get('top')
+    time.sleep(0.3)
+    out['fng'] = _fng(key) if key else {'ok': False, 'needKey': True}
+    time.sleep(0.3)
+    out['altSeason'] = _altseason(key) if key else {'ok': False, 'needKey': True}
+    time.sleep(0.3)
+    fl = _flow(key, 8) if key else {'ok': False, 'needKey': True}
+    out['flow'] = fl
+    rows = fl.get('rows') or []
+    if rows:
+        first, last = rows[0], rows[-1]
+        out['flowSummary'] = {
+            'days': len(rows),
+            'mcapChangePct': ((last['mcap'] - first['mcap']) / first['mcap'] * 100) if (first.get('mcap') and last.get('mcap')) else None,
+            'turnoverLast': last.get('turnover'), 'altShareLast': last.get('altShare'),
+            'altShareFirst': first.get('altShare'), 'btcDominanceNow': last.get('btcDominance'),
+            'lastDayDmcapPct': last.get('dMcapPct')}
+    out['elapsedMs'] = int((time.time() - t0) * 1000)
+    out['stats'] = dict(STATS)
+    return out
+
+
+def token_context(cid, key=None):
+    """Boi canh thi truong cua rieng token: bien dong 1h/24h/7d/30d, khoi luong,
+    va muc quay vong = khoi luong 24h / von hoa. Can key (endpoint Pro)."""
+    if not cid:
+        return None
+    # KHONG truyen aux cho endpoint nay: 'aux' chi nhan cac gia tri ve so luong
+    # (cmc_rank, tags, supplies...), truyen percent_change_* se bi 400. Cac truong
+    # nay duoc tra MAC DINH — da doc bang du lieu that.
+    r = retry('/v1/cryptocurrency/quotes/latest', {'id': cid}, key)
+    if not r.get('ok') or not r.get('data'):
+        return {'ok': False, 'status': r.get('status'), 'error': r.get('error'),
+                'endpoint': 'v1/cryptocurrency/quotes/latest'}
+    d = (r.get('data') or {}).get(str(cid)) or {}
+    q = (d.get('quote') or {}).get('USD') or {}
+    mcap, vol = _num(q.get('market_cap')), _num(q.get('volume_24h'))
+    return {'ok': True, 'endpoint': 'v1/cryptocurrency/quotes/latest',
+            'rank': _num(d.get('cmc_rank')), 'priceUsd': _num(q.get('price')),
+            'mcap': mcap, 'volume24h': vol, 'volumeChange24h': _num(q.get('volume_change_24h')),
+            'pc1h': _num(q.get('percent_change_1h')), 'pc24h': _num(q.get('percent_change_24h')),
+            'pc7d': _num(q.get('percent_change_7d')), 'pc30d': _num(q.get('percent_change_30d')),
+            'turnover': (vol / mcap) if (vol and mcap) else None,
+            # CEX vs DEX: cho biet dong tien dang chay o san tap trung hay tren DEX.
+            'cexVolume24h': _num(q.get('cex_volume_24h')),
+            'dexVolume24h': _num(q.get('dex_volume_24h')),
+            'tvl': _num(q.get('tvl')),
+            'mcapDominance': _num(q.get('market_cap_dominance')),
+            'pc60d': _num(q.get('percent_change_60d')), 'pc90d': _num(q.get('percent_change_90d')),
+            'updatedAt': q.get('last_updated')}
+
+
 def key_info(key=None):
     """Ho so key: tran tin dung thang, so credit con lai, gioi han moi phut.
     /v1/key/info chi chay khi co key. Da kiem chung: tra ve plan 15.000
@@ -557,6 +683,20 @@ def markets(key=None):
             'mcapChange24h': _num(q.get('total_market_cap_yesterday_percentage_change')),
             'activeCryptos': _num(d.get('active_cryptocurrencies')),
             'activeExchanges': _num(d.get('active_exchanges')),
+            # Dong tien: stablecoin = tien mat cho, phai sinh = don bay,
+            # defi = dong von trong giao thuc. Deu lay tu mot loi goi duy nhat.
+            'stablecoinMcap': _num(d.get('stablecoin_market_cap')),
+            'stablecoinVolume24h': _num(d.get('stablecoin_volume_24h')),
+            'stablecoinChange24h': _num(d.get('stablecoin_24h_percentage_change')),
+            'defiMcap': _num(d.get('defi_market_cap')),
+            'defiVolume24h': _num(d.get('defi_volume_24h')),
+            'defiChange24h': _num(d.get('defi_24h_percentage_change')),
+            'derivativesVolume24h': _num(d.get('derivatives_volume_24h')),
+            'derivativesChange24h': _num(d.get('derivatives_24h_percentage_change')),
+            'todayChangePercent': _num(d.get('today_change_percent')),
+            'btcDominanceChange24h': _num(d.get('btc_dominance_24h_percentage_change')),
+            'ethDominanceChange24h': _num(d.get('eth_dominance_24h_percentage_change')),
+            'btcDominanceYesterday': _num(d.get('btc_dominance_yesterday')),
             'updatedAt': d.get('last_updated')}
     time.sleep(0.4)
     l = cmc('/v1/cryptocurrency/listings/latest',
@@ -626,6 +766,7 @@ def build(platform, address, key=None):
     else:
         t['contact'] = None
         t['contactSkipped'] = 'can-key' if not key else 'khong-co-cid'
+    t['market'] = token_context(t.get('cid'), key) if (key and t.get('cid')) else None
     if tlu == 0:
         return {'error': 'nopool', 'token': t, 'calls': _calls[-12:]}
 
@@ -712,6 +853,7 @@ def build(platform, address, key=None):
         'dims': dims, 'reasons': reasons, 'whale': w, 'history': [],
         'proof': evd,
         'contact': t.get('contact'), 'contactSkipped': t.get('contactSkipped'),
+        'market': t.get('market'),
         'window': {'swapPages': len(raw.get('tx_pages') or []), 'swapSampled': eg.get('swaps_sampled'),
                    'swapMinutes': eg.get('window_minutes'), 'bundles': eg.get('bundles')},
         'holderList': {'available': bool(raw.get('hlist', {}).get('ok')),
@@ -826,6 +968,8 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, search(g('q'), self._key()))
             if u.path == '/api/markets':
                 return self._send(200, markets(self._key()))
+            if u.path == '/api/marketctx':
+                return self._send(200, market_context(self._key()))
             if u.path == '/api/scan':
                 pl, ad = g('platform'), g('address')
                 if not pl or not ad:

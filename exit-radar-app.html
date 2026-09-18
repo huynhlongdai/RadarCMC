@@ -992,13 +992,125 @@ function cmcChipHTML(v){
     ? ' <a href="' + esc(t.website || t.twitter) + '" target="_blank" rel="noopener">trang chính thức</a>' : '';
   return '<div style="margin-top:8px"><span class="chip">' + chip + '</span>' + extra + '</div>';
 }
+function barRow(vals, max){
+  vals = (vals || []).filter(v => v !== null && v !== undefined && !isNaN(v));
+  if (!vals.length) return '';
+  const m = max || Math.max.apply(null, vals);
+  return '<div style="display:flex;gap:3px;align-items:flex-end;height:24px;margin-top:8px">' +
+    vals.map(v => '<span title="' + v + '" style="flex:1;min-width:3px;background:var(--muted);opacity:.5;' +
+      'border-radius:2px;height:' + Math.max(2, Math.round((v / (m || 1)) * 24)) + 'px"></span>').join('') + '</div>';
+}
+function fngZone(v){
+  if (v === null || v === undefined) return '—';
+  if (v <= 24) return 'Sợ hãi cực độ';
+  if (v <= 44) return 'Sợ hãi';
+  if (v <= 55) return 'Trung tính';
+  if (v <= 74) return 'Tham lam';
+  return 'Tham lam cực độ';
+}
+function altZone(i){
+  if (i === null || i === undefined) return '—';
+  if (i >= 75) return 'Mùa altcoin';
+  if (i >= 50) return 'Nghiêng altcoin';
+  if (i >= 25) return 'Mùa BTC';
+  return 'Chỉ BTC';
+}
+function ctxHTML(d){
+  const f = d.fng || {}, a = d.altSeason || {}, sm = d.flowSummary || {}, flow = ((d.flow || {}).rows) || [];
+  const ok = x => x && x.ok !== false;
+  const cards = [];
+  if (ok(f) && f.value !== null && f.value !== undefined){
+    cards.push('<div class="mkt-card"><span class="mk">Sợ hãi &amp; Tham lam</span>' +
+      '<span class="mv num" style="font-size:var(--t-lg)">' + f.value + '<span class="ch"> /100</span></span>' +
+      '<span class="mk">' + fngZone(f.value) + (f.updateTime ? ' · ' + ago(f.updateTime) : '') + '</span>' +
+      barRow((f.history || []).slice().reverse().map(x => x.value), 100) + '</div>');
+  } else {
+    cards.push('<div class="mkt-card"><span class="mk">Sợ hãi &amp; Tham lam</span><span class="mv">—</span>' +
+      '<span class="mk">' + (d.needKey ? 'cần key CMC Pro' : 'nguồn chưa trả dữ liệu') + '</span></div>');
+  }
+  if (ok(a) && a.index !== null && a.index !== undefined){
+    cards.push('<div class="mkt-card"><span class="mk">Mùa altcoin</span>' +
+      '<span class="mv num" style="font-size:var(--t-lg)">' + a.index + '<span class="ch"> /100</span></span>' +
+      '<span class="mk">' + altZone(a.index) + ' · đỉnh năm ' + (a.yearlyHigh != null ? a.yearlyHigh : '—') +
+      (a.yearlyHighDate ? ' (' + String(a.yearlyHighDate).slice(0, 10) + ')' : '') + '</span>' +
+      barRow((a.history || []).map(x => x.index), 100) + '</div>');
+  } else {
+    cards.push('<div class="mkt-card"><span class="mk">Mùa altcoin</span><span class="mv">—</span>' +
+      '<span class="mk">' + (d.needKey ? 'cần key CMC Pro' : 'nguồn chưa trả dữ liệu') + '</span></div>');
+  }
+  let flowBlock;
+  if (flow.length){
+    const rows = flow.slice(-8).map(r => '<tr><td class="n">' + String(r.date || '').slice(0, 10) + '</td>' +
+      '<td class="n">' + usd(r.mcap) + '</td>' +
+      '<td class="n">' + (r.dMcap == null ? '—' : (r.dMcap >= 0 ? '+' : '−') + usd(Math.abs(r.dMcap))) + '</td>' +
+      '<td class="n">' + usd(r.volume) + '</td>' +
+      '<td class="n">' + (r.turnover == null ? '—' : (r.turnover * 100).toFixed(2) + '%') + '</td>' +
+      '<td class="n">' + (r.altShare == null ? '—' : r.altShare.toFixed(1) + '%') + '</td></tr>').join('');
+    const dir = (sm.mcapChangePct == null) ? '' : (sm.mcapChangePct >= 0 ? 'tăng' : 'giảm');
+    let rot = '';
+    if (sm.altShareLast != null && sm.altShareFirst != null){
+      if (sm.altShareLast > sm.altShareFirst + 0.2) rot = 'Tiền đang xoay vào altcoin';
+      else if (sm.altShareLast < sm.altShareFirst - 0.2) rot = 'Tiền đang quay về BTC';
+      else rot = 'Tỷ trọng altcoin gần như không đổi';
+    }
+    flowBlock = '<div class="mkt-h" style="margin-top:18px">Dòng tiền ' + flow.length + ' ngày gần nhất</div>' +
+      '<div class="ev-wrap"><table class="ev-table"><thead><tr><th>Ngày</th><th class="r">Vốn hoá</th>' +
+      '<th class="r">Δ so hôm trước</th><th class="r">KL 24h</th><th class="r">Quay vòng</th>' +
+      '<th class="r">Tỷ trọng altcoin</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<p class="caveat">' +
+      (sm.mcapChangePct != null ? 'Vốn hoá ' + flow.length + ' ngày ' + dir + ' ' + Math.abs(sm.mcapChangePct).toFixed(2) + '%. ' : '') +
+      (rot ? rot + ' (tỷ trọng altcoin ' + sm.altShareFirst.toFixed(1) + '% → ' + sm.altShareLast.toFixed(1) + '%). ' : '') +
+      '<b>Δ vốn hoá không phải dòng tiền ròng:</b> đó là thay đổi giá trị thị trường, gồm cả biến động giá. ' +
+      'Quay vòng = khối lượng 24h ÷ vốn hoá.</p>';
+  } else {
+    flowBlock = '<p class="caveat">Chưa lấy được chuỗi dòng tiền theo ngày' +
+      (d.needKey ? ' — cần key CMC Pro.' : '.') + '</p>';
+  }
+  return '<div class="mkt-cards">' + cards.join('') + '</div>' + flowBlock;
+}
+function tokenMarketHTML(v){
+  const m = v.market;
+  if (!m) return '';
+  if (!m.ok){
+    return '<div class="card pad"><div class="card-h">Bối cảnh thị trường của token</div>' +
+      '<div class="note-box info"><span class="ic">◇</span><div>' +
+      (m.endpoint ? 'CMC không trả dữ liệu thị trường cho token này (mã <span class="mono">' +
+        esc(String(m.status)) + '</span>).' : 'Cần key CMC Pro để lấy bối cảnh thị trường của token.') +
+      '</div></div></div>';
+  }
+  const row = (k, val) => '<div class="row"><span class="k">' + k + '</span><span class="lead"></span>' +
+    '<span class="v">' + val + '</span></div>';
+  const chg = (label, x) => x === null || x === undefined ? '' : row(label, mktPct(x));
+  return '<div class="card pad"><div class="card-h">Bối cảnh thị trường của token · CoinMarketCap</div>' +
+    (m.rank ? row('Xếp hạng vốn hoá', '#' + nf(m.rank, 0)) : '') +
+    chg('1 giờ', m.pc1h) + chg('24 giờ', m.pc24h) + chg('7 ngày', m.pc7d) + chg('30 ngày', m.pc30d) +
+    (m.mcap ? row('Vốn hoá', usd(m.mcap)) : '') +
+    (m.volume24h ? row('Khối lượng 24h', usd(m.volume24h) +
+      (m.volumeChange24h === null || m.volumeChange24h === undefined ? ''
+        : ' <span class="ch">(' + signed(m.volumeChange24h, 1) + '% so với hôm qua)</span>')) : '') +
+    row('Mức quay vòng', m.turnover === null || m.turnover === undefined ? '—'
+      : (m.turnover * 100).toFixed(2) + '% vốn hoá đổi chủ trong 24h') +
+    row('Khối lượng CEX / DEX', (m.cexVolume24h === null || m.cexVolume24h === undefined) ? '—'
+      : usd(m.cexVolume24h) + ' / ' + usd(m.dexVolume24h)) +
+    (m.mcapDominance === null || m.mcapDominance === undefined ? ''
+      : row('Tỷ trọng vốn hoá toàn thị trường', m.mcapDominance.toFixed(3) + '%')) +
+    (m.updatedAt ? row('CMC cập nhật', dtime(m.updatedAt)) : '') +
+    '<p class="caveat">Nguồn: <span class="mono">/v1/cryptocurrency/quotes/latest</span>. ' +
+    'Quay vòng cao nghĩa là tiền đổi chủ nhiều so với vốn hoá — thanh khoản tốt hơn, nhưng cũng là dấu hiệu ' +
+    'dòng tiền đầu cơ đang chạy.</p></div>';
+}
 function renderMarkets(el, d){
   const g = d.globals || {};
   const cards = [
-    ['Tổng vốn hoá', g.totalMcap ? usd(g.totalMcap) : '—', g.mcapChange24h],
+    ['Tổng vốn hoá', g.totalMcap ? usd(g.totalMcap) : '—', g.todayChangePercent],
     ['Khối lượng 24h', g.totalVolume24h ? usd(g.totalVolume24h) : '—', null],
-    ['BTC chi phối', g.btcDominance ? Number(g.btcDominance).toFixed(1) + '%' : '—', null],
-    ['ETH chi phối', g.ethDominance ? Number(g.ethDominance).toFixed(1) + '%' : '—', null],
+    ['Quay vòng toàn thị trường', (g.totalMcap && g.totalVolume24h)
+      ? (g.totalVolume24h / g.totalMcap * 100).toFixed(2) + '%' : '—', null],
+    ['BTC chi phối', g.btcDominance ? Number(g.btcDominance).toFixed(1) + '%' : '—', g.btcDominanceChange24h],
+    ['ETH chi phối', g.ethDominance ? Number(g.ethDominance).toFixed(1) + '%' : '—', g.ethDominanceChange24h],
+    ['Vốn hoá stablecoin', g.stablecoinMcap ? usd(g.stablecoinMcap) : '—', g.stablecoinChange24h],
+    ['KL phái sinh 24h', g.derivativesVolume24h ? usd(g.derivativesVolume24h) : '—', null],
+    ['Vốn hoá DeFi', g.defiMcap ? usd(g.defiMcap) : '—', g.defiChange24h],
     ['Coin hoạt động', g.activeCryptos ? nf(g.activeCryptos) : '—', null],
     ['Sàn hoạt động', g.activeExchanges ? nf(g.activeExchanges) : '—', null]
   ];
@@ -1016,12 +1128,14 @@ function renderMarkets(el, d){
     '<td class="n">' + usd(t.mcap) + '</td>' +
     '<td class="n">' + usd(t.volume24h) + '</td>' +
     '<td><button class="btn sm ghost" type="button" data-mk="' + esc(t.symbol) + '">Quét</button></td></tr>').join('');
-  el.innerHTML = '<div class="mkt-h">Thị trường hôm nay · CoinMarketCap</div>' + head +
+  el.innerHTML = '<div class="mkt-h">Bối cảnh thị trường · CoinMarketCap</div>' + ctxHTML(d) + head +
     (rows ? '<div class="ev-wrap"><table class="ev-table"><thead><tr><th>#</th><th>Token</th>' +
       '<th class="r">Giá</th><th class="r">24h</th><th class="r">Vốn hoá</th><th class="r">KL 24h</th><th></th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
     '<p class="caveat">' + top.length + ' token đầu theo vốn hoá. Mũi tên ▲▼ là chiều biến động, ' +
-    'không phải mức rủi ro — thang rủi ro bốn bậc chỉ dùng ở màn kết quả quét.</p>';
+    'không phải mức rủi ro — thang rủi ro bốn bậc chỉ dùng ở màn kết quả quét. ' +
+    'Quay vòng = khối lượng 24h ÷ vốn hoá. Vốn hoá stablecoin là lượng tiền mặt chờ trong hệ thống; ' +
+    'khối lượng phái sinh là mức đòn bẩy đang mở.</p>';
   el.querySelectorAll('[data-mk]').forEach(b => b.addEventListener('click', () => {
     const inp = document.getElementById('q');
     if (inp) inp.value = b.getAttribute('data-mk');
@@ -1030,9 +1144,14 @@ function renderMarkets(el, d){
   }));
 }
 function loadMarkets(el){
-  const head = '<div class="mkt-h">Thị trường hôm nay · CoinMarketCap</div>';
-  fetch(API.base + '/api/markets', {cache:'no-store'})
+  const head = '<div class="mkt-h">Bối cảnh thị trường · CoinMarketCap</div>';
+  fetch(API.base + '/api/marketctx', {cache:'no-store'})
     .then(r => r.json())
+    .catch(() => null)
+    .then(d => {
+      if (!d || !d.globals) return fetch(API.base + '/api/markets', {cache:'no-store'}).then(r => r.json()).catch(() => null);
+      return d;
+    })
     .then(d => {
       if (!d || (!d.globals && !(d.top || []).length)){
         el.innerHTML = head + '<p class="caveat">Chưa lấy được dữ liệu thị trường từ máy chủ.</p>';
@@ -1385,7 +1504,7 @@ function viewResult(chain, addr){
       '<span>' + v.calls.length + ' lời gọi</span><span>cập nhật ' + ago(v.fetchedAt) + '</span>' +
       '<span>chế độ ' + MODES[State.mode].vn.toLowerCase() + '</span></div>' +
     '<div class="cols two"><div class="stack sticky">' + verdictCard + notices.join('') + '</div>' +
-      '<div class="stack">' + contactHTML(v) + whaleHTML(v.whale) +
+      '<div class="stack">' + contactHTML(v) + tokenMarketHTML(v) + whaleHTML(v.whale) +
         '<div class="card pad"><div class="card-h">5 chiều chấm điểm</div>' +
           DIM_ORDER.map(k => meterHTML(k, v.dims[k])).join('') +
           '<div class="row" style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">' +

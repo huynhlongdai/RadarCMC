@@ -1254,26 +1254,26 @@ def tg_eval(prev, snap, tg_rules, now_ms):
             usd = float(x.get('usd') or 0)
             side = x.get('side')
             if r.get('whaleBuy') and side == 'buy' and usd >= max(min_buy, 1):
-                out.append({'rule': 'ví cá mập mua', 'side': 'buy', 'usd': usd,
+                out.append({'rk': 'whale_buy', 'rule': 'ví cá mập mua', 'side': 'buy', 'usd': usd, 'walletShort': short_w(x.get('wallet')),
                             'wallet': x.get('wallet'), 'tx': x.get('tx'),
                             'text': 'ví cá mập MUA ' + usd_txt(usd) + ' — ví ' + short_w(x.get('wallet')),
                             'from': '', 'to': usd_txt(usd)})
             if r.get('whaleSell') and side == 'sell' and usd >= max(min_sell, 1):
-                out.append({'rule': 'ví cá mập bán', 'side': 'sell', 'usd': usd,
+                out.append({'rk': 'whale_sell', 'rule': 'ví cá mập bán', 'side': 'sell', 'usd': usd, 'walletShort': short_w(x.get('wallet')),
                             'wallet': x.get('wallet'), 'tx': x.get('tx'),
                             'text': 'ví cá mập BÁN ' + usd_txt(usd) + ' — ví ' + short_w(x.get('wallet')),
                             'from': '', 'to': usd_txt(usd)})
     if r.get('scoreAbove') is not None and prev.get('score') is not None and snap.get('score') is not None:
         lim = _num(r.get('scoreAbove'))
         if prev['score'] < lim <= snap['score']:
-            out.append({'rule': 'điểm vượt ' + nf_txt(lim, 0), 'from': nf_txt(prev['score'], 0),
+            out.append({'rk': 'score_above', 'rule': 'điểm vượt ' + nf_txt(lim, 0), 'from': nf_txt(prev['score'], 0),
                         'to': nf_txt(snap['score'], 0),
                         'text': 'điểm vượt ' + nf_txt(lim, 0) + ' (' + nf_txt(prev['score'], 0) +
                                 ' → ' + nf_txt(snap['score'], 0) + ')'})
     if r.get('jumpUp') is not None and prev.get('score') is not None and snap.get('score') is not None:
         d = snap['score'] - prev['score']
         if d >= _num(r.get('jumpUp')):
-            out.append({'rule': 'điểm tăng thêm', 'from': nf_txt(prev['score'], 0), 'to': nf_txt(snap['score'], 0),
+            out.append({'rk': 'jump', 'rule': 'điểm tăng thêm', 'from': nf_txt(prev['score'], 0), 'to': nf_txt(snap['score'], 0),
                         'text': 'điểm tăng ' + nf_txt(d, 0) + ' điểm (' + nf_txt(prev['score'], 0) +
                                 ' → ' + nf_txt(snap['score'], 0) + ')'})
     for k, label, unit in (('liqDropPct', 'thanh khoản giảm', 'USD'),
@@ -1286,13 +1286,14 @@ def tg_eval(prev, snap, tg_rules, now_ms):
             continue
         pct = (b - a) / abs(a) * 100.0
         if pct <= -_num(r.get(k)):
-            out.append({'rule': label, 'from': usd_short(a) if unit == 'USD' else nf_txt(a, 0),
+            out.append({'rk': ('liq_drop' if k == 'liqDropPct' else 'hold_drop'), 'pct': nf_txt(abs(pct), 1),
+                        'rule': label, 'from': usd_short(a) if unit == 'USD' else nf_txt(a, 0),
                         'to': usd_short(b) if unit == 'USD' else nf_txt(b, 0),
                         'text': label + ' ' + nf_txt(abs(pct), 1) + '% (' +
                                 (usd_short(a) if unit == 'USD' else nf_txt(a, 0)) + ' → ' +
                                 (usd_short(b) if unit == 'USD' else nf_txt(b, 0)) + ')'})
     if r.get('whaleOut') and prev.get('whale') != 'out' and snap.get('whale') == 'out':
-        out.append({'rule': 'dòng tiền ví lớn chuyển sang rút', 'from': prev.get('whale') or 'không rõ',
+        out.append({'rk': 'whale_out', 'rule': 'dòng tiền ví lớn chuyển sang rút', 'from': 'đang vào' if prev.get('whale') == 'in' else 'không rõ',
                     'to': 'đang rút', 'text': 'dòng tiền ví lớn chuyển từ ' +
                     ('đang vào' if prev.get('whale') == 'in' else 'không rõ') + ' sang ĐANG RÚT'})
     for k, label, up in (('priceUpPct', 'giá tăng', True), ('priceDownPct', 'giá giảm', False)):
@@ -1304,7 +1305,8 @@ def tg_eval(prev, snap, tg_rules, now_ms):
             continue
         pct = (b - a) / abs(a) * 100.0
         if (pct >= _num(r.get(k))) if up else (pct <= -_num(r.get(k))):
-            out.append({'rule': label, 'from': price_txt(a), 'to': price_txt(b),
+            out.append({'rk': ('price_up' if up else 'price_down'), 'pct': nf_txt(abs(pct), 2),
+                        'rule': label, 'from': price_txt(a), 'to': price_txt(b),
                         'text': label + ' ' + nf_txt(abs(pct), 2) + '% (' + price_txt(a) +
                                 ' → ' + price_txt(b) + ')'})
     return out, skipped
@@ -1355,28 +1357,74 @@ def esc_tg(s):
     return str(s if s is not None else '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
 
-def tg_message(tok, alerts, snap, note=None):
+def tg_alert_text(a, lang):
+    """Dung lai cau canh bao theo ngon ngu, tu so lieu goc (khong dich cau da lap so)."""
+    rk = a.get('rk')
+    if not rk:
+        return a.get('text') or ''
+    L = TGL.get(lang or 'vi') or TGL['vi']
+    tpl = L.get(rk) or TGL['vi'].get(rk) or ''
+    if rk in ('whale_buy', 'whale_sell'):
+        return tpl % (a.get('to') or '', a.get('walletShort') or '')
+    return tpl % (a.get('pct') or a.get('delta') or '', a.get('from') or '', a.get('to') or '')
+
+
+def tg_message(tok, alerts, snap, note=None, lang=None):
     """Mot tin nhan cho mot token. HTML (parse_mode=HTML)."""
+    L = TGL.get(lang or 'vi') or TGL['vi']
     ch = ((snap or {}).get('level') or '')
     head = '<b>' + esc_tg(tok.get('symbol') or '?') + '</b> · ' + esc_tg(tok.get('chain') or '') + \
            (' · <i>' + esc_tg(note) + '</i>' if note else '')
     lines = ['⚠ ' + head]
     for a in alerts:
-        lines.append('• ' + esc_tg(a.get('text')))
+        lines.append('• ' + esc_tg(tg_alert_text(a, lang)))
     sc = (snap or {}).get('score')
     if isinstance(sc, (int, float)):
-        lines.append('Điểm ' + nf_txt(sc, 0) + '/100' +
+        lines.append(L['score'] + ' ' + nf_txt(sc, 0) + '/100' +
                      (' (' + esc_tg(ch) + ')' if ch else '') +
-                     ' — tổng của ' + str((snap or {}).get('dimsScored') or 0) + '/' +
-                     str((snap or {}).get('dimsTotal') or 5) + ' chiều chấm được')
+                     ' — ' + (L['dims'] % (str((snap or {}).get('dimsScored') or 0),
+                                           str((snap or {}).get('dimsTotal') or 5))))
     if (snap or {}).get('liq') is not None:
-        lines.append('Thanh khoản ' + usd_txt(snap['liq']))
+        lines.append(L['liq'] + ' ' + usd_txt(snap['liq']))
     if (snap or {}).get('holders') is not None:
-        lines.append('Holder ' + nf_txt(snap['holders'], 0))
+        lines.append(L['holders'] + ' ' + nf_txt(snap['holders'], 0))
     ca = ((snap or {}).get('calls') or [])
     if ca:
-        lines.append('<i>' + str(len(ca)) + ' lời gọi CMC cho lần quét này</i>')
+        lines.append('<i>' + str(len(ca)) + ' ' + L['calls'] + '</i>')
     return '\n'.join(lines)
+
+
+# Ngôn ngữ tin nhắn bot: chọn bằng /lang en|vi|zh. Nhãn luật vẫn dựng từ
+# khoá ('rk') chứ không dịch câu đã lắp số, nên không lệch số giữa các ngôn ngữ.
+TGL = {
+    'en': {'score':'Score', 'liq':'Liquidity', 'holders':'Holders', 'calls':'CMC calls this scan',
+           'dims':'sum of %s/%s scored dimensions', 'whale_buy':'whale wallet BOUGHT %s — wallet %s',
+           'whale_sell':'whale wallet SOLD %s — wallet %s', 'score_above':'score crossed %s (%s to %s)',
+           'jump':'score up %s points (%s to %s)', 'liq_drop':'liquidity down %s%% (%s to %s)',
+           'hold_drop':'holders down %s%% (%s to %s)', 'whale_out':'whale flow flipped to EXITING',
+           'price_up':'price up %s%% (%s to %s)', 'price_down':'price down %s%% (%s to %s)',
+           'test':'Test message from Exit Radar at %s. If you can read this, the bot is linked.'},
+    'vi': {'score':'Điểm', 'liq':'Thanh khoản', 'holders':'Holder', 'calls':'lời gọi CMC cho lần quét này',
+           'dims':'tổng của %s/%s chiều chấm được', 'whale_buy':'ví cá mập MUA %s — ví %s',
+           'whale_sell':'ví cá mập BÁN %s — ví %s', 'score_above':'điểm vượt %s (%s → %s)',
+           'jump':'điểm tăng %s điểm (%s → %s)', 'liq_drop':'thanh khoản giảm %s%% (%s → %s)',
+           'hold_drop':'số holder giảm %s%% (%s → %s)', 'whale_out':'dòng tiền ví lớn chuyển sang ĐANG RÚT',
+           'price_up':'giá tăng %s%% (%s → %s)', 'price_down':'giá giảm %s%% (%s → %s)',
+           'test':'Tin thử từ Exit Radar lúc %s. Nếu bạn thấy tin này, bot đã nối đúng chat.'},
+    'zh': {'score':'评分', 'liq':'流动性', 'holders':'持币人数', 'calls':'本次扫描的 CMC 调用次数',
+           'dims':'已评分 %s/%s 个维度之和', 'whale_buy':'巨鲸买入 %s — 钱包 %s',
+           'whale_sell':'巨鲸卖出 %s — 钱包 %s', 'score_above':'评分超过 %s（%s → %s）',
+           'jump':'评分上升 %s 分（%s → %s）', 'liq_drop':'流动性下降 %s%%（%s → %s）',
+           'hold_drop':'持币人数下降 %s%%（%s → %s）', 'whale_out':'巨鲸资金流转为流出',
+           'price_up':'价格上涨 %s%%（%s → %s）', 'price_down':'价格下跌 %s%%（%s → %s）',
+           'test':'来自 Exit Radar 的测试消息，发送时间 %s。如果你能看到它，说明机器人绑定成功。'}
+}
+
+
+def tg_l(chat, key, *args):
+    L = TGL.get(((chat.get('conf') or {}).get('lang') or 'vi'), TGL['vi'])
+    s = L.get(key) or TGL['vi'].get(key) or key
+    return (s % args) if args else s
 
 
 def tg_help():
@@ -1481,6 +1529,14 @@ def tg_cmd(st, chat, text):
         ch.setdefault('conf', {})['quietFrom'] = int(p[0]) % 24
         ch['conf']['quietTo'] = int(p[1]) % 24
         return ('Đã đặt giờ yên tĩnh %02d:00 → %02d:00.' % (ch['conf']['quietFrom'], ch['conf']['quietTo']), True)
+    if low.startswith('/lang'):
+        p = t.split()
+        code = (p[1].lower() if len(p) > 1 else '')
+        if code not in ('en', 'vi', 'zh'):
+            return ('Ngôn ngữ tin nhắn hiện tại: <b>%s</b>\nDùng: <code>/lang en</code> · <code>/lang vi</code> · <code>/lang zh</code>' %
+                    ((ch.get('conf') or {}).get('lang') or 'vi'), False)
+        ch.setdefault('conf', {})['lang'] = code
+        return (tg_l(ch, 'test') % time.strftime('%H:%M:%S %d/%m/%Y'), True)
     if low.startswith('/test'):
         return ('Đang gửi thử…', False)
     return ('Không hiểu lệnh này. /help để xem danh sách lệnh.', False)
@@ -1569,7 +1625,7 @@ def tg_tick(key=None, dry=False, only=None, st=None):
                 continue
             out['fired'] += len(keep)
             ch['lastTick'] = now_ms
-            texts = [(w, tg_message(w, keep, snap, note=w.get('note'))) for w in [w]]
+            texts = [(w, tg_message(w, keep, snap, note=w.get('note'), lang=((ch.get('conf') or {}).get('lang') or 'vi'))) for w in [w]]
             if tg_quiet(ch) and not dry:
                 ch.setdefault('pending', []).extend(
                     [{'text': tx, 'key': w.get('key'), 'at': now_ms} for w, tx in texts])
@@ -1764,6 +1820,52 @@ def tg_webhook(update, headers=None):
     return {'ok': True}
 
 
+
+# --------------------------------------------------- key CMC làm trung tâm
+# Thu tu uu tien: key nguoi dung dan trong trinh duyet (header) > bien moi truong
+# CMC_API_KEY > tep ER_DATA_DIR/cmc_key > khong co. Nho vay ban live dung key
+# cua may chu cho MOI nguoi dung, con nguoi co key rieng van ghi de duoc.
+# KHONG bao gio dat key vao ma nguon: repo nay la cong khai, commit key la phat
+# tan key cho ca the gioi. Dat trong bien moi truong cua Vercel.
+def _load_env_file():
+    p = os.path.join(ROOT, '.env')
+    try:
+        with open(p, encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                k, v = line.split('=', 1)
+                os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+    except Exception:
+        pass
+
+
+_load_env_file()
+
+
+def key_file_path():
+    return os.path.join(TG_DIR, 'cmc_key')
+
+
+def key_resolve(header=None):
+    """Tra ve (key, nguon) - nguon de hien thi cho nguoi dung biet key nao dang chay."""
+    h = (header or '').strip()
+    if h:
+        return h, 'key dán trong trình duyệt'
+    e = (os.environ.get('CMC_API_KEY') or '').strip()
+    if e:
+        return e, 'biến môi trường CMC_API_KEY'
+    try:
+        with open(key_file_path(), encoding='utf-8') as f:
+            v = f.read().strip()
+        if v:
+            return v, 'tệp ' + key_file_path()
+    except Exception:
+        pass
+    return None, 'không có key'
+
+
 # --------------------------------------------------------------- HTTP server
 class H(BaseHTTPRequestHandler):
     server_version = 'ExitRadar/1.0'
@@ -1785,7 +1887,10 @@ class H(BaseHTTPRequestHandler):
             self.wfile.write(body)
 
     def _key(self):
-        return self.headers.get('X-CMC-Key') or os.environ.get('CMC_API_KEY') or None
+        return key_resolve(self.headers.get('X-CMC-Key'))[0]
+
+    def _key_src(self):
+        return key_resolve(self.headers.get('X-CMC-Key'))[1]
 
     def do_OPTIONS(self):
         self._send(204, b'')
@@ -1827,7 +1932,7 @@ class H(BaseHTTPRequestHandler):
                 ki = key_info(k) if k else None
                 return self._send(200, {'ok': True, 'server': 'exit-radar',
                                         'cmcReachable': probe['ok'], 'cmcStatus': probe['status'],
-                                        'keyProvided': bool(k),
+                                        'keyProvided': bool(k), 'keySource': self._key_src(),
                                         'keyValid': bool(ki and ki.get('ok')),
                                         'keyError': (ki or {}).get('error'),
                                         'plan': ki if (ki and ki.get('ok')) else None,

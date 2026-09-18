@@ -3763,6 +3763,519 @@ document.addEventListener('click', ev => {
   if (w) tgRulesModal(w);
 }, true);
 
-</script>
+/* ==========================================================================
+   i18n — EN (mặc định) · VI · 中文
+   Cách làm: giao diện gốc viết bằng tiếng Việt; khối này dịch SAU KHI render,
+   theo từng nút văn bản (text node) và thuộc tính placeholder/title/aria-label.
+   Vì sao không sửa 239 KB mã cũ: dịch tại chỗ rủi ro hơn nhiều và không cần thiết.
+   - t('chuỗi') để dịch một chuỗi lẻ trong mã mới.
+   - Chuỗi chưa có bản dịch thì giữ nguyên tiếng Việt (không bịa), và được đếm
+     vào "độ phủ" — bấm vào nút ngôn ngữ để xem và tải danh sách còn thiếu.
+   - Thêm bản dịch mới: window.ER_I18N_EXTRA = { en:{...}, zh:{...} }.
+   ========================================================================== */
+const I18N_LANGS = [{ k:'en', label:'EN', name:'English' }, { k:'vi', label:'VI', name:'Tiếng Việt' }, { k:'zh', label:'中文', name:'中文' }];
+const I18N_DEFAULT = 'en';
+const I18N_LOCALE = { en:'en-US', vi:'vi-VN', zh:'zh-CN' };
+
+const I18N_EN = {
+  /* điều hướng · trang */
+  'Theo dõi':'Watchlist', 'Quét':'Scan', 'Cài đặt':'Settings', 'Trang chủ':'Home', 'Lịch sử':'History',
+  'Bảng điều khiển':'Dashboard', 'Về sản phẩm':'About', 'Dữ liệu mẫu':'Sample data', 'Đầy đủ':'Full',
+  'Công khai':'Public', 'Bảo mật':'Security', 'Cách hoạt động':'How it works',
+  /* mức rủi ro */
+  'Thấp':'Low', 'Để mắt':'Watch', 'Cao':'High', 'Nghiêm trọng':'Critical',
+  'không đủ dữ liệu':'not enough data', 'không áp dụng':'not applicable',
+  /* chiều chấm điểm */
+  'Thanh khoản':'Liquidity', 'Phân bố holder':'Holder distribution', 'An toàn hợp đồng':'Contract safety',
+  'Đòn bẩy & thanh lý':'Leverage & liquidations', 'Dòng tiền ví lớn':'Whale flow',
+  'Dòng tiền ví lớn (mẫu)':'Whale flow (sample)', 'Điểm':'Score', 'điểm':'points',
+  /* nút chung */
+  'Lưu':'Save', 'Huỷ':'Cancel', 'Xoá':'Delete', 'Cảnh báo':'Alerts', 'Ghi chú':'Note', 'Bot':'Bot',
+  'Xuất CSV':'Export CSV', 'Xuất JSON':'Export JSON', 'Nhập JSON':'Import JSON', 'Thêm token':'Add token',
+  'Cập nhật giá':'Refresh prices', 'Chạy lại tất cả':'Re-scan all', 'Lưu luật':'Save rules',
+  'Lưu ghi chú':'Save note', 'Xoá nhật ký cảnh báo':'Clear alert log', 'Cập nhật trạng thái':'Refresh status',
+  'Tạo mã liên kết':'Create link code', 'Tạo mã mới':'New code', 'Gửi tin thử':'Send test message',
+  'Xem trước tin nhắn':'Preview message', 'Ngắt chat':'Unlink chat', 'Lưu cài đặt':'Save settings',
+  'Đẩy danh sách & luật lên bot':'Push list & rules to bot', 'Xem':'View', 'Mở':'Open', 'Đóng':'Close',
+  /* bảng theo dõi */
+  'Token':'Token', 'Chain':'Chain', 'Điểm · xu hướng':'Score · trend', 'Mức':'Level', 'Δ điểm':'Δ score',
+  'Δ thanh khoản':'Δ liquidity', 'Δ holder':'Δ holders', 'Giá · 24h':'Price · 24h', 'Ví lớn':'Whales',
+  'Luật cảnh báo':'Alert rules', 'Quét lúc':'Scanned at', 'Thời điểm':'Time', 'Vốn hoá':'Market cap',
+  'Khối lượng 24h':'24h volume', 'Xếp hạng vốn hoá':'Market cap rank', 'Mức quay vòng':'Turnover',
+  'Mùa altcoin':'Altcoin season', 'Thông báo':'Notice', 'Diễn đàn':'Forum', 'Mã HTTP':'HTTP status',
+  'lệnh':'trades', 'ngày':'days', 'giảm':'down', 'chưa đặt':'not set', 'đang vào':'inflow',
+  'đang rút':'outflow', 'Tất cả':'All', 'Có cảnh báo':'Has alerts', 'chưa quét':'not scanned yet',
+  /* luật */
+  'Điểm vượt ngưỡng':'Score crosses above', 'Điểm tăng thêm':'Score rises by',
+  'Thanh khoản giảm quá':'Liquidity drops by more than', 'Số holder giảm quá':'Holder count drops by more than',
+  'Dòng tiền ví lớn chuyển sang rút':'Whale flow flips to exiting',
+  'Ví cá mập MUA':'Whale wallet BUY', 'Ví cá mập BÁN':'Whale wallet SELL',
+  'Giá tăng quá':'Price rises by more than', 'Giá giảm quá':'Price falls by more than',
+  '… ngưỡng mua tối thiểu':'… minimum buy size', '… ngưỡng bán tối thiểu':'… minimum sell size',
+  'bật/tắt':'on/off', 'Ví dụ 70: chỉ báo khi điểm từ dưới 70 vượt lên 70 trở lên':'Example: 70 fires when the score moves from below 70 to 70 or above',
+  'So với lần hệ thống nhìn thấy trước đó trong phiên này':'Compared with the previous reading in this session',
+  'Rút thanh khoản là dấu hiệu sớm nhất của một cú rug':'Pulling liquidity is the earliest sign of a rug',
+  'Holder rời đi hàng loạt':'Holders leaving in bulk',
+  'Đổi từ "đang vào" sang "đang rút"':'Flips from inflow to outflow',
+  'Đặt ngưỡng để lần sau không phải tự dò lại':'Set thresholds so you do not have to check by hand',
+  'Luật gửi qua Telegram':'Rules delivered to Telegram',
+  'Cảnh báo đẩy ra Telegram, không cần mở web':'Alerts pushed to Telegram, no need to open the web app',
+  /* hộp bot */
+  'Bot Telegram — cảnh báo đẩy ra ngoài trình duyệt':'Telegram bot — alerts pushed out of the browser',
+  'Kho lưu trữ':'Storage', 'Chat đã nối':'Linked chat', 'chưa nối':'not linked',
+  'Token bot đang giữ':'Tokens held by the bot', 'Lần quét gần nhất':'Last scan',
+  'Tin đã gửi hôm nay':'Messages sent today', 'Tin đang chờ':'Queued messages', 'Trạng thái':'Status',
+  'đang chạy':'running', 'tạm dừng':'paused', 'Giờ yên tĩnh từ':'Quiet hours from', '… đến':'… to',
+  'Chống lặp (phút)':'Cooldown (minutes)', 'Tối đa tin/ngày':'Max messages per day',
+  'Máy chủ':'Server', 'Máy chủ hoạt động.':'Server is up.',
+  'đang hỏi…':'asking…', 'không ghi được (Vercel cần Upstash)':'cannot write (Vercel needs Upstash)',
+  'tệp JSON trên máy chủ':'JSON file on the server',
+  'Chưa có mã. Bấm “Tạo mã liên kết”, rồi gửi mã đó cho bot bằng lệnh':'No code yet. Click “Create link code”, then send that code to the bot with',
+  'Mã liên kết:':'Link code:', 'Mã liên kết':'Link code', 'chưa tạo':'not created',
+  /* trạng thái · rỗng */
+  'Chưa theo dõi token nào':'No tokens in your watchlist yet',
+  'Mở một kết quả quét và bấm “Theo dõi”. Lần quét sau hệ thống sẽ so sánh và báo thay đổi.':
+    'Open a scan result and click “Watchlist”. The next scan compares and reports what changed.',
+  'Chưa có kết quả cho token này.':'No results for this token yet.',
+  'Kể từ lần bạn mở trang này':'Since you opened this page',
+  'Cảnh báo mới':'New alerts', 'Biến động đáng kể':'Notable moves',
+  'chưa có — cần thêm lần quét':'none yet — needs another scan',
+  'Nhật ký cảnh báo':'Alert log', 'Chưa có mốc so sánh':'No baseline yet',
+  'Cần ít nhất hai lần quét để vẽ xu hướng':'Needs at least two scans to draw a trend',
+  'Bấm xem dẫn chứng':'Click to see evidence', 'Bấm xem dẫn chứng của từng chiều':'Click to see the evidence for each dimension',
+  'Bấm để xem từng lệnh':'Click to see each trade', 'Bấm xem từng lời gọi CMC':'Click to see every CMC call',
+  'Dẫn chứng':'Evidence', 'Dẫn chứng chiều E ·':'Evidence for dimension E ·',
+  'Dẫn chứng · toàn bộ điểm số':'Evidence · full score', 'Dẫn chứng · toàn bộ lời gọi CMC':'Evidence · all CMC calls',
+  'Dẫn chứng · chỉ số thị trường':'Evidence · market indices', 'Dẫn chứng · số holder':'Evidence · holders',
+  'Dẫn chứng · hồ sơ token trên CMC':'Evidence · CMC token profile',
+  'Dẫn chứng · bối cảnh thị trường của token':'Evidence · token market context',
+  'Từng chiều, từng con số, và chiều nào không chấm được vì sao.':'Every dimension, every number, and why a dimension could not be scored.',
+  'Từng lệnh và từng ví đứng sau điểm này.':'Every trade and wallet behind this score.',
+  'Mỗi dòng là một request thật tới CMC.':'Each row is a real request to CMC.',
+  'Con số, phép tính và danh sách nếu CMC trả.':'The numbers, the math and the lists CMC returned.',
+  /* chế độ · key */
+  'Chế độ công khai — chưa có key.':'Public mode — no key.',
+  'Chế độ công khai: chỉ 3/5 chiều.':'Public mode: only 3/5 dimensions.',
+  'Không cần key. Chấm được thanh khoản, holder và dòng tiền ví lớn.':
+    'No key needed. Liquidity, holders and whale flow are scored.',
+  'Cần key CMC Pro. Chấm 5/5 chiều.':'CMC Pro key required. Scores all 5 dimensions.',
+  'Cần key CMC Pro để lấy bối cảnh thị trường của token.':'A CMC Pro key is required for token market context.',
+  'Dán key CMC Pro trong Cài đặt để mở thêm chiều D và E.':'Paste a CMC Pro key in Settings to unlock dimensions D and E.',
+  'cần key CMC Pro':'CMC Pro key required', '— cần key CMC Pro.':'— CMC Pro key required.',
+  'Chế độ công khai chỉ chấm 3/5 chiều. Bật chế độ đầy đủ để chấm thêm':'Public mode scores only 3/5 dimensions. Turn on full mode to also score',
+  'Bật chế độ đầy đủ để chấm thêm D và E.':'Turn on full mode to also score D and E.',
+  'Chiều D và E hiện “không áp dụng”.':'Dimensions D and E currently read “not applicable”.',
+  'Máy chủ sẽ dùng key cho các endpoint cần quyền.':'The server uses the key for endpoints that need it.',
+  'Địa chỉ máy chủ dữ liệu:':'Data server address:', 'Đổi giao diện sáng hoặc tối':'Switch light or dark theme',
+  'Dán key trong Cài đặt để lấy website, X, Telegram, GitHub, whitepaper và hợp đồng trên từng chain.':
+    'Paste a key in Settings to get the website, X, Telegram, GitHub, whitepaper and contracts on each chain.',
+  'Cắm key CMC Pro là bảng này hiện đủ: địa chỉ ví, % tổng cung, số dư, USD đã mua/bán, lãi/lỗ đã thực hiện.':
+    'With a CMC Pro key this table is complete: wallet addresses, % of supply, balances, USD bought/sold, realised P&L.',
+  'Trình duyệt không gọi thẳng CMC được — CMC không gửi header CORS.':'The browser cannot call CMC directly — CMC sends no CORS header.',
+  /* thông báo (toast) */
+  'Đã sao chép liên kết.':'Link copied.', 'Đã xoá khỏi theo dõi.':'Removed from watchlist.',
+  'Đã lưu cài đặt bot':'Bot settings saved', 'Đã lưu thay đổi cho':'Changes saved for',
+  'Đã lưu luật bot cho':'Bot rules saved for', 'Đã xoá nhật ký cảnh báo':'Alert log cleared',
+  'Đã xoá toàn bộ dữ liệu cục bộ.':'All local data cleared.', 'Đã chuyển sang dữ liệu mẫu.':'Switched to sample data.',
+  'Đã đổi địa chỉ máy chủ.':'Data server address changed.', 'Đã xoá key khỏi trình duyệt.':'Key removed from this browser.',
+  'Key đã nhận. Đã bật chế độ đầy đủ.':'Key accepted. Full mode turned on.',
+  'Quét xong bằng dữ liệu thật từ CMC.':'Scan finished with live CMC data.',
+  'Chênh lệch đã được cập nhật.':'Differences updated.', 'Lần quét sau sẽ hiện chênh lệch.':'The next scan will show differences.',
+  'Giới hạn API đã hết, quét tiếp.':'API limit reached, continuing the scan.',
+  'Không token nào trong danh sách có mã CMC để tra giá':'No token in the list has a CMC id to fetch a price',
+  'Tệp không đọc được — cần JSON do chính app này xuất ra':'File cannot be read — it must be JSON exported by this app',
+  'Trình duyệt chặn tải tệp ở chế độ này':'The browser blocked the download in this mode',
+  'Không sao chép được — hãy chọn rồi sao chép thủ công':'Copy failed — select the text and copy manually',
+  'Bot đã gửi tin thử — mở Telegram xem':'Test message sent — check Telegram',
+  'Tạo mã liên kết trước':'Create a link code first', 'Máy chủ chưa sẵn sàng cho bot':'Server is not ready for the bot',
+  'Không kết nối được máy chủ.':'Could not reach the server.', 'Máy chủ dữ liệu trả lỗi':'The data server returned an error',
+  'Không gọi được máy chủ dữ liệu.':'Could not reach the data server.', 'CMC trả lỗi':'CMC returned an error',
+  'Đang gửi thử…':'Sending test…', 'Đang quét':'Scanning', 'Xong':'Done',
+  /* câu dài còn lại (những câu hay gặp) */
+  'Quyền của chủ hợp đồng, khả năng mint thêm, phí chuyển nhượng, dấu hiệu honeypot.':
+    'Owner privileges, whether more can be minted, transfer fees, honeypot signals.',
+  'Mức cô đặc quyền nắm giữ và số lượng holder. Một token bị vài ví nắm gần hết thì giá phụ thuộc vào quyết định của họ.':
+    'How concentrated ownership is and how many holders there are. If a few wallets hold almost everything, price depends on their decisions.',
+  'Độ sâu của pool và tốc độ rút thanh khoản theo thời gian. Đây là chiều nặng nhất — thanh khoản rút là dấu hiệu sớm nhất của một cú rug.':
+    'Pool depth and how fast liquidity is being pulled over time. This is the heaviest dimension — pulled liquidity is the earliest rug signal.',
+  'Mức đòn bẩy phái sinh quanh token. Chỉ áp dụng cho token có thị trường phái sinh — token nhỏ thường không có.':
+    'Derivatives leverage around the token. Applies only to tokens with derivatives markets — small tokens usually have none.',
+  'Chấm điểm rủi ro cấu trúc và dòng tiền ví lớn của token DEX, dựng trên dữ liệu CoinMarketCap.':
+    'Structural and whale-flow risk scoring for DEX tokens, built on CoinMarketCap data.',
+  'Địa chỉ ví, pool và mã giao dịch đều mở được trên explorer để bạn tự kiểm chứng.':
+    'Wallet addresses, pools and transaction ids all open on an explorer so you can verify them yourself.',
+  'Sợ hãi & Tham lam, mùa altcoin, dòng tiền theo ngày.':'Fear & Greed, altcoin season, daily flows.',
+  'Vì sao bạn để mắt token này':'Why you are watching this token',
+  'Lưu trong localStorage của trình duyệt này. Không gửi lên máy chủ nào.':
+    'Stored in this browser\'s localStorage. Nothing is sent to a server.',
+  'Trình duyệt đang chặn lưu trữ cục bộ — danh sách chỉ tồn tại trong phiên này.':
+    'The browser is blocking local storage — the list only lives in this session.',
+  'Ma trận, biểu đồ và bảng đều dựng từ chính dữ liệu bạn vừa quét.':'Matrices, charts and tables are all built from the data you just scanned.',
+  'bộ nhớ tạm của phiên':'session cache', 'nguồn chưa trả dữ liệu':'source returned no data',
+  'localStorage trình duyệt':'browser localStorage', 'request/phút · còn':'requests/min · left',
+  'Chưa tra được hồ sơ CMC':'CMC profile not available yet', 'Có hồ sơ trên CMC · ID':'CMC profile · ID',
+  'Chỉ niêm yết trên DEX · chưa có hồ sơ CMC':'DEX-only · no CMC profile yet',
+  /* khối i18n tự nó */
+  'Ngôn ngữ':'Language', 'Độ phủ bản dịch':'Translation coverage',
+  'Chuỗi chưa dịch':'Untranslated strings', 'Tải danh sách chưa dịch (CSV)':'Download untranslated (CSV)',
+  'Ngôn ngữ giao diện':'Interface language', 'Đã đổi ngôn ngữ sang':'Language switched to',
+  'Bản dịch máy do trợ lý soạn, không phải bản địa hoá chuyên nghiệp. Chuỗi nào chưa có bản dịch thì giữ nguyên tiếng Việt.':
+    'Translations drafted by the assistant, not professional localisation. Strings without a translation stay in Vietnamese.'
+};
+
+const I18N_ZH = {
+  'Theo dõi':'自选', 'Quét':'扫描', 'Cài đặt':'设置', 'Trang chủ':'首页', 'Lịch sử':'历史',
+  'Bảng điều khiển':'仪表盘', 'Về sản phẩm':'关于', 'Dữ liệu mẫu':'示例数据', 'Đầy đủ':'完整',
+  'Công khai':'公开', 'Bảo mật':'安全', 'Cách hoạt động':'工作原理',
+  'Thấp':'低', 'Để mắt':'关注', 'Cao':'高', 'Nghiêm trọng':'严重',
+  'không đủ dữ liệu':'数据不足', 'không áp dụng':'不适用',
+  'Thanh khoản':'流动性', 'Phân bố holder':'持币分布', 'An toàn hợp đồng':'合约安全',
+  'Đòn bẩy & thanh lý':'杠杆与清算', 'Dòng tiền ví lớn':'巨鲸资金流',
+  'Dòng tiền ví lớn (mẫu)':'巨鲸资金流（样本）', 'Điểm':'评分', 'điểm':'分',
+  'Lưu':'保存', 'Huỷ':'取消', 'Xoá':'删除', 'Cảnh báo':'提醒', 'Ghi chú':'备注', 'Bot':'机器人',
+  'Xuất CSV':'导出 CSV', 'Xuất JSON':'导出 JSON', 'Nhập JSON':'导入 JSON', 'Thêm token':'添加代币',
+  'Cập nhật giá':'更新价格', 'Chạy lại tất cả':'全部重新扫描', 'Lưu luật':'保存规则',
+  'Lưu ghi chú':'保存备注', 'Xoá nhật ký cảnh báo':'清除提醒记录', 'Cập nhật trạng thái':'刷新状态',
+  'Tạo mã liên kết':'生成绑定码', 'Tạo mã mới':'新建绑定码', 'Gửi tin thử':'发送测试消息',
+  'Xem trước tin nhắn':'预览消息', 'Ngắt chat':'解除绑定', 'Lưu cài đặt':'保存设置',
+  'Đẩy danh sách & luật lên bot':'推送列表与规则到机器人', 'Xem':'查看', 'Mở':'打开', 'Đóng':'关闭',
+  'Token':'代币', 'Chain':'链', 'Điểm · xu hướng':'评分 · 趋势', 'Mức':'等级', 'Δ điểm':'Δ 评分',
+  'Δ thanh khoản':'Δ 流动性', 'Δ holder':'Δ 持币人数', 'Giá · 24h':'价格 · 24小时', 'Ví lớn':'巨鲸',
+  'Luật cảnh báo':'提醒规则', 'Quét lúc':'扫描时间', 'Thời điểm':'时间', 'Vốn hoá':'市值',
+  'Khối lượng 24h':'24小时成交量', 'Xếp hạng vốn hoá':'市值排名', 'Mức quay vòng':'换手率',
+  'Mùa altcoin':'山寨币季节', 'Thông báo':'公告', 'Diễn đàn':'论坛', 'Mã HTTP':'HTTP 状态码',
+  'lệnh':'笔交易', 'ngày':'天', 'giảm':'下跌', 'chưa đặt':'未设置', 'đang vào':'流入',
+  'đang rút':'流出', 'Tất cả':'全部', 'Có cảnh báo':'有提醒', 'chưa quét':'尚未扫描',
+  'Điểm vượt ngưỡng':'评分超过阈值', 'Điểm tăng thêm':'评分上升',
+  'Thanh khoản giảm quá':'流动性下降超过', 'Số holder giảm quá':'持币人数下降超过',
+  'Dòng tiền ví lớn chuyển sang rút':'巨鲸资金流转为流出',
+  'Ví cá mập MUA':'巨鲸买入', 'Ví cá mập BÁN':'巨鲸卖出',
+  'Giá tăng quá':'价格涨幅超过', 'Giá giảm quá':'价格跌幅超过',
+  '… ngưỡng mua tối thiểu':'… 最低买入额', '… ngưỡng bán tối thiểu':'… 最低卖出额',
+  'bật/tắt':'开关',
+  'Ví dụ 70: chỉ báo khi điểm từ dưới 70 vượt lên 70 trở lên':'例如 70：评分从低于 70 升到 70 及以上时提醒',
+  'So với lần hệ thống nhìn thấy trước đó trong phiên này':'与本次会话中的上一次读数比较',
+  'Rút thanh khoản là dấu hiệu sớm nhất của một cú rug':'撤走流动性是拉地毯骗局最早的信号',
+  'Holder rời đi hàng loạt':'持币者大量离场',
+  'Đổi từ "đang vào" sang "đang rút"':'由流入转为流出',
+  'Đặt ngưỡng để lần sau không phải tự dò lại':'设好阈值，下次不必再手动查',
+  'Luật gửi qua Telegram':'通过 Telegram 推送的规则',
+  'Cảnh báo đẩy ra Telegram, không cần mở web':'提醒推送到 Telegram，无需打开网页',
+  'Bot Telegram — cảnh báo đẩy ra ngoài trình duyệt':'Telegram 机器人 — 把提醒推送到浏览器之外',
+  'Kho lưu trữ':'存储', 'Chat đã nối':'已绑定会话', 'chưa nối':'未绑定',
+  'Token bot đang giữ':'机器人持有的代币', 'Lần quét gần nhất':'最近扫描',
+  'Tin đã gửi hôm nay':'今日已发送', 'Tin đang chờ':'待发消息', 'Trạng thái':'状态',
+  'đang chạy':'运行中', 'tạm dừng':'已暂停', 'Giờ yên tĩnh từ':'免打扰开始', '… đến':'… 结束',
+  'Chống lặp (phút)':'防重复（分钟）', 'Tối đa tin/ngày':'每日最大消息数',
+  'Máy chủ':'服务器', 'Máy chủ hoạt động.':'服务器运行正常。',
+  'đang hỏi…':'查询中…', 'không ghi được (Vercel cần Upstash)':'无法写入（Vercel 需要 Upstash）',
+  'tệp JSON trên máy chủ':'服务器上的 JSON 文件',
+  'Chưa có mã. Bấm “Tạo mã liên kết”, rồi gửi mã đó cho bot bằng lệnh':'还没有绑定码。点击「生成绑定码」，然后用以下命令把绑定码发给机器人',
+  'Mã liên kết:':'绑定码：', 'Mã liên kết':'绑定码', 'chưa tạo':'未生成',
+  'Chưa theo dõi token nào':'自选列表为空',
+  'Mở một kết quả quét và bấm “Theo dõi”. Lần quét sau hệ thống sẽ so sánh và báo thay đổi.':
+    '打开一个扫描结果并点击「自选」。下次扫描会自动比较并报告变化。',
+  'Chưa có kết quả cho token này.':'该代币暂无结果。',
+  'Kể từ lần bạn mở trang này':'自你打开本页以来',
+  'Cảnh báo mới':'新提醒', 'Biến động đáng kể':'显著变化',
+  'chưa có — cần thêm lần quét':'暂无 — 需要再扫描一次',
+  'Nhật ký cảnh báo':'提醒记录', 'Chưa có mốc so sánh':'暂无对比基准',
+  'Cần ít nhất hai lần quét để vẽ xu hướng':'至少需要两次扫描才能绘制趋势',
+  'Bấm xem dẫn chứng':'点击查看证据', 'Bấm xem dẫn chứng của từng chiều':'点击查看每个维度的证据',
+  'Bấm để xem từng lệnh':'点击查看每笔交易', 'Bấm xem từng lời gọi CMC':'点击查看每次 CMC 调用',
+  'Dẫn chứng':'证据', 'Dẫn chứng chiều E ·':'维度 E 的证据 ·',
+  'Dẫn chứng · toàn bộ điểm số':'证据 · 全部评分', 'Dẫn chứng · toàn bộ lời gọi CMC':'证据 · 全部 CMC 调用',
+  'Dẫn chứng · chỉ số thị trường':'证据 · 市场指标', 'Dẫn chứng · số holder':'证据 · 持币人数',
+  'Dẫn chứng · hồ sơ token trên CMC':'证据 · CMC 代币资料',
+  'Dẫn chứng · bối cảnh thị trường của token':'证据 · 代币市场背景',
+  'Từng chiều, từng con số, và chiều nào không chấm được vì sao.':'每个维度、每个数字，以及无法评分的原因。',
+  'Từng lệnh và từng ví đứng sau điểm này.':'这个评分背后的每笔交易与每个钱包。',
+  'Mỗi dòng là một request thật tới CMC.':'每一行都是对 CMC 的真实请求。',
+  'Con số, phép tính và danh sách nếu CMC trả.':'CMC 返回的数字、计算过程和列表。',
+  'Chế độ công khai — chưa có key.':'公开模式 — 无密钥。',
+  'Chế độ công khai: chỉ 3/5 chiều.':'公开模式：仅评估 3/5 个维度。',
+  'Không cần key. Chấm được thanh khoản, holder và dòng tiền ví lớn.':
+    '无需密钥。可评估流动性、持币人数和巨鲸资金流。',
+  'Cần key CMC Pro. Chấm 5/5 chiều.':'需要 CMC Pro 密钥，评估全部 5 个维度。',
+  'Cần key CMC Pro để lấy bối cảnh thị trường của token.':'获取代币市场背景需要 CMC Pro 密钥。',
+  'Dán key CMC Pro trong Cài đặt để mở thêm chiều D và E.':'在「设置」中粘贴 CMC Pro 密钥即可解锁维度 D 和 E。',
+  'cần key CMC Pro':'需要 CMC Pro 密钥', '— cần key CMC Pro.':'— 需要 CMC Pro 密钥。',
+  'Chế độ công khai chỉ chấm 3/5 chiều. Bật chế độ đầy đủ để chấm thêm':'公开模式仅评估 3/5 个维度。开启完整模式可额外评估',
+  'Bật chế độ đầy đủ để chấm thêm D và E.':'开启完整模式可额外评估 D 和 E。',
+  'Chiều D và E hiện “không áp dụng”.':'维度 D 和 E 目前显示「不适用」。',
+  'Máy chủ sẽ dùng key cho các endpoint cần quyền.':'服务器会用该密钥访问需要权限的接口。',
+  'Địa chỉ máy chủ dữ liệu:':'数据服务器地址：', 'Đổi giao diện sáng hoặc tối':'切换浅色或深色主题',
+  'Dán key trong Cài đặt để lấy website, X, Telegram, GitHub, whitepaper và hợp đồng trên từng chain.':
+    '在「设置」中粘贴密钥即可获取官网、X、Telegram、GitHub、白皮书及各链合约。',
+  'Cắm key CMC Pro là bảng này hiện đủ: địa chỉ ví, % tổng cung, số dư, USD đã mua/bán, lãi/lỗ đã thực hiện.':
+    '接入 CMC Pro 密钥后该表完整显示：钱包地址、占总供应量比例、余额、买卖美元金额、已实现盈亏。',
+  'Trình duyệt không gọi thẳng CMC được — CMC không gửi header CORS.':'浏览器无法直接调用 CMC — CMC 不发送 CORS 头。',
+  'Đã sao chép liên kết.':'已复制链接。', 'Đã xoá khỏi theo dõi.':'已从自选移除。',
+  'Đã lưu cài đặt bot':'机器人设置已保存', 'Đã lưu thay đổi cho':'已保存更改：',
+  'Đã lưu luật bot cho':'已保存机器人规则：', 'Đã xoá nhật ký cảnh báo':'提醒记录已清除',
+  'Đã xoá toàn bộ dữ liệu cục bộ.':'已清除全部本地数据。', 'Đã chuyển sang dữ liệu mẫu.':'已切换到示例数据。',
+  'Đã đổi địa chỉ máy chủ.':'数据服务器地址已更改。', 'Đã xoá key khỏi trình duyệt.':'已从浏览器移除密钥。',
+  'Key đã nhận. Đã bật chế độ đầy đủ.':'密钥已接收，已开启完整模式。',
+  'Quét xong bằng dữ liệu thật từ CMC.':'已用 CMC 实时数据完成扫描。',
+  'Chênh lệch đã được cập nhật.':'差异已更新。', 'Lần quét sau sẽ hiện chênh lệch.':'下次扫描将显示差异。',
+  'Giới hạn API đã hết, quét tiếp.':'API 限额已到，继续扫描。',
+  'Không token nào trong danh sách có mã CMC để tra giá':'列表中没有代币有 CMC 编号可查价',
+  'Tệp không đọc được — cần JSON do chính app này xuất ra':'无法读取文件 — 必须是本应用导出的 JSON',
+  'Trình duyệt chặn tải tệp ở chế độ này':'此模式下浏览器阻止了下载',
+  'Không sao chép được — hãy chọn rồi sao chép thủ công':'复制失败 — 请手动选中后复制',
+  'Bot đã gửi tin thử — mở Telegram xem':'测试消息已发送 — 请在 Telegram 查看',
+  'Tạo mã liên kết trước':'请先生成绑定码', 'Máy chủ chưa sẵn sàng cho bot':'服务器尚未为机器人就绪',
+  'Không kết nối được máy chủ.':'无法连接服务器。', 'Máy chủ dữ liệu trả lỗi':'数据服务器返回错误',
+  'Không gọi được máy chủ dữ liệu.':'无法访问数据服务器。', 'CMC trả lỗi':'CMC 返回错误',
+  'Đang gửi thử…':'正在发送测试…', 'Đang quét':'正在扫描', 'Xong':'完成',
+  'Quyền của chủ hợp đồng, khả năng mint thêm, phí chuyển nhượng, dấu hiệu honeypot.':
+    '合约所有者权限、是否可增发、转账手续费、蜜罐特征。',
+  'Mức cô đặc quyền nắm giữ và số lượng holder. Một token bị vài ví nắm gần hết thì giá phụ thuộc vào quyết định của họ.':
+    '持仓集中度与持币人数。若少数钱包几乎持有全部代币，价格就取决于他们的决定。',
+  'Độ sâu của pool và tốc độ rút thanh khoản theo thời gian. Đây là chiều nặng nhất — thanh khoản rút là dấu hiệu sớm nhất của một cú rug.':
+    '资金池深度与流动性被撤走的速度。这是权重最高的维度 —— 撤走流动性是拉地毯最早的信号。',
+  'Mức đòn bẩy phái sinh quanh token. Chỉ áp dụng cho token có thị trường phái sinh — token nhỏ thường không có.':
+    '该代币的衍生品杠杆水平。仅适用于有衍生品市场的代币 —— 小币通常没有。',
+  'Chấm điểm rủi ro cấu trúc và dòng tiền ví lớn của token DEX, dựng trên dữ liệu CoinMarketCap.':
+    '基于 CoinMarketCap 数据，对 DEX 代币的结构风险与巨鲸资金流进行评分。',
+  'Địa chỉ ví, pool và mã giao dịch đều mở được trên explorer để bạn tự kiểm chứng.':
+    '钱包地址、资金池和交易编号都可在区块浏览器打开，方便你自行核对。',
+  'Sợ hãi & Tham lam, mùa altcoin, dòng tiền theo ngày.':'恐惧与贪婪指数、山寨币季节、每日资金流。',
+  'Vì sao bạn để mắt token này':'你关注这个代币的原因',
+  'Lưu trong localStorage của trình duyệt này. Không gửi lên máy chủ nào.':
+    '保存在本浏览器的 localStorage 中，不会发送到服务器。',
+  'Trình duyệt đang chặn lưu trữ cục bộ — danh sách chỉ tồn tại trong phiên này.':
+    '浏览器阻止了本地存储 —— 列表仅在本次会话有效。',
+  'Ma trận, biểu đồ và bảng đều dựng từ chính dữ liệu bạn vừa quét.':'所有矩阵、图表和表格都由你刚扫描的数据生成。',
+  'bộ nhớ tạm của phiên':'会话缓存', 'nguồn chưa trả dữ liệu':'数据源未返回数据',
+  'localStorage trình duyệt':'浏览器 localStorage', 'request/phút · còn':'请求/分钟 · 剩余',
+  'Chưa tra được hồ sơ CMC':'暂无 CMC 资料', 'Có hồ sơ trên CMC · ID':'有 CMC 资料 · ID',
+  'Chỉ niêm yết trên DEX · chưa có hồ sơ CMC':'仅在 DEX 上 · 暂无 CMC 资料',
+  'Ngôn ngữ':'语言', 'Độ phủ bản dịch':'翻译覆盖率',
+  'Chuỗi chưa dịch':'未翻译字符串', 'Tải danh sách chưa dịch (CSV)':'下载未翻译列表（CSV）',
+  'Ngôn ngữ giao diện':'界面语言', 'Đã đổi ngôn ngữ sang':'已切换语言为',
+  'Bản dịch máy do trợ lý soạn, không phải bản địa hoá chuyên nghiệp. Chuỗi nào chưa có bản dịch thì giữ nguyên tiếng Việt.':
+    '译文由助手起草，并非专业本地化。未翻译的字符串会保留越南语原文。'
+};
+
+/* mẫu câu có số ở giữa: [regex, en, zh] — nhóm bắt được dịch tiếp nếu là tiếng Việt */
+const I18N_PAT = [
+  [/^Điểm (\d+)\/100(.*)$/, 'Score $1/100$2', '评分 $1/100$2'],
+  [/^(\d+) lời gọi CMC/, '$1 CMC calls', '本次 $1 次 CMC 调用'],
+  [/^Dẫn chứng · (.+)$/, 'Evidence · $1', '证据 · $1'],
+  [/^Tổng của (\d+)\/(\d+) chiều chấm được$/, 'Sum of $1/$2 scored dimensions', '已评分 $1/$2 个维度之和'],
+  [/^Chỉ chấm được (\d+)\/5 chiều \(([\d.]+)% trọng số\)/, 'Only $1/5 dimensions scored ($2% of weight)', '仅评估 $1/5 个维度（权重 $2%）'],
+  [/^(\d+) tin nhắn sẽ gửi$/, '$1 message(s) will be sent', '将发送 $1 条消息'],
+  [/^Đã sao chép (.+)$/, 'Copied $1', '已复制 $1'],
+  [/^Theo dõi (\d+)$/, 'Watchlist ($1)', '自选（$1）']
+];
+
+/* ------------------------------------------------ lõi */
+function I18N_norm(s){ return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
+function I18N_extra(){ return (window.ER_I18N_EXTRA || {}); }
+function I18N_dict(lang){ return Object.assign({}, (lang === 'vi' ? {} : (I18N[lang] || {})), (I18N_extra()[lang] || {})); }
+function I18N_lookup(key, lang){
+  lang = lang || I18N_lang;
+  if (lang === 'vi' || !key) return key;
+  const d = I18N_dict(lang);
+  if (d[key] != null) return d[key];
+  for (let i = 0; i < I18N_PAT.length; i++){
+    const p = I18N_PAT[i];
+    const m = key.match(p[0]);
+    if (m){
+      const tpl = (lang === 'en' ? p[1] : p[2]);
+      let out = tpl;
+      for (let g = m.length - 1; g >= 1; g--){
+        const sub = m[g] == null ? '' : m[g];
+        out = out.replace('$' + g, I18N_lookup(sub, lang) == null ? sub : (d[sub] != null ? d[sub] : sub));
+      }
+      return out;
+    }
+  }
+  return null;   // chưa có bản dịch: giữ nguyên tiếng Việt, có đếm vào độ phủ
+}
+function t(s){ const r = I18N_lookup(I18N_norm(s)); return r == null ? s : r; }
+const I18N_MISS = {};
+function I18N_miss(k){ I18N_MISS[k] = (I18N_MISS[k] || 0) + 1; }
+const I18N_SEEN = {};
+
+const I18N_ATTR = ['placeholder', 'title', 'aria-label', 'alt'];
+let I18N_busy = false, I18N_timer = null;
+function I18N_apply(root){
+  if (I18N_lang === 'vi') return 0;
+  const host = root || document.body;
+  if (!host) return 0;
+  let n = 0;
+  const jobs = [];
+  const tw = document.createTreeWalker(host, NodeFilter.SHOW_TEXT, null);
+  let node;
+  while ((node = tw.nextNode())){
+    const raw = node.nodeValue;
+    if (!raw || !raw.trim()) continue;
+    const key = I18N_norm(raw);
+    if (key.length < 2 || !/[A-Za-zÀ-ỹ]/.test(key)) continue;
+    I18N_SEEN[key] = 1;
+    const tr = I18N_lookup(key);
+    if (tr == null){ if (/[ăâđêôơưàáảãạằắẳẵặầấẩẫậèéẻẽẹềếểễệìíỉĩịòóỏõọồốổỗộờớởỡợùúủũụừứửữựỳýỷỹỵ]/i.test(key)) I18N_miss(key); continue; }
+    if (tr !== key) jobs.push([node, raw, key, tr]);
+  }
+  const els = host.querySelectorAll ? host.querySelectorAll('[placeholder],[title],[aria-label],[alt]') : [];
+  I18N_busy = true;
+  jobs.forEach(j => { j[0].nodeValue = j[1].replace(j[2], j[3]); n++; });
+  for (let i = 0; i < els.length; i++){
+    for (let a = 0; a < I18N_ATTR.length; a++){
+      const at = I18N_ATTR[a], v = els[i].getAttribute && els[i].getAttribute(at);
+      if (!v || !v.trim()) continue;
+      const key = I18N_norm(v);
+      I18N_SEEN[key] = 1;
+      const tr = I18N_lookup(key);
+      if (tr == null){ I18N_miss(key); continue; }
+      if (tr !== key){ els[i].setAttribute(at, v.replace(key, tr)); n++; }
+    }
+  }
+  setTimeout(() => { I18N_busy = false; }, 0);
+  return n;
+}
+function I18N_watch(){
+  if (!window.MutationObserver) return;
+  const obs = new MutationObserver(() => {
+    if (I18N_busy) return;
+    clearTimeout(I18N_timer);
+    I18N_timer = setTimeout(() => { I18N_apply(); }, 40);
+  });
+  obs.observe(document.body, { childList:true, subtree:true, characterData:true });
+}
+/* số · ngày · tiền theo ngôn ngữ, vẫn dùng hàm gốc khi ở tiếng Việt */
+const I18N_RAW = { nf:window.nf, usd:window.usd, dtime:window.dtime, price:window.price, signed:window.signed, usdExact:window.usdExact };
+function I18N_num(v, d){
+  const n = Number(v);
+  if (!isFinite(n)) return '—';
+  try { return new Intl.NumberFormat(I18N_LOCALE[I18N_lang] || 'en-US',
+    { minimumFractionDigits:d || 0, maximumFractionDigits:d || 0 }).format(n); }
+  catch (e){ return String(v); }
+}
+function I18N_intl(){
+  if (I18N_lang === 'vi') return;
+  const M = { K:'K', M:'M', B:'B' };
+  window.nf = function(v, d){ return I18N_num(v, d || 0); };
+  window.usd = function(v){
+    const n = Math.abs(Number(v) || 0);
+    if (n >= 1e9) return '$' + I18N_num(n / 1e9, 2) + ' ' + M.B;
+    if (n >= 1e6) return '$' + I18N_num(n / 1e6, 2) + ' ' + M.M;
+    if (n >= 1e3) return '$' + I18N_num(n / 1e3, 1) + ' ' + M.K;
+    return '$' + I18N_num(n, 2);
+  };
+  window.price = function(v){
+    const n = Number(v) || 0;
+    if (n && n < 0.01) return '$' + n.toExponential(3);
+    return '$' + I18N_num(n, n < 1000 ? 2 : 0);
+  };
+  window.dtime = function(iso){
+    try {
+      const dt = new Date(iso);
+      return new Intl.DateTimeFormat(I18N_LOCALE[I18N_lang], { day:'2-digit', month:'2-digit',
+        hour:'2-digit', minute:'2-digit', hour12:false }).format(dt).replace(',', '');
+    } catch (e){ return I18N_RAW.dtime(iso); }
+  };
+}
+function I18N_unwrap(){
+  window.nf = I18N_RAW.nf; window.usd = I18N_RAW.usd; window.dtime = I18N_RAW.dtime;
+  window.price = I18N_RAW.price; window.signed = I18N_RAW.signed; window.usdExact = I18N_RAW.usdExact;
+}
+/* ------------------------------------------------ giao diện chọn ngôn ngữ */
+function I18N_switcher(){
+  if (document.getElementById('i18nSw')) return;
+  const host = document.querySelector('.nav') || document.querySelector('nav') || document.querySelector('header');
+  const wrap = document.createElement('div');
+  wrap.id = 'i18nSw'; wrap.className = 'i18n-sw';
+  wrap.innerHTML = I18N_LANGS.map(l => '<button type="button" class="chip f' + (l.k === I18N_lang ? ' on' : '') +
+    '" data-lang="' + l.k + '" title="' + l.name + '">' + l.label + '</button>').join('') +
+    '<button type="button" class="chip f" data-lang="info" title="Coverage">?</button>';
+  (host || document.body).appendChild(wrap);
+  wrap.addEventListener('click', ev => {
+    const b = ev.target.closest ? ev.target.closest('[data-lang]') : null;
+    if (!b) return;
+    const k = b.getAttribute('data-lang');
+    if (k === 'info') return I18N_modal();
+    if (k === I18N_lang) return;
+    try { Store.set('er.lang', k); } catch (e){}
+    const msg = (k === 'vi') ? 'Đã đổi ngôn ngữ sang Tiếng Việt' : t('Đã đổi ngôn ngữ sang') + ' ' +
+      ((I18N_LANGS.filter(x => x.k === k)[0] || {}).name || k);
+    try { toast(msg, 'ok', ''); } catch (e){}
+    setTimeout(() => location.reload(), 350);
+  });
+}
+function I18N_coverage(){
+  const total = Object.keys(I18N_SEEN).length;
+  const miss = Object.keys(I18N_MISS).length;
+  return { en:{ done:Object.keys(I18N_EN).length, total:total, rate:(total ? 100 * (total - miss) / total : 0) },
+           zh:{ done:Object.keys(I18N_ZH).length, total:total, rate:(total ? 100 * (total - miss) / total : 0) } };
+}
+function I18N_modal(){
+  const c = I18N_coverage();
+  const src = 'Trang ngôn ngữ · ' + (I18N_LANGS.filter(x => x.k === I18N_lang)[0] || {}).name;
+  const body = '<div class="row"><span class="k">' + t('Ngôn ngữ giao diện') + '</span><span class="lead"></span><span class="v">' +
+      I18N_LANGS.map(l => l.name).join(' · ') + '</span></div>' +
+    '<div class="row"><span class="k">' + t('Độ phủ bản dịch') + '</span><span class="lead"></span><span class="v">' +
+      'EN ' + c.en.rate.toFixed(0) + '% (' + c.en.done + ' chuỗi) · ZH ' + c.zh.rate.toFixed(0) + '% (' + c.zh.done + ' chuỗi)</span></div>' +
+    '<div class="row"><span class="k">' + t('Chuỗi chưa dịch') + '</span><span class="lead"></span><span class="v">' +
+      Object.keys(I18N_MISS).length + ' (màn này)</span></div>' +
+    '<p class="caveat">' + t('Bản dịch máy do trợ lý soạn, không phải bản địa hoá chuyên nghiệp. Chuỗi nào chưa có bản dịch thì giữ nguyên tiếng Việt.') + '</p>' +
+    '<div class="row"><span class="k">' + t('Tải danh sách chưa dịch (CSV)') + '</span><span class="lead"></span>' +
+    '<span class="v"><button class="btn sm ghost" type="button" id="i18nCsv">CSV</button></span></div>';
+  if (typeof evOpen === 'function'){
+    evOpen(src, '', body, '<button class="btn ghost" type="button" id="i18nClose">' + t('Đóng') + '</button>', () => {
+      const x = document.getElementById('i18nClose'); if (x) x.onclick = evClose;
+      const y = document.getElementById('i18nCsv');
+      if (y) y.onclick = () => {
+        const rows = Object.keys(I18N_MISS).sort().map(k => '"' + k.replace(/"/g, '""') + '"');
+        const csv = 'source_vi\n' + rows.join('\n');
+        if (typeof wlDownload === 'function') wlDownload('exit-radar-chua-dich.csv', csv, 'text/csv');
+      };
+    });
+  } else {
+    alert(src + '\n' + JSON.stringify(I18N_coverage()));
+  }
+}
+/* chip trạng thái key CMC của máy chủ — cho thấy key nào đang là trung tâm */
+function I18N_keyChip(){
+  if (document.getElementById('cmcKeyChip')) return;
+  const wrap = document.getElementById('i18nSw') || document.querySelector('.nav') || document.body;
+  const el = document.createElement('button');
+  el.id = 'cmcKeyChip'; el.type = 'button'; el.className = 'chip f'; el.textContent = 'CMC …';
+  el.addEventListener('click', I18N_keyChip_fill);
+  wrap.appendChild(el);
+  I18N_keyChip_fill();
+}
+function I18N_keyChip_fill(){
+  const el = document.getElementById('cmcKeyChip');
+  if (!el) return;
+  fetch(API.base + '/api/health', { cache:'no-store' }).then(r => r.json()).catch(() => null).then(d => {
+    if (!d){ el.textContent = 'CMC ✕'; el.title = t('Không kết nối được máy chủ.'); return; }
+    const p = (d.plan || {}).credit_limit_monthly;
+    const left = p ? ((((d.plan || {}).usage || {}).current_month || {}).credits_left) : null;
+    if (d.keyProvided && d.keyValid){
+      el.textContent = 'CMC ✓ ' + (p ? I18N_num(p, 0) : 'key') + (left != null ? ' · ' + I18N_num(left, 0) + ' left' : '');
+      el.title = 'Key: ' + (d.keySource || '?') + ' · ' + (p ? I18N_num(p, 0) + ' credit/tháng' : '');
+    } else {
+      el.textContent = 'CMC ✕ ' + t('chưa có key');
+      el.title = (d.keyError || '') + '';
+    }
+  });
+}
+function I18N_boot(){
+  I18N_intl();
+  I18N_switcher();
+  I18N_apply();
+  I18N_watch();
+  I18N_keyChip();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(I18N_boot, 60));
+else setTimeout(I18N_boot, 60);
+window.addEventListener('load', () => setTimeout(() => { I18N_apply(); I18N_switcher(); }, 400));
+window.I18N = { t:t, apply:I18N_apply, set:function(k){ try{Store.set('er.lang', k);}catch(e){} location.reload(); },
+  cov:I18N_coverage, miss:I18N_MISS, langs:I18N_LANGS };
+
+<style id="i18nCss">.i18n-sw{display:flex;gap:6px;align-items:center;margin-left:auto}.i18n-sw .chip.f{font-size:11px;padding:4px 8px}#cmcKeyChip{font-size:11px;padding:4px 8px;white-space:nowrap}</style>
 </body>
 </html>

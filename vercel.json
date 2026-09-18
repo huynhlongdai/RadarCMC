@@ -3,7 +3,8 @@
     { "source": "/",            "destination": "/api/index?op=app" },
     { "source": "/api/health",  "destination": "/api/index?op=health" },
     { "source": "/api/search",  "destination": "/api/index?op=search" },
-    { "source": "/api/scan",    "destination": "/api/index?op=scan" }
+    { "source": "/api/scan",    "destination": "/api/index?op=scan" },
+    { "source": "/api/markets", "destination": "/api/index?op=markets" }
   ],
   "functions": { "api/index.py": { "maxDuration": 60 } }
 }

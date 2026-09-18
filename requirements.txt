@@ -1,0 +1,1 @@
+# Không cần thư viện ngoài — toàn bộ mã dùng thư viện chuẩn của Python.

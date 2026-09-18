@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    { "source": "/",            "destination": "/api/index?op=app" },
+    { "source": "/api/health",  "destination": "/api/index?op=health" },
+    { "source": "/api/search",  "destination": "/api/index?op=search" },
+    { "source": "/api/scan",    "destination": "/api/index?op=scan" }
+  ],
+  "functions": { "api/index.py": { "maxDuration": 60 } }
+}

@@ -4252,8 +4252,11 @@ function I18N_keyChip_fill(){
   if (!el) return;
   fetch(API.base + '/api/health', { cache:'no-store' }).then(r => r.json()).catch(() => null).then(d => {
     if (!d){ el.textContent = 'CMC ✕'; el.title = t('Không kết nối được máy chủ.'); return; }
-    const p = (d.plan || {}).credit_limit_monthly;
-    const left = p ? ((((d.plan || {}).usage || {}).current_month || {}).credits_left) : null;
+    const raw = d.plan || {};
+    const pl = (raw.data && raw.data.plan) ? raw.data.plan : raw;
+    const us = (raw.data && raw.data.usage) ? raw.data.usage : (raw.usage || {});
+    const p = pl.credit_limit_monthly || null;
+    const left = us.current_month ? us.current_month.credits_left : null;
     if (d.keyProvided && d.keyValid){
       el.textContent = 'CMC ✓ ' + (p ? I18N_num(p, 0) : 'key') + (left != null ? ' · ' + I18N_num(left, 0) + ' left' : '');
       el.title = 'Key: ' + (d.keySource || '?') + ' · ' + (p ? I18N_num(p, 0) + ' credit/tháng' : '');

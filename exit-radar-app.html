@@ -1581,10 +1581,10 @@ function evSrc(o){
       (o.ms ? ' · ' + o.ms + ' ms' : '')) +
     (o.error ? evRow('CMC trả lỗi', '<span class="mono">' + esc(String(o.error)) + '</span>') : '');
 }
-/* nhan cot tieng Viet cho bang dan chung + ma HTTP/thoi gian phai la so nguyen */
-const EV_LABEL = { body:'Thân phản hồi', status:'Mã HTTP', error:'Lỗi', path:'Đường dẫn CMC', ms:'Thời gian (ms)', side:'Chiều', usd:'Giá trị (USD)', count:'Số lượng', platform:'Chuỗi', platformId:'Mã nền tảng', tokenAddress:'Địa chỉ token', address:'Địa chỉ', ts:'Thời điểm', share:'Tỷ trọng', wallet:'Ví', sym:'Ký hiệu', rank:'Hạng' };
-const EV_INT = /^(status|ms|count|rank)$/;
 function evCells(list, max){
+  const EV_LABEL = { body:'Thân phản hồi', status:'Mã HTTP', error:'Lỗi', path:'Đường dẫn CMC', ms:'Thời gian (ms)', side:'Chiều', usd:'Giá trị (USD)', count:'Số lượng', platform:'Chuỗi', platformId:'Mã nền tảng', tokenAddress:'Địa chỉ token', address:'Địa chỉ', ts:'Thời điểm', share:'Tỷ trọng', wallet:'Ví', sym:'Ký hiệu', rank:'Hạng' };
+  const EV_INT = /^(status|ms|count|rank)$/;
+
   list = (list || []).filter(x => x && typeof x === 'object').slice(0, max || 40);
   if (!list.length) return '';
   const keys = [];

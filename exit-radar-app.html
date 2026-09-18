@@ -278,6 +278,21 @@ table.ev-table th[data-dir="desc"]:after{content:' ▼'}
 .pbar-row .v{flex:0 0 80px;text-align:right;font-family:var(--mono);font-size:var(--t-xs)}
 .hlines svg{width:100%;height:auto;display:block}
 .hlines .card-h{margin-bottom:6px}
+/* --- module theo dõi: sparkline, luật cảnh báo, nhật ký --- */
+.spark{width:64px;height:18px;display:inline-block;vertical-align:middle;margin-left:8px}
+.wl-score{font-family:var(--mono);font-weight:600}
+.wl-note{display:block;color:var(--muted);font-size:11px;margin-top:2px;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wl-dash,.wl-flat{color:var(--faint)}
+.pill.in{color:var(--buy);border-color:color-mix(in srgb,var(--buy) 45%,transparent)}
+.chip.wl-rule{background:transparent;font-size:10px;padding:1px 7px;margin:0 4px 2px 0;color:var(--muted)}
+.wl-badge{display:inline-block;min-width:16px;text-align:center;background:var(--sell);color:#fff;
+  border-radius:999px;font-size:9.5px;line-height:15px;padding:0 4px;margin-left:5px;font-weight:700}
+.wl-form{display:grid;gap:12px}
+.wl-fld{display:grid;gap:4px;font-size:var(--t-sm)}
+.wl-fld span{font-weight:600}
+.wl-fld em{color:var(--muted);font-size:11px;font-style:normal}
+.wl-fld input[type=number]{font:inherit;font-size:var(--t-sm);padding:7px 10px;border-radius:8px;
+  border:1px solid var(--border);background:var(--surface-2);color:var(--text);max-width:220px}
 .legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin:4px 0 0}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .gate{border:1px dashed var(--border);border-radius:10px;padding:14px 16px;color:var(--muted);font-size:var(--t-sm);line-height:1.6}
@@ -2106,7 +2121,9 @@ const State = {
     { key:'solana:EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', symbol:'WIF',  chain:'solana', score:21, prev:25, at:iso(1200), whale:'in'  },
     { key:'ethereum:0x6982508145454ce325ddbe47a25d4ec3d2311933',  symbol:'PEPE', chain:'ethereum', score:46, prev:46, at:iso(2400), whale:'out' },
     { key:'solana:JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',   symbol:'JUP',  chain:'solana', score:11, prev:13, at:iso(3600), whale:'in'  }
-  ])
+  ]),
+  alerts: Store.get('er.alerts', []),
+  alertsSeen: Store.get('er.alertsSeen', 0)
 };
 const saveWatch = () => Store.set('er.watch', State.watch);
 
@@ -3108,6 +3125,7 @@ function enhanceDom(){
     enhanceTables(document);
     enhanceAmb();
     loadPrice();
+    watchUpgrade();
     document.querySelectorAll('[data-ev]').forEach(el => {
       if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
       if (!el.hasAttribute('role')) el.setAttribute('role', 'button');
@@ -3118,6 +3136,400 @@ const _render0 = render;
 render = function(){ _render0.apply(this, arguments); enhanceDom(); };
 const _showEv0 = showEv;
 showEv = function(){ _showEv0.apply(this, arguments); enhanceTables(document.getElementById('evModal') || document); };
+/* ==========================================================================
+   MODULE THEO DÕI — bản nâng cấp.
+   Thêm: luật cảnh báo theo từng token + nhật ký cảnh báo, sparkline điểm,
+   mức thay đổi thanh khoản/holder kể từ lần quét trước, ghi chú riêng,
+   lọc theo chain/mức/cảnh báo, xuất–nhập danh sách, và cập nhật giá cho cả
+   danh sách bằng MỘT lời gọi CMC (quotes/latest nhận danh sách id).
+   Không đổi nguyên tắc: số nào cũng truy được nguồn, thiếu dữ liệu thì ghi
+   "—" và nói rõ vì sao thiếu.
+   ========================================================================== */
+const WL_RULES = [
+  { k:'scoreAbove',  t:'Điểm vượt ngưỡng',                u:'điểm', hint:'Ví dụ 70: chỉ báo khi điểm từ dưới 70 vượt lên 70 trở lên' },
+  { k:'jumpUp',      t:'Điểm tăng thêm',                  u:'điểm', hint:'So với lần hệ thống nhìn thấy trước đó trong phiên này' },
+  { k:'liqDropPct',  t:'Thanh khoản giảm quá',            u:'%',    hint:'Rút thanh khoản là dấu hiệu sớm nhất của một cú rug' },
+  { k:'holdDropPct', t:'Số holder giảm quá',              u:'%',    hint:'Holder rời đi hàng loạt' },
+  { k:'whaleOut',    t:'Dòng tiền ví lớn chuyển sang rút', u:'bật/tắt', hint:'Đổi từ "đang vào" sang "đang rút"' }
+];
+const saveAlerts = () => Store.set('er.alerts', State.alerts.slice(0, 60));
+
+function liveOf(w){
+  const v = applyMode(w.key, State.mode);
+  if (!v) return { ok:false, score:null, liq:null, holders:null, whale:null, price:null, cid:null };
+  const t = v.token || {};
+  return {
+    ok:true, symbol:t.symbol || w.symbol, score:(typeof v.score === 'number' ? v.score : w.score),
+    liq:(t.liquidityUsd == null ? null : t.liquidityUsd), holders:(t.holders == null ? null : t.holders),
+    whale:((v.whale || {}).verdict || null), price:(t.priceUsd == null ? null : t.priceUsd),
+    cid:(t.cid || null), history:(v.history || [])
+  };
+}
+function sparkSVG(pts, col){
+  const ps = (pts || []).filter(x => typeof x === 'number');
+  if (ps.length < 2) return '<span class="wl-dash" title="Cần ít nhất hai lần quét để vẽ xu hướng">—</span>';
+  const W = 64, H = 18, lo = Math.min.apply(null, ps), hi = Math.max.apply(null, ps);
+  const X = i => (i / (ps.length - 1)) * (W - 2) + 1;
+  const Y = v => H - 2 - ((v - lo) / ((hi - lo) || 1)) * (H - 4);
+  const d = ps.map((v, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1)).join(' ');
+  return '<svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Xu hướng điểm theo các lần quét">' +
+    '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="1.6" stroke-linejoin="round"/>' +
+    '<circle cx="' + X(ps.length - 1).toFixed(1) + '" cy="' + Y(ps[ps.length - 1]).toFixed(1) + '" r="2" fill="' + col + '"/></svg>';
+}
+function deltaHTML(cur, prev, unit, invert){
+  if (cur == null || prev == null || prev === 0) return '<span class="wl-dash" title="Chưa có mốc so sánh">—</span>';
+  const pct = (cur - prev) / Math.abs(prev) * 100;
+  if (Math.abs(pct) < 0.05) return '<span class="wl-flat">—</span>';
+  const bad = invert ? pct > 0 : pct < 0;
+  return '<span class="' + (bad ? 'down' : 'up') + '">' + (pct > 0 ? '▲' : '▼') + ' ' +
+    nf(Math.abs(pct), 1) + '%</span>';
+}
+function wlLevelCell(w, live){
+  const sc = live.score;
+  if (typeof sc !== 'number') return '<td>—</td><td>—</td>';
+  const L = LEVELS[levelOf(sc)];
+  return '<td class="ta-r"><span class="wl-score">' + sc + '</span>' +
+      sparkSVG((live.history || []).map(p => p.score), 'var(--vc,currentColor)') + '</td>' +
+    '<td><span class="badge ' + L.cls + '">' + L.vn + '</span></td>';
+}
+function wlWhaleCell(live){
+  if (live.whale === 'out') return '<span class="pill">đang rút</span>';
+  if (live.whale === 'in') return '<span class="pill in">đang vào</span>';
+  return '<span class="wl-dash">—</span>';
+}
+function wlRuleSummary(w){
+  const r = w.rules || {};
+  const on = WL_RULES.filter(x => r[x.k] != null && r[x.k] !== false);
+  if (!on.length) return '<span class="wl-dash">chưa đặt</span>';
+  return on.map(x => '<span class="chip wl-rule">' + x.t.replace('Điểm vượt ngưỡng', 'điểm ≥').replace('Điểm tăng thêm', 'tăng ≥')
+    .replace('Thanh khoản giảm quá', 'LK giảm ≥').replace('Số holder giảm quá', 'holder giảm ≥')
+    .replace('Dòng tiền ví lớn chuyển sang rút', 'ví lớn rút') + ' ' +
+    (x.k === 'whaleOut' ? '' : nf(r[x.k], 0) + x.u) + '</span>').join(' ');
+}
+function wlRowHTML(w){
+  const live = liveOf(w);
+  const hist = live.history || [];
+  const prev = hist.length >= 2 ? hist[hist.length - 2] : null;
+  const d = (typeof w.score === 'number' && typeof w.prev === 'number') ? w.score - w.prev : 0;
+  const arrow = d > 0 ? '▲' : d < 0 ? '▼' : '—';
+  const dir = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+  const hasAlert = State.alerts.some(a => a.key === w.key);
+  return '<tr data-key="' + esc(w.key) + '" data-chain="' + esc(w.chain) + '"' +
+      ' data-lvl="' + (typeof live.score === 'number' ? LEVELS[levelOf(live.score)].cls : 'none') + '"' +
+      ' data-alert="' + (hasAlert ? '1' : '0') + '" data-nm="' + esc(stripVN(w.symbol + ' ' + (w.note || ''))) + '">' +
+    '<td class="name"><a href="#/scan/' + esc(w.key).replace(':', '/') + '">' + esc(w.symbol) + '</a>' +
+      (w.note ? '<span class="wl-note" title="' + esc(w.note) + '">' + esc(w.note) + '</span>' : '') +
+      '<span class="mini">' + esc(shortAddr(String(w.key).split(':')[1] || '')) + '</span></td>' +
+    '<td>' + esc(CHAINS[w.chain] || w.chain) + '</td>' +
+    wlLevelCell(w, live) +
+    '<td class="' + dir + ' ta-r">' + arrow + ' ' + signed(d) + '</td>' +
+    '<td class="ta-r">' + deltaHTML(live.liq, prev ? prev.liquidityUsd : null) + '</td>' +
+    '<td class="ta-r">' + deltaHTML(live.holders, prev ? prev.holders : null) + '</td>' +
+    '<td class="ta-r">' + (w.price == null ? '<span class="wl-dash">—</span>' : price(w.price)) +
+      (w.chg24h == null ? '' : ' <span class="' + (w.chg24h >= 0 ? 'up' : 'down') + '">' +
+        (w.chg24h >= 0 ? '▲' : '▼') + nf(Math.abs(w.chg24h), 2) + '%</span>') + '</td>' +
+    '<td class="ta-r">' + wlWhaleCell(live) + '</td>' +
+    '<td>' + wlRuleSummary(w) + '</td>' +
+    '<td style="color:var(--muted)">' + dtime(w.at) + '</td>' +
+    '<td><div class="rowacts">' +
+      '<button class="btn sm ghost" data-rescan="' + esc(w.key) + '" type="button">Quét</button>' +
+      '<button class="btn sm ghost" data-rules="' + esc(w.key) + '" type="button">Cảnh báo</button>' +
+      '<button class="btn sm ghost" data-note="' + esc(w.key) + '" type="button">Ghi chú</button>' +
+      '<button class="btn sm danger" data-del="' + esc(w.key) + '" type="button" aria-label="Xoá ' + esc(w.symbol) + '">Xoá</button>' +
+    '</div></td></tr>';
+}
+function wlDigestHTML(){
+  const seen = State.alertsSeen || 0;
+  const fresh = State.alerts.filter(a => new Date(a.at).getTime() > seen);
+  const rows = State.watch.map(w => {
+    const live = liveOf(w);
+    const hist = live.history || [];
+    const prev = hist.length >= 2 ? hist[hist.length - 2] : null;
+    const bits = [];
+    if (prev && live.liq != null && prev.liquidityUsd != null && Math.abs(live.liq - prev.liquidityUsd) / prev.liquidityUsd > 0.02)
+      bits.push('thanh khoản ' + usd(prev.liquidityUsd) + ' → ' + usd(live.liq));
+    if (prev && live.holders != null && prev.holders != null && Math.abs(live.holders - prev.holders) / prev.holders > 0.02)
+      bits.push('holder ' + nf(prev.holders) + ' → ' + nf(live.holders));
+    return bits.length ? '<div class="row"><span class="k">' + esc(w.symbol) + '</span><span class="lead"></span>' +
+      '<span class="v">' + bits.join(' · ') + '</span></div>' : '';
+  }).filter(Boolean).join('');
+  if (!fresh.length && !rows) return '';
+  return '<div class="card pad" style="margin-bottom:20px"><div class="card-h">Kể từ lần bạn mở trang này' +
+      (State.alertsSeen ? ' (' + dtime(new Date(State.alertsSeen).toISOString()) + ')' : '') + '</div>' +
+    (fresh.length ? '<div class="row"><span class="k">Cảnh báo mới</span><span class="lead"></span>' +
+      '<span class="v">' + fresh.length + ' lần · ' + fresh.slice(0, 3).map(a => esc(a.symbol)).join(', ') + '</span></div>' : '') +
+    (rows || '<div class="row"><span class="k">Biến động đáng kể</span><span class="lead"></span>' +
+      '<span class="v">chưa có — cần thêm lần quét</span></div>') +
+    '<p class="caveat">Chỉ so sánh hai lần quét gần nhất của từng token. Mức chênh dưới 2% bị bỏ qua vì nằm trong nhiễu.</p></div>';
+}
+function wlAlertLogHTML(){
+  if (!State.alerts.length) return '';
+  return '<div class="card pad" style="margin-top:22px"><div class="card-h">Nhật ký cảnh báo · ' + State.alerts.length + ' lần gần nhất</div>' +
+    State.alerts.slice(0, 10).map(a => '<div class="row"><span class="k" style="flex:0 0 92px">' + dtime(a.at) + '</span>' +
+      '<span class="lead"></span><span class="v"><b>' + esc(a.symbol) + '</b> · ' + esc(a.text) + '</span></div>').join('') +
+    '<p class="caveat">Mỗi dòng là một luật đã bị vượt, kèm số trước và số sau. Đây là bằng chứng để bạn tự kiểm lại, ' +
+      'không phải một cảnh báo không giải thích được.</p></div>';
+}
+function wlSave(w){ saveWatch(); toast('Đã lưu thay đổi cho ' + w.symbol, 'ok'); render(); }
+function wlModal(title, sub, body, label, onSave, onDelete){
+  evOpen(title, sub, body,
+    '<button class="btn pri" type="button" id="wlSave">' + label + '</button>' +
+    (onDelete ? '<button class="btn danger" type="button" id="wlDel" style="margin-left:8px">Xoá</button>' : '') +
+    '<button class="btn ghost" type="button" id="wlCancel" style="margin-left:8px">Huỷ</button>', () => {
+      const s = document.getElementById('wlSave'), x = document.getElementById('wlCancel'), d = document.getElementById('wlDel');
+      if (s) s.onclick = onSave;
+      if (x) x.onclick = evClose;
+      if (d && onDelete) d.onclick = onDelete;
+    });
+}
+function wlRulesModal(w){
+  const r = w.rules || {};
+  const body = '<div class="wl-form">' + WL_RULES.map(x =>
+    '<label class="wl-fld"><span>' + x.t + (x.u === 'bật/tắt' ? '' : ' (' + x.u + ')') + '</span>' +
+    (x.u === 'bật/tắt'
+      ? '<input type="checkbox" id="r_' + x.k + '"' + (r[x.k] ? ' checked' : '') + '>'
+      : '<input type="number" min="0" step="1" id="r_' + x.k + '" placeholder="không đặt" value="' +
+        (r[x.k] == null ? '' : r[x.k]) + '">') +
+    '<em>' + x.hint + '</em></label>').join('') + '</div>' +
+    '<p class="caveat">Luật được kiểm tra mỗi khi dữ liệu của token này đổi trong phiên đang mở, và ghi vào nhật ký chung. ' +
+    'Để trống = không đặt luật đó. Hệ thống không gửi thông báo ra ngoài trình duyệt — chỉ hiện trong app.</p>';
+  wlModal('Cảnh báo cho ' + w.symbol, 'Đặt ngưỡng để lần sau không phải tự dò lại', body, 'Lưu luật', () => {
+    const nr = {};
+    WL_RULES.forEach(x => {
+      if (x.u === 'bật/tắt') nr[x.k] = !!((document.getElementById('r_' + x.k) || {}).checked);
+      else {
+        const el = document.getElementById('r_' + x.k);
+        const v = el && el.value !== '' ? Number(el.value) : null;
+        if (v != null && !isNaN(v)) nr[x.k] = v;
+      }
+    });
+    w.rules = nr;
+    wlSave(w);
+    evClose();
+  }, Object.keys(r).length ? () => { delete w.rules; wlSave(w); evClose(); } : null);
+}
+function wlNoteModal(w){
+  wlModal('Ghi chú cho ' + w.symbol, 'Vì sao bạn để mắt token này',
+    '<textarea id="wlNoteIn" rows="4" style="width:100%;font:inherit;font-size:var(--t-sm);padding:10px;' +
+    'border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text)" ' +
+    'placeholder="Ví dụ: chờ xem thanh khoản có bị rút tiếp không">' + esc(w.note || '') + '</textarea>',
+    'Lưu ghi chú', () => {
+      const el = document.getElementById('wlNoteIn');
+      w.note = (el ? el.value : '').trim().slice(0, 220);
+      wlSave(w);
+      evClose();
+    }, w.note ? () => { delete w.note; wlSave(w); evClose(); } : null);
+}
+function evaluateRules(){
+  State._snap = State._snap || {};
+  State.watch.forEach(w => {
+    const live = liveOf(w);
+    const snap = State._snap[w.key];
+    const r = w.rules || {};
+    const rules = WL_RULES.filter(x => x.k !== 'whaleOut' ? (r[x.k] != null) : !!r[x.k]);
+    if (!snap){ State._snap[w.key] = live; return; }
+    if (!rules.length){ State._snap[w.key] = live; return; }
+    const fired = [];
+    const push = (label, from, to) => fired.push({
+      key:w.key, symbol:w.symbol, at:new Date().toISOString(), rule:label,
+      text:label + ' (' + from + ' → ' + to + ')', from:from, to:to
+    });
+    if (r.scoreAbove != null && snap.score < r.scoreAbove && live.score >= r.scoreAbove)
+      push('điểm vượt ' + nf(r.scoreAbove, 0), nf(snap.score, 0), nf(live.score, 0));
+    if (r.jumpUp != null && (live.score - snap.score) >= r.jumpUp)
+      push('điểm tăng ≥ ' + nf(r.jumpUp, 0), nf(snap.score, 0), nf(live.score, 0));
+    if (r.liqDropPct != null && snap.liq && live.liq)
+      if ((live.liq - snap.liq) / Math.abs(snap.liq) * 100 <= -r.liqDropPct)
+        push('thanh khoản giảm ≥ ' + nf(r.liqDropPct, 0) + '%', usd(snap.liq), usd(live.liq));
+    if (r.holdDropPct != null && snap.holders && live.holders)
+      if ((live.holders - snap.holders) / Math.abs(snap.holders) * 100 <= -r.holdDropPct)
+        push('holder giảm ≥ ' + nf(r.holdDropPct, 0) + '%', nf(snap.holders), nf(live.holders));
+    if (r.whaleOut && snap.whale !== 'out' && live.whale === 'out')
+      push('dòng tiền ví lớn chuyển sang rút', snap.whale || 'không rõ', 'đang rút');
+    if (fired.length){
+      State.alerts = fired.concat(State.alerts).slice(0, 60);
+      saveAlerts();
+      fired.forEach(a => toast('⚠ ' + a.symbol + ': ' + a.text, 'err'));
+    }
+    State._snap[w.key] = live;
+  });
+}
+function wlNavBadge(){
+  const a = document.querySelector('.nav a[href="#/watchlist"]');
+  if (!a) return;
+  const n = State.alerts.filter(x => new Date(x.at).getTime() > (State.alertsSeen || 0)).length;
+  const old = a.querySelector('.wl-badge');
+  if (old) old.remove();
+  if (n) a.insertAdjacentHTML('beforeend', ' <span class="wl-badge" title="' + n + ' cảnh báo chưa xem">' + n + '</span>');
+}
+function wlToCSV(){
+  const head = ['key','symbol','chain','score','level','prev','whale','liquidityUsd','holders','price','chg24h','note','lastScan'];
+  const rows = State.watch.map(w => {
+    const live = liveOf(w);
+    return [w.key, w.symbol, w.chain, live.score, (typeof live.score === 'number' ? LEVELS[levelOf(live.score)].vn : ''),
+      w.prev, w.whale || '', live.liq == null ? '' : live.liq, live.holders == null ? '' : live.holders,
+      w.price == null ? '' : w.price, w.chg24h == null ? '' : w.chg24h, (w.note || '').replace(/"/g, '""'), w.at];
+  });
+  return [head].concat(rows).map(r => r.map(v => '"' + String(v == null ? '' : v) + '"').join(',')).join('\n');
+}
+function wlDownload(name, text, mime){
+  try {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\ufeff' + text], {type:mime}));
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    toast('Đã tải ' + name, 'ok');
+  } catch (e) { toast('Trình duyệt chặn tải tệp ở chế độ này', 'err'); }
+}
+function wlImport(text){
+  try {
+    const d = JSON.parse(text);
+    const list = Array.isArray(d) ? d : (d.watch || []);
+    let add = 0, upd = 0;
+    list.forEach(x => {
+      if (!x || !x.key) return;
+      const cur = State.watch.find(w => w.key === x.key);
+      if (cur){ ['note','rules'].forEach(k => { if (x[k] != null) cur[k] = x[k]; }); upd++; }
+      else { State.watch.push(x); add++; }
+    });
+    saveWatch(); render();
+    toast('Nhập xong: thêm ' + add + ' · cập nhật ' + upd, 'ok');
+  } catch (e) { toast('Tệp không đọc được — cần JSON do chính app này xuất ra', 'err'); }
+}
+function refreshPrices(){
+  const list = [];
+  State.watch.forEach(w => { const live = liveOf(w); if (live.cid) list.push(String(live.cid)); });
+  if (!list.length){
+    toast('Không token nào trong danh sách có mã CMC để tra giá', 'err');
+    return;
+  }
+  toast('Đang tra giá ' + list.length + ' token bằng một lời gọi…', 'ok');
+  fetch(API.base + '/api/evidence?kind=raw&path=/v1/cryptocurrency/quotes/latest&id=' + encodeURIComponent(list.join(',')),
+    { headers:API.headers(), cache:'no-store' }).then(r => r.json()).catch(() => null).then(d => {
+      const raw = d && d.raw && d.raw.data;
+      const arr = Array.isArray(raw) ? raw : (raw ? Object.keys(raw).map(k => raw[k]) : []);
+      let hit = 0;
+      arr.forEach(o => {
+        const usdQ = ((o.quote || {}).USD || {});
+        const cid = String(o.id);
+        const w = State.watch.find(w2 => String(liveOf(w2).cid) === cid);
+        if (w && usdQ.price != null){ w.price = usdQ.price; w.chg24h = usdQ.percent_change_24h; w.atPrice = new Date().toISOString(); hit++; }
+      });
+      saveWatch(); render();
+      const miss = State.watch.length - hit;
+      toast('Đã cập nhật giá ' + hit + '/' + State.watch.length + ' token' +
+        (miss ? ' · ' + miss + ' token không có mã CMC nên không tra được' : ''), hit ? 'ok' : 'err');
+    });
+}
+function wlWire(){
+  const chips = document.getElementById('wlChips');
+  const tb = document.querySelector('#wlTable table.ev-table, #wlTable table.tbl');
+  if (chips && tb){
+    chips.querySelectorAll('.chip.f').forEach(b => b.addEventListener('click', () => {
+      chips.querySelectorAll('.chip.f').forEach(o => o.classList.toggle('on', o === b));
+      const c = b.getAttribute('data-c');
+      tb.querySelectorAll('tbody tr').forEach(tr => {
+        const ok = c === 'all'
+          || (c.indexOf('lvl:') === 0 && tr.getAttribute('data-lvl') === c.slice(4))
+          || (c.indexOf('chain:') === 0 && tr.getAttribute('data-chain') === c.slice(6))
+          || (c === 'alert' && tr.getAttribute('data-alert') === '1');
+        tr.style.display = ok ? '' : 'none';
+      });
+    }));
+  }
+  const px = document.getElementById('wlPrice');
+  if (px) px.addEventListener('click', refreshPrices);
+  const cs = document.getElementById('wlCsv');
+  if (cs) cs.addEventListener('click', () => wlDownload('exit-radar-theo-doi.csv', wlToCSV(), 'text/csv'));
+  const js = document.getElementById('wlJson');
+  if (js) js.addEventListener('click', () => wlDownload('exit-radar-theo-doi.json',
+    JSON.stringify({ exportedAt:new Date().toISOString(), watch:State.watch, alerts:State.alerts }, null, 1), 'application/json'));
+  const im = document.getElementById('wlFile');
+  if (im) im.addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const fr = new FileReader();
+    fr.onload = () => wlImport(String(fr.result || ''));
+    fr.readAsText(f);
+  });
+  const cl = document.getElementById('wlClearAlerts');
+  if (cl) cl.addEventListener('click', () => { State.alerts = []; saveAlerts(); render(); toast('Đã xoá nhật ký cảnh báo', 'ok'); });
+}
+function watchUpgrade(){
+  try {
+    evaluateRules();
+    wlWire();
+    wlNavBadge();
+  } catch (e) {}
+}
+/* thay hẳn màn theo dõi: cùng id nút cũ (rerunAll, data-rescan, data-del) để
+   các xử lý sẵn có vẫn chạy, thêm nút mới do khối này tự nối. */
+viewWatchlist = function(){
+  if (!State.watch.length){
+    return '<div class="page-h"><div><h1>Theo dõi</h1>' +
+      '<div class="sub">Danh sách token bạn đang để mắt. Dữ liệu nằm trong trình duyệt.</div></div></div>' +
+      '<div class="empty"><h3>Chưa theo dõi token nào</h3>' +
+      '<p>Mở một kết quả quét và bấm “Theo dõi”. Lần quét sau hệ thống sẽ so sánh và báo thay đổi.</p>' +
+      '<a class="btn pri" href="#/">Quét một token</a></div>';
+  }
+  State.alertsSeen = Date.now();
+  Store.set('er.alertsSeen', State.alertsSeen);
+  const lv = { low:0, watch:0, high:0, crit:0, none:0 };
+  State.watch.forEach(w => {
+    const live = liveOf(w);
+    lv[typeof live.score === 'number' ? LEVELS[levelOf(live.score)].cls : 'none']++;
+  });
+  const chainCount = {};
+  State.watch.forEach(w => { chainCount[w.chain] = (chainCount[w.chain] || 0) + 1; });
+  const nAlert = State.watch.filter(w => State.alerts.some(a => a.key === w.key)).length;
+  const chips = '<div class="chips" id="wlChips" style="margin:0 0 14px">' +
+    '<button class="chip f on" type="button" data-c="all">Tất cả (' + State.watch.length + ')</button>' +
+    (lv.crit ? '<button class="chip f" type="button" data-c="lvl:crit">Nghiêm trọng (' + lv.crit + ')</button>' : '') +
+    (lv.high ? '<button class="chip f" type="button" data-c="lvl:high">Cao (' + lv.high + ')</button>' : '') +
+    (lv.watch ? '<button class="chip f" type="button" data-c="lvl:watch">Để mắt (' + lv.watch + ')</button>' : '') +
+    (lv.low ? '<button class="chip f" type="button" data-c="lvl:low">Thấp (' + lv.low + ')</button>' : '') +
+    Object.keys(chainCount).map(c => '<button class="chip f" type="button" data-c="chain:' + esc(c) + '">' +
+      esc(CHAINS[c] || c) + ' (' + chainCount[c] + ')</button>').join('') +
+    (nAlert ? '<button class="chip f" type="button" data-c="alert">Có cảnh báo (' + nAlert + ')</button>' : '') +
+    '</div>';
+  return '<div class="page-h">' +
+      '<div><h1>Theo dõi <span class="num" style="color:var(--faint)">(' + State.watch.length + ')</span></h1>' +
+      '<div class="sub">Điểm tăng nghĩa là rủi ro tăng. Cột thay đổi so hai lần quét gần nhất. ' +
+      'Đặt luật cảnh báo để lần sau không phải tự dò.</div></div>' +
+      '<div class="right"><button class="btn" id="wlPrice" type="button">Cập nhật giá</button>' +
+      '<button class="btn" id="rerunAll" type="button">Chạy lại tất cả</button>' +
+      '<button class="btn ghost" id="wlCsv" type="button">Xuất CSV</button>' +
+      '<button class="btn ghost" id="wlJson" type="button">Xuất JSON</button>' +
+      '<label class="btn ghost" style="cursor:pointer">Nhập JSON<input type="file" id="wlFile" accept=".json,application/json" style="display:none"></label>' +
+      '<a class="btn ghost" href="#/">Thêm token</a></div></div>' +
+    wlDigestHTML() +
+    chips +
+    '<div class="card" id="wlTable" style="overflow-x:auto"><table class="tbl"><thead><tr>' +
+      '<th>Token</th><th>Chain</th><th class="ta-r">Điểm · xu hướng</th><th>Mức</th><th class="ta-r">Δ điểm</th>' +
+      '<th class="ta-r">Δ thanh khoản</th><th class="ta-r">Δ holder</th><th class="ta-r">Giá · 24h</th>' +
+      '<th class="ta-r">Ví lớn</th><th>Luật cảnh báo</th><th>Quét lúc</th><th></th></tr></thead><tbody>' +
+      State.watch.map(wlRowHTML).join('') +
+    '</tbody></table></div>' +
+    '<div class="acts" style="margin-top:12px">' +
+      (State.alerts.length ? '<button class="btn sm ghost" id="wlClearAlerts" type="button">Xoá nhật ký cảnh báo</button>' : '') +
+    '</div>' +
+    wlAlertLogHTML() +
+    '<p class="field-help" style="margin-top:14px">' +
+      (Store.available ? 'Lưu trong localStorage của trình duyệt này. Không gửi lên máy chủ nào.' :
+        'Trình duyệt đang chặn lưu trữ cục bộ — danh sách chỉ tồn tại trong phiên này.') +
+      ' Nút “Cập nhật giá” gọi đúng một lời gọi CMC (<span class="mono">quotes/latest</span>) cho cả danh sách, ' +
+      'chỉ áp dụng cho token có mã CMC.</p>';
+};
+document.addEventListener('click', ev => {
+  const t = ev.target.closest ? ev.target.closest('[data-rules],[data-note]') : null;
+  if (!t) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const k = t.getAttribute('data-rules') || t.getAttribute('data-note');
+  const w = State.watch.find(x => x.key === k);
+  if (!w) return;
+  if (t.hasAttribute('data-rules')) wlRulesModal(w); else wlNoteModal(w);
+}, true);
+
 </script>
 </body>
 </html>

@@ -941,7 +941,7 @@ function coverageBlock(v){
 }
 function meterHTML(k, d){
   if (!d.applicable) {
-    return '<div class="meter na"><div class="head"><span class="key">' + k + '</span>' +
+    return '<div class="meter na" data-ev="dim:" + k + "" style="cursor:pointer" title="Bấm xem dẫn chứng"><div class="head"><span class="key">' + k + '</span>' +
       '<span class="name">' + esc(d.label) + '</span>' +
       '<span class="val">không áp dụng</span></div>' +
       '<div class="track"></div>' +
@@ -950,7 +950,7 @@ function meterHTML(k, d){
   const pct = d.max ? Math.round((d.score / d.max) * 100) : 0;
   const col = pct >= 70 ? 'var(--risk-high)' : pct >= 45 ? 'var(--risk-watch)' : 'var(--risk-low)';
   const shown = d.score < 0 ? signed(d.score) + ' / ' + d.max : d.score + ' / ' + d.max;
-  return '<div class="meter"><div class="head"><span class="key">' + k + '</span>' +
+  return '<div class="meter" data-ev="dim:" + k + "" style="cursor:pointer" title="Bấm xem dẫn chứng"><div class="head"><span class="key">' + k + '</span>' +
     '<span class="name">' + esc(d.label) + '</span>' +
     '<span class="val">' + shown + '</span></div>' +
     '<div class="track"><i data-w="' + Math.max(0,pct) + '" style="background:' + col + '"></i></div>' +
@@ -959,7 +959,7 @@ function meterHTML(k, d){
 function whaleHTML(w){
   if (!w) return '';
   const out = w.verdict === 'out';
-  return '<div class="flow"><div class="card-h" style="margin-bottom:8px">Dòng tiền ví lớn · mẫu ' + (w.sampled || 0) + ' lệnh' +
+  return '<div class="flow" data-ev="dim:E" style="cursor:pointer" title="Bấm để xem từng lệnh"><div class="card-h" style="margin-bottom:8px">Dòng tiền ví lớn · mẫu ' + (w.sampled || 0) + ' lệnh' +
       (w.windowMinutes ? ' trong ' + Math.round(w.windowMinutes) + ' phút gần nhất' : '') + '</div>' +
     '<div class="row"><span class="k">Holder lớn tăng vị thế</span><span class="lead"></span>' +
       '<span class="v neg">' + w.inCount + ' ví · +' + usdExact(w.inUsd).replace('+','') + '</span></div>' +
@@ -1022,7 +1022,7 @@ function ctxHTML(d){
   const ok = x => x && x.ok !== false;
   const cards = [];
   if (ok(f) && f.value !== null && f.value !== undefined){
-    cards.push('<div class="mkt-card"><span class="mk">Sợ hãi &amp; Tham lam</span>' +
+    cards.push('<div class="mkt-card" data-ev="marketctx" style="cursor:pointer" title="Bấm xem dẫn chứng"><span class="mk">Sợ hãi &amp; Tham lam</span>' +
       '<span class="mv num" style="font-size:var(--t-lg)">' + f.value + '<span class="ch"> /100</span></span>' +
       '<span class="mk">' + fngZone(f.value) + (f.updateTime ? ' · ' + ago(f.updateTime) : '') + '</span>' +
       barRow((f.history || []).slice().reverse().map(x => x.value), 100) + '</div>');
@@ -1031,7 +1031,7 @@ function ctxHTML(d){
       '<span class="mk">' + (d.needKey ? 'cần key CMC Pro' : 'nguồn chưa trả dữ liệu') + '</span></div>');
   }
   if (ok(a) && a.index !== null && a.index !== undefined){
-    cards.push('<div class="mkt-card"><span class="mk">Mùa altcoin</span>' +
+    cards.push('<div class="mkt-card" data-ev="marketctx" style="cursor:pointer" title="Bấm xem dẫn chứng"><span class="mk">Mùa altcoin</span>' +
       '<span class="mv num" style="font-size:var(--t-lg)">' + a.index + '<span class="ch"> /100</span></span>' +
       '<span class="mk">' + altZone(a.index) + ' · đỉnh năm ' + (a.yearlyHigh != null ? a.yearlyHigh : '—') +
       (a.yearlyHighDate ? ' (' + String(a.yearlyHighDate).slice(0, 10) + ')' : '') + '</span>' +
@@ -1159,6 +1159,7 @@ function loadMarkets(el){
         el.innerHTML = head + '<p class="caveat">Chưa lấy được dữ liệu thị trường từ máy chủ.</p>';
         return;
       }
+      State.mkt = d;
       renderMarkets(el, d);
     })
     .catch(() => {
@@ -1429,6 +1430,9 @@ function viewResult(chain, addr){
       '<a class="btn pri" href="#/">Quét token</a></div>';
   }
   const t = v.token;
+  State.evKey = v.key;   // hop dan chung can biet dang xem token nao
+  const _evh = location.hash.match(/^#\/ev\/([A-Za-z]+):?\/?([^\/]*)$/);
+  if (_evh && _evh[1]) setTimeout(() => showEv(_evh[1], applyMode(State.evKey, State.mode)), 80);
   const inWatch = State.watch.some(w => w.key === v.key);
   const lowCoverage = v.coverage < 50;
 
@@ -1498,10 +1502,15 @@ function viewResult(chain, addr){
         '</span><span>/</span><span>' + esc(shortAddr(t.address)) + '</span></div>' +
       '<h1>' + esc(t.symbol) + ' <span style="color:var(--faint);font-weight:400">· ' +
         esc(CHAINS[t.chain] || t.chain) + '</span></h1>' +
-      '<div class="sub num">' + esc(t.name) + ' · ' + price(t.priceUsd) + ' · thanh khoản ' +
-        usd(t.liquidityUsd) + ' · ' + nf(t.holders) + ' holder</div>' + cmcChipHTML(v) + '</div>' +
-      '<div class="right"><span class="badge ' + MODES[State.mode].cls + '">' + MODES[State.mode].badge + '</span></div>' +
+      '<div class="sub num">' + esc(t.name) + ' · ' +
+        '<span data-ev="market" style="cursor:pointer;text-decoration:underline dotted" title="Bấm xem dẫn chứng">' + price(t.priceUsd) + '</span> · thanh khoản ' +
+        '<span data-ev="liq" style="cursor:pointer;text-decoration:underline dotted" title="Bấm xem dẫn chứng">' + usd(t.liquidityUsd) + '</span> · ' +
+        '<span data-ev="holders" style="cursor:pointer;text-decoration:underline dotted" title="Bấm xem dẫn chứng">' + nf(t.holders) + ' holder</span></div>' + cmcChipHTML(v) + '</div>' +
+      '<div class="right"><span class="badge ' + MODES[State.mode].cls + '">' +
+        (State.mode === 'full' ? ('đầy đủ · ' + v.scored + '/5 chiều chấm được') : MODES[State.mode].badge) + '</span></div>' +
     '</div>' +
+    '<p class="caveat" style="margin:8px 0 0"><b>Bấm vào con số nào cũng mở được hộp dẫn chứng</b> — endpoint nào, mã HTTP bao nhiêu, ' +
+      'dữ liệu thô ra sao; chỗ nào CMC không trả được thì nói thẳng là không.</p>' +
     '<div class="src-attrib"><span>Dữ liệu: CoinMarketCap API</span>' +
       '<span>' + v.calls.length + ' lời gọi</span><span>cập nhật ' + ago(v.fetchedAt) + '</span>' +
       '<span>chế độ ' + MODES[State.mode].vn.toLowerCase() + '</span></div>' +
@@ -1520,6 +1529,250 @@ function viewResult(chain, addr){
     '<div class="stack" style="margin-top:28px">' + evidenceHTML(v) + '</div>' +
     actionsHTML(v, inWatch);
 }
+/* ==========================================================================
+   HỘP DẪN CHỨNG — bấm vào bất kỳ con số nào để mở danh sách đứng sau nó
+   Mỗi hộp trả lời ba câu: số này lấy từ endpoint nào (mã HTTP, thời gian),
+   dữ liệu thô là gì, và chỗ nào CMC không trả được thì nói thẳng là không.
+   ========================================================================== */
+function evClose(){
+  const el = document.getElementById('evModal');
+  if (el) el.remove();
+  _evOpen = false;
+  document.body.style.overflow = '';
+}
+let _evOpen = false;
+function evOpen(title, sub, bodyHTML, foot, after){
+  evClose();
+  _evOpen = true;
+  document.body.style.overflow = 'hidden';
+  const wrap = document.createElement('div');
+  wrap.id = 'evModal';
+  wrap.setAttribute('role', 'dialog');
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(8,10,16,.74);' +
+    'display:flex;align-items:flex-start;justify-content:center;padding:4vh 14px;overflow:auto';
+  wrap.innerHTML = '<div style="width:100%;max-width:1000px;background:var(--surface,#151922);' +
+    'border:1px solid var(--border,#2b3140);border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.55)">' +
+    '<div style="display:flex;gap:12px;align-items:flex-start;padding:16px 18px;border-bottom:1px solid var(--border,#2b3140)">' +
+    '<div style="flex:1"><div style="font-size:var(--t-md);font-weight:600">' + esc(title) + '</div>' +
+    (sub ? '<div style="color:var(--muted);font-size:var(--t-sm);margin-top:5px">' + sub + '</div>' : '') + '</div>' +
+    '<button class="btn sm ghost" type="button" id="evX">Đóng</button></div>' +
+    '<div style="padding:16px 18px">' + bodyHTML + '</div>' +
+    (foot ? '<div style="padding:12px 18px;border-top:1px solid var(--border,#2b3140);color:var(--muted);' +
+      'font-size:var(--t-xs)">' + foot + '</div>' : '') + '</div>';
+  document.body.appendChild(wrap);
+  const x = document.getElementById('evX'); if (x) x.onclick = evClose;
+  wrap.addEventListener('click', ev => { if (ev.target === wrap) evClose(); });
+  if (after) after();
+}
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && _evOpen) evClose(); });
+function evRow(k, val){ return '<div class="row"><span class="k">' + k + '</span><span class="lead"></span>' +
+  '<span class="v">' + val + '</span></div>'; }
+function evNum(x, d){ return (x === null || x === undefined || isNaN(x)) ? '—' : nf(x, d === undefined ? 2 : d); }
+function evRaw(o){
+  return '<details style="margin-top:14px"><summary style="cursor:pointer;color:var(--muted);font-size:var(--t-sm)">' +
+    'Dữ liệu thô (JSON đầy đủ)</summary><pre style="max-height:340px;overflow:auto;background:var(--bg,#0d1017);' +
+    'border:1px solid var(--border,#2b3140);border-radius:10px;padding:10px;font-size:var(--t-xs);' +
+    'white-space:pre-wrap;word-break:break-word">' + esc(JSON.stringify(o, null, 1)) + '</pre></details>';
+}
+function evSrc(o){
+  if (!o) return '';
+  return evRow('Endpoint', '<span class="mono">' + esc(String(o.endpoint || '')) + '</span>') +
+    evRow('Mã HTTP', '<span class="mono">' + esc(String(o.status === undefined ? '—' : o.status)) + '</span>' +
+      (o.ms ? ' · ' + o.ms + ' ms' : '')) +
+    (o.error ? evRow('CMC trả lỗi', '<span class="mono">' + esc(String(o.error)) + '</span>') : '');
+}
+function evCells(list, max){
+  list = (list || []).filter(x => x && typeof x === 'object').slice(0, max || 40);
+  if (!list.length) return '';
+  const keys = [];
+  list.forEach(o => Object.keys(o).forEach(k => { if (keys.indexOf(k) < 0 && keys.length < 11) keys.push(k); }));
+  const head = keys.map(k => ({ t: k }));
+  const rows = list.map(o => '<tr>' + keys.map(k => {
+    let x = o[k];
+    if (x === null || x === undefined || x === '') return '<td>—</td>';
+    if (typeof x === 'object') x = JSON.stringify(x);
+    const s = String(x);
+    if (/^https?:\/\//.test(s)) return '<td><a href="' + esc(s) + '" target="_blank" rel="noopener">xem</a></td>';
+    if (typeof x === 'number') return '<td class="n">' + nf(x, Math.abs(x) < 10 ? 4 : 2) + '</td>';
+    if (/^[0-9a-fA-Fx]{18,}$/.test(s)) return '<td class="mono" title="' + esc(s) + '">' + esc(s.slice(0, 8)) + '…' + esc(s.slice(-6)) + '</td>';
+    return '<td>' + esc(s.length > 30 ? s.slice(0, 30) + '…' : s) + '</td>';
+  }).join('') + '</tr>').join('');
+  return evTable(head, rows) + '<p class="caveat">' + list.length + ' dòng — bảng hiện mọi trường CMC trả về, không lọc bớt.</p>';
+}
+function evPools(v){
+  const pr = v.proof || {};
+  let b = '';
+  if (pr.totals){
+    b += '<div class="card-h">Thanh khoản · hai định nghĩa phải nói rõ</div>' +
+      evRow('Tổng từ sự kiện thay đổi (tlu)', pr.totals.tluFromChange === null ? '—' : usd(pr.totals.tluFromChange)) +
+      evRow('Tổng cộng các pool', pr.totals.poolsSum === null ? '—' : usd(pr.totals.poolsSum)) +
+      evRow('Số pool', evNum(pr.totals.poolsCount, 0)) +
+      '<p class="caveat">Hai con số này khác nhau vì CMC đo bằng hai endpoint khác nhau: ' +
+      '<span class="mono">dex/liquidity-change/list</span> cộng dồn từ sự kiện, còn <span class="mono">dex/token</span> ' +
+      'cộng theo từng pool. Không được gộp chúng thành một con số.</p>';
+  }
+  if ((pr.pools || []).length){
+    b += '<div class="card-h" style="margin-top:16px">Danh sách pool · ' + pr.pools.length + '</div>' +
+      evCells(pr.pools, 30);
+  }
+  if ((pr.liqEvents || []).length){
+    b += '<div class="card-h" style="margin-top:16px">Sự kiện thêm/rút thanh khoản · ' + pr.liqEvents.length + '</div>' +
+      evCells(pr.liqEvents, 40);
+  }
+  b += evRaw(pr.totals || {});
+  return b;
+}
+function evHolders(v){
+  const t = v.token || {}, mcap = t.mcap;
+  const per = (t.holders && mcap) ? (t.holders / (mcap / 1e6)) : null;
+  const hm = (v.proof || {}).holdersMeta || {};
+  let b = evRow('Số holder', '<b class="num">' + nf(t.holders) + '</b>') +
+    evRow('Vốn hoá dùng để chia', mcap ? usd(mcap) : '— (không lấy được)') +
+    evRow('Holder trên mỗi triệu USD vốn hoá', per === null ? '—' : '<b class="num">' + per.toFixed(1) + '</b>') +
+    '<p class="caveat">Phép tính: ' + nf(t.holders) + ' holder ÷ (' + (mcap ? usd(mcap) : '—') + ' ÷ 1.000.000) = ' +
+    (per === null ? '—' : per.toFixed(1)) + '. Chỉ số này đo độ phân tán holder so với quy mô token: ' +
+    'càng cao thì càng nhiều người nắm giữ trên mỗi triệu USD vốn hoá.</p>';
+  b += '<div class="card-h" style="margin-top:16px">Dẫn chứng danh sách holder</div>';
+  if ((v.proof || {}).holdersTop){
+    b += evCells(v.proof.holdersTop, 25);
+  } else {
+    b += '<div class="note-box err" style="margin:12px 0"><span class="ic">✕</span><div>' +
+      '<b>CMC không trả danh sách holder cho token này.</b> Mã HTTP <span class="mono">' +
+      esc(String(hm.status === undefined ? '—' : hm.status)) + '</span>' +
+      (hm.reason ? ' · ' + esc(String(hm.reason)) : '') +
+      '. Vì vậy con số holder ở trên lấy từ endpoint <span class="mono">dex/holders/count</span> (đếm), ' +
+      'không phải từ danh sách. Đây là lý do chiều B chỉ dùng được phần đếm — hệ thống nói thẳng thay vì vẽ một danh sách rỗng.</div></div>';
+    if (hm.tried) b += '<div style="margin-top:10px">' + evCells(hm.tried, 8) + '</div>';
+  }
+  b += '<div class="acts" style="margin-top:14px"><button class="btn sm" type="button" id="evTryH">' +
+    'Thử gọi lại danh sách holder ngay</button></div><div id="evTryOut"></div>';
+  b += evRaw({ token: t, holdersMeta: hm });
+  return b;
+}
+function evCalls(v){
+  return evCells((v.calls || []).map(c => ({ path: c.path, status: c.status, ms: c.ms })), 60) +
+    '<p class="caveat">Toàn bộ lời gọi CMC mà máy chủ đã thực hiện cho lần quét này, kèm mã HTTP và thời gian. ' +
+    'Dòng nào mã ≥ 400 là dòng CMC từ chối — đó là chỗ hệ thống phải nói "không lấy được".</p>';
+}
+function evMarket(v){
+  const m = v.market || {};
+  if (!m.ok) return evSrc(m) + evRaw(m);
+  return evRow('Xếp hạng vốn hoá', m.rank ? '#' + nf(m.rank, 0) : '—') +
+    evRow('Giá', price(m.priceUsd)) + evRow('Vốn hoá', usd(m.mcap)) +
+    evRow('KL 24h', usd(m.volume24h) + (m.volumeChange24h === null ? '' : ' (' + signed(m.volumeChange24h, 1) + '% so hôm qua)')) +
+    evRow('1h · 24h · 7d · 30d', mktPct(m.pc1h) + ' · ' + mktPct(m.pc24h) + ' · ' + mktPct(m.pc7d) + ' · ' + mktPct(m.pc30d)) +
+    evRow('Mức quay vòng', m.turnover === null ? '—' : (m.turnover * 100).toFixed(2) + '%') +
+    evRow('CEX / DEX', usd(m.cexVolume24h) + ' / ' + usd(m.dexVolume24h)) +
+    '<p class="caveat">Quay vòng = khối lượng 24h ÷ vốn hoá. Nguồn: <span class="mono">/v1/cryptocurrency/quotes/latest</span>, ' +
+    'KEY từ trình duyệt gửi kèm request.</p>' + evRaw(m);
+}
+function evContact(v){
+  const c = v.contact;
+  if (!c) return '<div class="note-box info"><span class="ic">◇</span><div>Chưa tra được hồ sơ liên hệ (' +
+    esc(String(v.contactSkipped || '')) + ').</div></div>';
+  if (!c.ok) return evSrc(c) + evRaw(c);
+  const rows = [];
+  [['Website', c.website], ['X / Twitter', c.twitter], ['Telegram', c.chat], ['Reddit', c.reddit],
+   ['GitHub', c.sourceCode], ['Whitepaper', c.technicalDoc], ['Diễn đàn', c.messageBoard],
+   ['Facebook', c.facebook], ['Thông báo', c.announcement]].forEach(x => {
+    (x[1] || []).forEach((u, i) => rows.push({ loai: x[0], lien_ket: u }));
+  });
+  return evRow('Mã CMC', '<span class="mono">' + esc(String(c.id)) + ' · /' + esc(String(c.slug || '')) + '</span>') +
+    evRow('Ngày lên sàn', esc(String(c.dateAdded || '').slice(0, 10)) + ' · ra mắt ' + esc(String(c.dateLaunched || '').slice(0, 10))) +
+    evCells(rows, 20) + evCells(c.chains || [], 12) +
+    (c.notice ? '<p class="caveat">CMC ghi chú: ' + esc(String(c.notice)) + '</p>' : '') +
+    evRaw(c);
+}
+function evMarketCtx(d){
+  const f = d.fng || {}, a = d.altSeason || {}, fl = (d.flow || {}).rows || [];
+  let b = evSrc({ endpoint: '/v3/fear-and-greed/latest', status: f.ok ? 200 : (f.status || '—') }) +
+    evRow('Sợ hãi & Tham lam', '<b>' + evNum(f.value, 0) + ' · ' + esc(String(f.label || '—')) + '</b>') +
+    ((f.history || []).length ? evCells(f.history.map(x => ({ ngay: new Date(Number(x.t) * 1000).toISOString().slice(0, 10), gia_tri: x.value, muc: x.label })), 10) : '');
+  b += evSrc({ endpoint: '/v1/altcoin-season-index/latest', status: a.ok ? 200 : (a.status || '—') }) +
+    evRow('Mùa altcoin', '<b>' + evNum(a.index, 0) + '</b>') +
+    ((a.history || []).length ? evCells(a.history, 10) : '');
+  if (fl.length){
+    b += '<div class="card-h" style="margin-top:16px">Dòng tiền theo ngày · ' + fl.length + '</div>' + evCells(fl, 10) +
+      '<p class="caveat">Δ vốn hoá theo ngày là thay đổi giá trị thị trường, KHÔNG phải dòng tiền ròng. ' +
+      'Nguồn: <span class="mono">/v1/global-metrics/quotes/historical?interval=daily</span>.</p>';
+  }
+  return b + evRaw({ fng: f, altSeason: a, flow: fl });
+}
+function showEv(kind, v){
+  if (!v) return;
+  if (kind.indexOf('dim:') === 0){
+    const k = kind.slice(4), d = (v.dims || {})[k] || {}, ev = d._ev || {};
+    if (k === 'B') return evOpen('Dẫn chứng chiều B · ' + d.label, 'Bấm vào con số nào cũng phải xem được danh sách đứng sau nó.', evHolders(v));
+    if (k === 'A') return evOpen('Dẫn chứng chiều A · ' + d.label, 'Pool nào, sự kiện thêm/rút nào, hai định nghĩa thanh khoản.', evPools(v));
+    if (k === 'E'){
+      let b = evRow('Điểm', d.applicable ? (d.score + ' / ' + d.max) : 'không áp dụng') +
+        evRow('Mẫu', evNum(ev.swaps_sampled, 0) + ' lệnh · cửa sổ ' + evNum(ev.window_minutes, 1) + ' phút · ' + evNum(ev.pages, 0) + ' trang') +
+        evRow('Ví bán ròng / mua ròng', evNum(ev.wallets_out, 0) + ' / ' + evNum(ev.wallets_in, 0)) +
+        evRow('Tổng bán / mua trong mẫu', usd(ev.sell_usd) + ' / ' + usd(ev.buy_usd)) +
+        evRow('Lệnh gắn cờ bundle/bot', evNum(ev.bundles, 0));
+      if ((ev.rows || []).length) b += '<div class="card-h" style="margin-top:16px">Từng lệnh trong mẫu · ' + ev.rows.length + '</div>' + evCells(ev.rows, 40);
+      if ((ev.wallets || []).length) b += '<div class="card-h" style="margin-top:16px">Ví lớn</div>' + evCells(ev.wallets, 12);
+      b += '<p class="caveat">Chiều E chỉ là MẪU: <span class="mono">dex/tokens/transactions</span> trả ~20 lệnh mỗi trang và phân trang bằng ' +
+        '<span class="mono">lastId</span>. Cửa sổ thực đo được chỉ 1–2 phút, nên điểm E nhảy mạnh giữa hai lần quét cùng một token. ' +
+        'Đây là lý do hệ thống ghi rõ "mẫu" thay vì gọi nó là dòng tiền 24h.</p>';
+      return evOpen('Dẫn chứng chiều E · ' + d.label, 'Từng lệnh và từng ví đứng sau điểm này.', b + evRaw(ev));
+    }
+    return evOpen('Dẫn chứng chiều ' + k + ' · ' + esc(String(d.label || '')), '', (d.applicable
+      ? evRow('Điểm', d.score + ' / ' + d.max) + evRow('Endpoint', '<span class="mono">' + esc(String(d.endpoint)) + '</span>')
+      : '<div class="note-box err"><span class="ic">✕</span><div><b>Không chấm được chiều này.</b> ' + esc(String(ev.reason || '')) +
+        '</div></div>' + evRow('Endpoint đã thử', '<span class="mono">' + esc(String(d.endpoint)) + '</span>')) +
+      evRaw(ev));
+  }
+  if (kind === 'holders') return evOpen('Dẫn chứng · số holder', 'Con số, phép tính và danh sách nếu CMC trả.', evHolders(v));
+  if (kind === 'liq') return evOpen('Dẫn chứng · thanh khoản', 'Pool, sự kiện thêm/rút và hai định nghĩa.', evPools(v));
+  if (kind === 'calls') return evOpen('Dẫn chứng · toàn bộ lời gọi CMC', 'Mỗi dòng là một request thật tới CMC.', evCalls(v));
+  if (kind === 'market') return evOpen('Dẫn chứng · bối cảnh thị trường của token', '', evMarket(v));
+  if (kind === 'contact') return evOpen('Dẫn chứng · hồ sơ token trên CMC', 'Từng kênh liên hệ và hợp đồng trên mỗi chain.', evContact(v));
+  if (kind === 'marketctx') return evOpen('Dẫn chứng · chỉ số thị trường', 'Sợ hãi & Tham lam, mùa altcoin, dòng tiền theo ngày.', evMarketCtx(v));
+  if (kind === 'score'){
+    let b = evRow('Tổng điểm', '<b class="num">' + v.score + '</b> · ' + esc(String(v.level || '')) +
+      ' · độ phủ ' + v.coverage + '% (' + v.scored + '/5 chiều)');
+    DIM_ORDER.forEach(k => {
+      const d = v.dims[k];
+      b += '<div class="card-h" style="margin-top:14px">' + k + ' · ' + esc(String(d.label)) + ' — ' +
+        (d.applicable ? d.score + '/' + d.max : 'không áp dụng') + '</div>' +
+        (d.applicable ? evCells([d._ev || {}], 1) : '<p class="caveat">' + esc(String((d._ev || {}).reason || '')) + '</p>');
+    });
+    return evOpen('Dẫn chứng · toàn bộ điểm số', 'Từng chiều, từng con số, và chiều nào không chấm được vì sao.', b + evRaw(v.dims));
+  }
+}
+document.addEventListener('click', ev => {
+  const t = ev.target.closest ? ev.target.closest('[data-ev]') : null;
+  if (!t) return;
+  ev.preventDefault();
+  const kind = t.getAttribute('data-ev');
+  if (kind === 'marketctx'){
+    if (!State.mkt) return;
+    return showEv('marketctx', State.mkt);
+  }
+  const v = applyMode(State.evKey || (location.hash.match(/^#\/scan\/([^/]+)\/(.+)$/) || []).slice(1).join(':'), State.mode);
+  if (!v){ toast('Chưa có kết quả cho token này.', 'err'); return; }
+  showEv(kind, v);
+});
+function evTryHolderList(){
+  const out = document.getElementById('evTryOut');
+  const v = applyMode(State.evKey, State.mode); if (!out || !v) return;
+  out.innerHTML = '<div class="note-box info" style="margin-top:12px"><span class="ic">⋯</span><div>Đang gọi ' +
+    '<span class="mono">dex/holders/list</span>…</div></div>';
+  const u = API.base + '/api/evidence?kind=holders&platform=' + encodeURIComponent(v.token.chain) +
+    '&address=' + encodeURIComponent(v.token.address);
+  fetch(u, {headers: API.headers(), cache:'no-store'}).then(r => r.json()).then(d => {
+    const l = (d.list || {});
+    out.innerHTML = '<div class="card-h" style="margin-top:14px">Kết quả gọi lại ngay</div>' +
+      evSrc(l) + ((l.rows || []).length ? evCells(l.rows, 25)
+        : '<div class="note-box err" style="margin-top:10px"><span class="ic">✕</span><div>CMC vẫn không trả danh sách. ' +
+          'Đây là bằng chứng sống cho việc chiều B chỉ có phần đếm.</div></div>') + evRaw(d);
+  }).catch(() => { out.innerHTML = '<p class="caveat">Không gọi được máy chủ.</p>'; });
+}
+document.addEventListener('click', ev => {
+  const t = ev.target.closest ? ev.target.closest('#evTryH') : null;
+  if (t) evTryHolderList();
+});
 function contactHTML(v){
   const c = v.contact;
   if (!c){

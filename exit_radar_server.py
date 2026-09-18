@@ -41,12 +41,16 @@ def _num(x):
         return None
 
 
-def _http(url, key=None, method='GET', body=None, timeout=25):
+def _http(url, key=None, method='GET', body=None, timeout=25, form=False):
     hdr = {'Accept': 'application/json', 'User-Agent': 'exit-radar/1.0'}
     data = None
     if body is not None:
-        data = json.dumps(body).encode('utf-8')
-        hdr['Content-Type'] = 'application/json'
+        if form:
+            data = urllib.parse.urlencode(body).encode('utf-8')
+            hdr['Content-Type'] = 'application/x-www-form-urlencoded'
+        else:
+            data = json.dumps(body).encode('utf-8')
+            hdr['Content-Type'] = 'application/json'
     if key:
         hdr['X-CMC_PRO_API_KEY'] = key
     req = urllib.request.Request(url, data=data, headers=hdr, method=method)
@@ -67,7 +71,7 @@ def _http(url, key=None, method='GET', body=None, timeout=25):
     return {'status': st, 'ms': ms, 'json': js, 'error': None}
 
 
-def cmc(path, params=None, key=None, cache=True, method='GET', body=None):
+def cmc(path, params=None, key=None, cache=True, method='GET', body=None, form=False):
     """Gọi một endpoint. Trả {'ok', 'data', 'status', 'ms', 'path'}."""
     qs = ('?' + urllib.parse.urlencode(params)) if (params and method == 'GET') else ''
     # /public-api la kenh AN DANH, va no TU CHOI moi key hop le: do bang du lieu
@@ -85,7 +89,7 @@ def cmc(path, params=None, key=None, cache=True, method='GET', body=None):
                 STATS['cache_hit'] += 1
                 return hit[1]
             STATS['cache_miss'] += 1
-    r = _http(url, key=key, method=method, body=body)
+    r = _http(url, key=key, method=method, body=body, form=form)
     js = r['json']
     err = None
     if r['status'] != 200:
@@ -549,6 +553,55 @@ def _flow(key=None, count=8):
     return {'ok': True, 'rows': rows, 'endpoint': 'v1/global-metrics/quotes/historical'}
 
 
+ALLOWED_RAW = ['/v1/dex/token', '/v1/dex/liquidity-change/list', '/v1/dex/holders/count',
+               '/v1/dex/holders/list', '/v1/dex/tokens/transactions', '/v1/dex/search',
+               '/v1/cryptocurrency/info', '/v1/cryptocurrency/quotes/latest',
+               '/v1/global-metrics/quotes/latest', '/v3/fear-and-greed/latest',
+               '/v1/altcoin-season-index/latest']
+
+
+def evidence(kind, platform='', address='', cid=None, key=None, path=None):
+    """Danh sach dung sau mot con so. Tra ve DUNG nhung gi CMC tra loi, kem ma
+    HTTP va thong bao loi nguyen van — de nguoi doc tu kiem chung, va de cho
+    thay ro cho nao CMC khong tra duoc thi giao dien noi that."""
+    out = {'ok': True, 'kind': kind, 'platform': platform, 'address': address}
+    if kind == 'holders':
+        c = retry('/v1/dex/holders/count', {'platform': platform, 'tokenAddress': address}, key)
+        out['count'] = {'endpoint': 'v1/dex/holders/count', 'status': c.get('status'),
+                        'ms': c.get('ms'), 'error': c.get('error'), 'data': c.get('data')}
+        time.sleep(0.3)
+        # Da do bang du lieu that: body JSON bi tu choi (400 Parameter error),
+        # body form-urlencoded di duoc xa hon (500 system busy) => gui form.
+        r = cmc('/v1/dex/holders/list', None, key, cache=False, method='POST',
+                body={'platform': platform, 'tokenAddress': address}, form=True)
+        rows = None
+        d = r.get('data')
+        if r.get('ok') and d:
+            lst = d.get('holders') if isinstance(d, dict) else d
+            rows = lst[:25] if isinstance(lst, list) else None
+        out['list'] = {'endpoint': 'v1/dex/holders/list', 'status': r.get('status'),
+                       'ms': r.get('ms'), 'error': r.get('error'), 'rows': rows}
+    elif kind == 'raw':
+        if path not in ALLOWED_RAW:
+            return {'ok': False, 'error': 'duong dan khong nam trong danh sach cho phep',
+                    'allowed': ALLOWED_RAW}
+        if path == '/v1/dex/holders/list':
+            r = cmc(path, None, key, cache=False, method='POST',
+                    body={'platform': platform, 'tokenAddress': address}, form=True)
+        elif path.startswith('/v1/dex/'):
+            r = retry(path, {'platform': platform, 'address': address}, key)
+        elif path.startswith('/v1/cryptocurrency/info') or path.startswith('/v1/cryptocurrency/quotes'):
+            r = retry(path, {'id': cid}, key)
+        else:
+            r = retry(path, None, key)
+        out['raw'] = {'endpoint': path.lstrip('/'), 'status': r.get('status'), 'ms': r.get('ms'),
+                      'error': r.get('error'), 'data': r.get('data')}
+    else:
+        return {'ok': False, 'error': 'kind khong ho tro: %s' % kind}
+    out['calls'] = [{'path': c['path'], 'status': c['status'], 'ms': c['ms']} for c in _calls[-8:]]
+    return out
+
+
 def market_context(key=None):
     """Bo canh thi truong cho trang chu: so hai & tham lam, mua altcoin, dong tien."""
     t0 = time.time()
@@ -980,6 +1033,9 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, markets(self._key()))
             if path == '/api/marketctx':
                 return self._send(200, market_context(self._key()))
+            if path == '/api/evidence':
+                return self._send(200, evidence(g('kind'), g('platform'), g('address'),
+                                                g('cid') or None, self._key(), g('path') or None))
             if path == '/api/scan':
                 pl, ad = g('platform'), g('address')
                 if not pl or not ad:

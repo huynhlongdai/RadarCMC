@@ -954,9 +954,9 @@ class H(BaseHTTPRequestHandler):
         u = urllib.parse.urlparse(self.path)
         q = urllib.parse.parse_qs(u.query)
         g = lambda k, d='': (q.get(k, [d])[0] or d)
-        path = OPMAP.get(g('op'), u.path)
+        path = OPMAP.get((g('op') or '').strip().lower(), u.path)
         try:
-            if path in ('/', '/index.html'):
+            if path in ('/', '/index.html', '/api/index'):
                 p = os.path.join(ROOT, 'exit-radar-app.html')
                 if os.path.exists(p):
                     return self._send(200, open(p, 'rb').read(), 'text/html; charset=utf-8')

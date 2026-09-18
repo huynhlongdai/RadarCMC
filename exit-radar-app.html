@@ -229,6 +229,37 @@ a.addr-link:hover{border-bottom-style:solid}
 .sharebar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:currentColor;opacity:.55}
 .chart{width:100%;height:auto;display:block;margin:0 0 6px}
 .mv.up{color:var(--buy)} .mv.down{color:var(--sell)}
+[data-ev]{cursor:pointer;border-radius:6px;transition:background .15s ease,box-shadow .15s ease}
+[data-ev]:hover,[data-ev]:focus-visible{background:color-mix(in srgb,var(--chart-a) 14%,transparent);
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--chart-a) 45%,transparent)}
+[data-ev]::after{content:'↗';font-family:var(--mono);font-size:9px;opacity:.4;margin-left:5px;vertical-align:super;transition:opacity .15s}
+[data-ev]:hover::after{opacity:1}
+.copy-btn{margin-left:6px;font-family:var(--mono);font-size:11px;line-height:1;color:var(--muted);
+  background:transparent;border:1px solid var(--border);border-radius:5px;padding:2px 5px;cursor:pointer;vertical-align:middle}
+.copy-btn:hover{color:var(--text);border-color:var(--border-strong);background:var(--surface-2)}
+.tbl-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 8px}
+.tbl-bar input{font:inherit;font-size:var(--t-sm);padding:6px 10px;border-radius:8px;border:1px solid var(--border);
+  background:var(--surface-2);color:var(--text);min-width:170px}
+.tbl-bar .hint{font-size:11px;color:var(--faint)}
+table.ev-table th.sortable{cursor:pointer;user-select:none}
+table.ev-table th.sortable:hover{color:var(--text)}
+table.ev-table th[data-dir]:after{content:' ▲';font-size:8px;opacity:.7}
+table.ev-table th[data-dir="desc"]:after{content:' ▼'}
+.filterbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 12px}
+.filterbar input,.filterbar select{font:inherit;font-size:var(--t-sm);padding:7px 10px;border-radius:8px;
+  border:1px solid var(--border);background:var(--surface-2);color:var(--text)}
+.filterbar input{min-width:190px}
+.filterbar .cnt{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:auto}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip.f{cursor:pointer;background:transparent}
+.chip.f.on{border-color:var(--accent-2);color:var(--text);background:color-mix(in srgb,var(--chart-a) 16%,transparent)}
+.chip.rwa{color:#fff;background:color-mix(in srgb,var(--chart-b) 70%,transparent);border-color:transparent;font-weight:600}
+.chip.rwa-t{cursor:pointer;background:transparent;font-family:var(--mono)}
+.chip.rwa-t:hover{border-color:var(--accent-2);background:var(--surface-2)}
+.chip.rwa-t b{font-weight:600}
+.chip.rwa-t b.up{color:var(--buy)} .chip.rwa-t b.down{color:var(--sell)}
+.sticky-actions.on-top{position:sticky;top:calc(var(--nav-h) + 8px);z-index:25;margin:0 0 var(--space-4);
+  background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(8px)}
 .radar svg{width:100%;max-width:168px;height:auto;display:block;margin:0 auto}
 .radar .caveat{margin-top:6px}
 .wbar{margin:10px 0 2px}
@@ -453,6 +484,7 @@ details.logbox[open] > summary{border-bottom:1px solid var(--border)}
   font-family:var(--mono);font-size:11px;color:var(--faint)}
 /* Thanh hành động nằm trong luồng tài liệu, ngay sau nội dung. Không dùng
    position:sticky vì thanh dính đáy sẽ phủ lên nội dung cuối ở màn hẹp. */
+.sticky-actions.on-top+.verdict{margin-top:0}
 .sticky-actions{background:var(--surface);border-top:1px solid var(--border);
   padding:var(--space-4) 0 var(--space-2);display:flex;gap:var(--space-2);
   flex-wrap:wrap;z-index:20;margin-top:var(--space-5)}
@@ -851,7 +883,11 @@ function searchIndex(q){
   }).filter(r => r.hit);
 }
 function pickerRow(r, flagged){
-  return '<button class="picker' + (flagged ? ' flag' : '') + '" data-open="' + esc(r.key) + '" type="button">' +
+  return '<button class="picker' + (flagged ? ' flag' : '') + '" data-open="' + esc(r.key) + '" type="button"' +
+    ' data-sym="' + esc(String(r.symbol || '').toLowerCase()) + '" data-chain="' + esc(String(r.chain || '')) + '"' +
+    ' data-liq="' + (r.liquidityUsd == null ? '' : r.liquidityUsd) + '" data-hold="' + (r.holders == null ? '' : r.holders) + '"' +
+    ' data-price="' + (r.priceUsd == null ? '' : r.priceUsd) + '"' +
+    ' data-nm="' + esc(stripVN(String(r.symbol || '') + ' ' + String(r.name || ''))) + '">' +
     '<span class="radio"></span>' +
     '<span><span class="nm">' + esc(r.symbol) + (flagged ? '<span class="warn">cảnh báo</span>' : '') + '</span><br>' +
     '<span class="ch">' + esc(CHAINS[r.chain] || r.chain) + '</span></span>' +
@@ -869,6 +905,8 @@ function viewLanding(){
     extra.push('<div id="marketStrip" class="market">' +
       '<div class="mkt-h">Thị trường hôm nay · CoinMarketCap</div>' +
       '<p class="caveat">Đang tải dữ liệu thị trường…</p></div>');
+    extra.push('<div id="rwaStrip" class="market"><div class="mkt-h">Nhóm RWA · tài sản thực trên chuỗi</div>' +
+      '<p class="caveat">Đang tải danh sách RWA…</p></div>');
   }
   if (s === 'suggest' && State.suggest.length === 1) {
     extra.push('<div class="suggest">' + pickerRow(State.suggest[0], false) + '</div>');
@@ -881,7 +919,17 @@ function viewLanding(){
         ? ' — trong đó ' + State.ambiguous.filter(r => r.exact).length + ' khớp chính xác ký hiệu' : '') +
       '. Tìm kiếm của CMC khớp cả <b>chuỗi con</b>, nên có kết quả chỉ chứa chuỗi bạn gõ chứ không phải token bạn cần. ' +
       'Xếp theo nhóm khớp rồi theo thanh khoản.</div></div>' +
-      State.ambiguous.map((r,i) => pickerRow(r, i > 0 && r.liquidityUsd < 100000)).join('') +
+      '<div class="filterbar">' +
+        '<input type="search" id="ambQ" placeholder="Lọc theo ký hiệu hoặc tên…" aria-label="Lọc kết quả">' +
+        '<select id="ambSort" aria-label="Sắp xếp kết quả">' +
+          '<option value="exact">Khớp chính xác trước</option>' +
+          '<option value="liq">Thanh khoản cao nhất</option>' +
+          '<option value="hold">Nhiều holder nhất</option>' +
+          '<option value="price">Giá cao nhất</option>' +
+          '<option value="sym">Ký hiệu A→Z</option>' +
+        '</select><span class="cnt" id="ambCnt"></span></div>' +
+      '<div class="chips" id="ambChains" style="margin:0 0 10px"></div>' +
+      '<div id="ambList">' + State.ambiguous.map((r,i) => pickerRow(r, i > 0 && r.liquidityUsd < 100000)).join('') + '</div>' +
       '</div>');
   }
   if (s === 'scanning') {
@@ -1213,11 +1261,33 @@ const EXPL = {
 function txURL(chain, tx){ const e = EXPL[chain]; return (e && tx) ? e[0] + tx : null; }
 function acctURL(chain, a){ const e = EXPL[chain]; return (e && a) ? e[1] + a : null; }
 
+const EXPLORERS = {
+  solana:{ a:'https://solscan.io/account/', t:'https://solscan.io/tx/' },
+  ethereum:{ a:'https://etherscan.io/address/', t:'https://etherscan.io/tx/' },
+  'bnb-chain':{ a:'https://bscscan.com/address/', t:'https://bscscan.com/tx/' },
+  base:{ a:'https://basescan.org/address/', t:'https://basescan.org/tx/' },
+  arbitrum:{ a:'https://arbiscan.io/address/', t:'https://arbiscan.io/tx/' },
+  polygon:{ a:'https://polygonscan.com/address/', t:'https://polygonscan.com/tx/' }
+};
+function explorerURL(kind, value){
+  const e = EXPLORERS[State.chain || ''] || EXPLORERS.ethereum;
+  return e[kind] + encodeURIComponent(String(value));
+}
 function addrHTML(a, url){
   if (!a) return '<span class="muted">—</span>';
-  const s = String(a).length > 20 ? String(a).slice(0,8) + '…' + String(a).slice(-6) : String(a);
-  const inner = '<span class="addr" title="' + esc(a) + '">' + esc(s) + '</span>';
-  return url ? '<a class="addr-link" href="' + esc(url) + '" target="_blank" rel="noopener">' + inner + '</a>' : inner;
+  const full = String(a);
+  const s = full.length > 20 ? full.slice(0,8) + '…' + full.slice(-6) : full;
+  let href = url;
+  if (!href){
+    if (/^0x[0-9a-fA-F]{64}$/.test(full)) href = explorerURL('t', full);          // ma giao dich EVM
+    else if (/^[1-9A-HJ-NP-Za-km-z]{80,90}$/.test(full)) href = explorerURL('t', full);  // chu ky Solana
+    else if (/^0x[0-9a-fA-F]{40}$/.test(full)) href = explorerURL('a', full);     // dia chi vi EVM
+    else if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(full)) href = explorerURL('a', full);  // dia chi Solana
+  }
+  const inner = '<span class="addr" title="' + esc(full) + '">' + esc(s) + '</span>';
+  return (href ? '<a class="addr-link" href="' + esc(href) + '" target="_blank" rel="noopener">' + inner + '</a>' : inner) +
+    '<button class="copy-btn" type="button" data-copy="' + esc(full) + '" title="Sao chép: ' + esc(full) +
+    '" aria-label="Sao chép địa chỉ">⧉</button>';
 }
 function tsShort(ms){
   if (!ms) return '—';
@@ -1554,6 +1624,7 @@ function viewResult(chain, addr){
   }
   const t = v.token;
   State.evKey = v.key;   // hop dan chung can biet dang xem token nao
+  State.chain = t.chain;
   const _evh = location.hash.match(/^#\/ev\/([A-Za-z]+):?\/?([^\/]*)$/);
   if (_evh && _evh[1]) setTimeout(() => showEv(_evh[1], applyMode(State.evKey, State.mode)), 80);
   const inWatch = State.watch.some(w => w.key === v.key);
@@ -1647,7 +1718,7 @@ function viewResult(chain, addr){
           '<div class="row"><span class="k">Quy về thang 100</span><span class="lead"></span>' +
             '<span class="v">' + v.score + '</span></div>' +
         '</div>' +
-        historyBlock(v) + logHTML(v.calls) +
+        historyBlock(v) + priceCard(v) + logHTML(v.calls) +
       '</div></div>' +
     '<div class="stack" style="margin-top:28px">' + evidenceHTML(v) + '</div>' +
     actionsHTML(v, inWatch);
@@ -1672,14 +1743,14 @@ function evOpen(title, sub, bodyHTML, foot, after){
   wrap.id = 'evModal';
   wrap.setAttribute('role', 'dialog');
   wrap.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(8,10,16,.74);' +
-    'display:flex;align-items:flex-start;justify-content:center;padding:4vh 14px;overflow:auto';
-  wrap.innerHTML = '<div style="width:100%;max-width:1000px;background:var(--surface,#151922);' +
+    'display:flex;align-items:flex-start;justify-content:center;padding:3vh 8px;overflow:auto';
+  wrap.innerHTML = '<div style="width:100%;max-width:min(1000px,100%);min-width:0;box-sizing:border-box;background:var(--surface,#151922);' +
     'border:1px solid var(--border,#2b3140);border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.55)">' +
     '<div style="display:flex;gap:12px;align-items:flex-start;padding:16px 18px;border-bottom:1px solid var(--border,#2b3140)">' +
     '<div style="flex:1"><div style="font-size:var(--t-md);font-weight:600">' + esc(title) + '</div>' +
     (sub ? '<div style="color:var(--muted);font-size:var(--t-sm);margin-top:5px">' + sub + '</div>' : '') + '</div>' +
     '<button class="btn sm ghost" type="button" id="evX">Đóng</button></div>' +
-    '<div style="padding:16px 18px;overflow-x:auto">' + bodyHTML + '</div>' +
+    '<div style="padding:14px 14px;max-width:100%;min-width:0;box-sizing:border-box;overflow-x:auto;word-break:break-word">' + bodyHTML + '</div>' +
     (foot ? '<div style="padding:12px 18px;border-top:1px solid var(--border,#2b3140);color:var(--muted);' +
       'font-size:var(--t-xs)">' + foot + '</div>' : '') + '</div>';
   document.body.appendChild(wrap);
@@ -1923,7 +1994,10 @@ function contactHTML(v){
     esc(String(x[1][0]).replace(/^https?:\/\//, '').replace(/\/$/, '').slice(0, 58)) + '</a></span></div>').join('');
   const chains = (c.chains || []).map(ch => '<div class="row"><span class="k">' + esc(ch.chain || '—') +
     '</span><span class="lead"></span><span class="v mono">' + esc(shortAddr(ch.address)) + '</span></div>').join('');
-  const tags = (c.tags || []).map(t => '<span class="mono" style="display:inline-block;border:1px solid var(--border);' +
+  const tagList = c.tags || [];
+  const isRwa = tagList.some(t => /real world|rwa|tokenized asset/i.test(String(t)));
+  const tags = (isRwa ? '<span class="chip rwa" title="CMC xếp token này vào nhóm tài sản thực">RWA</span> ' : '') +
+    tagList.map(t => '<span class="mono" style="display:inline-block;border:1px solid var(--border);' +
     'border-radius:999px;padding:2px 9px;margin:3px 4px 0 0;font-size:var(--t-xs);color:var(--muted)">' +
     esc(t) + '</span>').join('');
   return '<div class="card pad"><div class="card-h">Hồ sơ token trên CMC · liên hệ <span data-ev="contact" style="cursor:pointer;color:var(--accent,#5b8cff);font-weight:400">· dẫn chứng</span></div>' +
@@ -2841,6 +2915,250 @@ themeBtn.onclick = () => {
 applyTheme();
 render();
 
+
+/* ==========================================================================
+   TƯƠNG TÁC BỔ SUNG — sao chép địa chỉ, hover/bàn phím cho mốc mở hộp dẫn
+   chứng, đưa thanh nút lên đầu, lọc + sắp xếp cho mọi bảng và danh sách.
+   ========================================================================== */
+function stripVN(x){
+  return String(x).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase();
+}
+function copyText(t){
+  const done = () => toast('Đã sao chép ' + (t.length > 20 ? t.slice(0, 8) + '…' + t.slice(-6) : t), 'ok');
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(done).catch(fb);
+  } else { fb(); }
+  function fb(){
+    const ta = document.createElement('textarea');
+    ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:absolute;left:-9999px';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); }
+    catch (e) { toast('Không sao chép được — hãy chọn rồi sao chép thủ công', 'err'); }
+    ta.remove();
+  }
+}
+document.addEventListener('click', ev => {
+  const c = ev.target.closest ? ev.target.closest('[data-copy]') : null;
+  if (!c) return;
+  ev.preventDefault(); ev.stopPropagation();
+  copyText(c.getAttribute('data-copy') || '');
+}, true);
+document.addEventListener('keydown', ev => {
+  if (ev.key !== 'Enter' && ev.key !== ' ') return;
+  const el = ev.target.closest ? ev.target.closest('[data-ev]') : null;
+  if (!el || ev.target.tagName === 'BUTTON' || ev.target.tagName === 'A') return;
+  ev.preventDefault(); el.click();
+});
+function enhanceTables(root){
+  (root || document).querySelectorAll('table.ev-table').forEach(tb => {
+    if (tb.getAttribute('data-enh')) return;
+    tb.setAttribute('data-enh', '1');
+    const box = tb.closest('.ev-wrap') || tb.parentNode;
+    const bar = document.createElement('div');
+    bar.className = 'tbl-bar';
+    bar.innerHTML = '<input type="search" placeholder="Lọc trong bảng…" aria-label="Lọc trong bảng">' +
+      '<span class="hint">Bấm tiêu đề cột để sắp xếp</span>';
+    box.parentNode.insertBefore(bar, box);
+    const inp = bar.querySelector('input');
+    inp.addEventListener('input', () => {
+      const q = stripVN(inp.value);
+      tb.querySelectorAll('tbody tr').forEach(tr => {
+        tr.style.display = (!q || stripVN(tr.textContent).indexOf(q) >= 0) ? '' : 'none';
+      });
+    });
+    const num = x => {
+      const m = String(x).replace(/\u2212/g, '-').replace(/[^0-9.,\-]/g, '').replace(/\./g, '').replace(',', '.');
+      const v = parseFloat(m); return isNaN(v) ? null : v;
+    };
+    tb.querySelectorAll('thead th').forEach((th, ci) => {
+      th.classList.add('sortable');
+      th.addEventListener('click', () => {
+        const body = tb.querySelector('tbody');
+        const rows = Array.prototype.slice.call(body.querySelectorAll('tr'));
+        const dir = th.getAttribute('data-dir') === 'asc' ? 'desc' : 'asc';
+        tb.querySelectorAll('thead th').forEach(o => o.removeAttribute('data-dir'));
+        th.setAttribute('data-dir', dir);
+        rows.sort((a, b) => {
+          const A = a.children[ci] ? a.children[ci].textContent.trim() : '';
+          const B = b.children[ci] ? b.children[ci].textContent.trim() : '';
+          const an = num(A), bn = num(B);
+          const c = (an !== null && bn !== null) ? (an - bn) : stripVN(A).localeCompare(stripVN(B));
+          return dir === 'asc' ? c : -c;
+        });
+        rows.forEach(r => body.appendChild(r));
+      });
+    });
+  });
+}
+function moveActions(){
+  const sa = document.querySelector('.sticky-actions');
+  const vd = document.querySelector('.verdict');
+  if (sa && vd && vd.parentNode){ vd.parentNode.insertBefore(sa, vd); sa.classList.add('on-top'); }
+}
+function enhanceAmb(){
+  const list = document.getElementById('ambList');
+  if (!list || list.getAttribute('data-enh')) return;
+  list.setAttribute('data-enh', '1');
+  const rows = Array.prototype.slice.call(list.querySelectorAll('.picker'));
+  const q = document.getElementById('ambQ'), srt = document.getElementById('ambSort'),
+        chips = document.getElementById('ambChains'), cnt = document.getElementById('ambCnt');
+  const chains = [];
+  rows.forEach(r => { const c = r.getAttribute('data-chain') || ''; if (c && chains.indexOf(c) < 0) chains.push(c); });
+  let active = 'all';
+  if (chips){
+    chips.innerHTML = '<button class="chip f on" type="button" data-c="all">Tất cả (' + rows.length + ')</button>' +
+      chains.map(c => '<button class="chip f" type="button" data-c="' + esc(c) + '">' + esc(CHAINS[c] || c) + ' (' +
+        rows.filter(r => r.getAttribute('data-chain') === c).length + ')</button>').join('');
+    chips.querySelectorAll('.chip.f').forEach(b => b.addEventListener('click', () => {
+      active = b.getAttribute('data-c');
+      chips.querySelectorAll('.chip.f').forEach(o => o.classList.toggle('on', o === b));
+      apply();
+    }));
+  }
+  const nv = (r, k) => { const v = parseFloat(r.getAttribute(k)); return isNaN(v) ? -Infinity : v; };
+  function apply(){
+    const qq = stripVN(q ? q.value : '');
+    rows.forEach(r => {
+      const okQ = !qq || (r.getAttribute('data-nm') || '').indexOf(qq) >= 0;
+      const okC = active === 'all' || r.getAttribute('data-chain') === active;
+      r.style.display = (okQ && okC) ? '' : 'none';
+    });
+    const vis = rows.filter(r => r.style.display !== 'none');
+    const key = srt ? srt.value : 'exact';
+    vis.sort((a, b) => key === 'liq' ? nv(b, 'data-liq') - nv(a, 'data-liq')
+      : key === 'hold' ? nv(b, 'data-hold') - nv(a, 'data-hold')
+      : key === 'price' ? nv(b, 'data-price') - nv(a, 'data-price')
+      : key === 'sym' ? (a.getAttribute('data-sym') || '').localeCompare(b.getAttribute('data-sym') || '') : 0);
+    vis.forEach(r => list.appendChild(r));
+    if (cnt) cnt.textContent = vis.length + '/' + rows.length + ' kết quả';
+  }
+  if (q) q.addEventListener('input', apply);
+  if (srt) srt.addEventListener('change', apply);
+  apply();
+}
+function priceCard(v){
+  const cid = (v.token || {}).cid;
+  if (!cid){
+    return '<div class="card pad"><div class="card-h">Biểu đồ giá</div>' +
+      '<div class="note-box info"><span class="ic">◇</span><div>Token này <b>chưa có hồ sơ CMC</b> nên không có chuỗi giá. ' +
+      'CMC chỉ trả lịch sử giá cho token có mã CMC (cid); token chỉ niêm yết trên DEX thì chưa có.</div></div></div>';
+  }
+  return '<div class="card pad" id="priceCard" data-cid="' + esc(String(cid)) + '">' +
+    '<div class="card-h">Biểu đồ giá 30 ngày · CMC ID ' + esc(String(cid)) + '</div>' +
+    '<div class="note-box info"><span class="ic">⋯</span><div>Đang tải chuỗi giá…</div></div></div>';
+}
+function priceChart(pts, endpoint, status){
+  const ps = (pts || []).filter(p => p && typeof p.price === 'number');
+  if (ps.length < 2) return '';
+  const W = 640, H = 190, L = 58, R = 12, T = 14, B = 26, iw = W - L - R, ih = H - T - B;
+  const vs = ps.map(p => p.price), lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs);
+  const X = i => L + (i / (ps.length - 1)) * iw;
+  const Y = v => T + ih - ((v - lo) / ((hi - lo) || 1)) * ih;
+  const line = ps.map((p, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(p.price).toFixed(1)).join(' ');
+  const area = line + ' L' + X(ps.length - 1).toFixed(1) + ' ' + (T + ih) + ' L' + L + ' ' + (T + ih) + ' Z';
+  const up = ps[ps.length - 1].price >= ps[0].price, col = up ? 'var(--buy)' : 'var(--sell)';
+  const grid = [hi, (lo + hi) / 2, lo].map(v => '<line x1="' + L + '" y1="' + Y(v).toFixed(1) + '" x2="' + (W - R) +
+    '" y2="' + Y(v).toFixed(1) + '" stroke="currentColor" opacity=".13"/>' +
+    '<text x="' + (L - 6) + '" y="' + (Y(v) + 3.5).toFixed(1) + '" text-anchor="end" font-size="9" fill="currentColor" opacity=".6">' +
+    price(v) + '</text>').join('');
+  const dots = ps.map((p, i) => '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(p.price).toFixed(1) + '" r="2.2" fill="' + col + '"/>').join('');
+  const f = d => d.getDate() + '/' + (d.getMonth() + 1);
+  return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Biểu đồ giá theo ngày">' +
+    grid + '<path d="' + area + '" fill="' + col + '" opacity=".12"/>' +
+    '<path d="' + line + '" fill="none" stroke="' + col + '" stroke-width="2"/>' + dots +
+    '<text x="' + L + '" y="' + (H - 8) + '" font-size="9.5" fill="currentColor" opacity=".6">' + f(new Date(ps[0].t)) + '</text>' +
+    '<text x="' + (W - R) + '" y="' + (H - 8) + '" text-anchor="end" font-size="9.5" fill="currentColor" opacity=".6">' +
+    f(new Date(ps[ps.length - 1].t)) + '</text></svg>' +
+    chartLegend([{ c: col, t: (up ? 'tăng' : 'giảm') + ' trong kỳ' },
+      { c: 'var(--muted)', t: 'đầu kỳ', v: price(ps[0].price) },
+      { c: 'var(--muted)', t: 'cuối kỳ', v: price(ps[ps.length - 1].price) }]) +
+    '<p class="caveat">' + ps.length + ' điểm giá theo ngày · <span class="mono">' +
+    esc(String(endpoint || 'cryptocurrency/quotes/historical')) + '</span> (mã HTTP ' + esc(String(status == null ? '—' : status)) + '). ' +
+    'Đây là <b>giá niêm yết</b> trên CMC, không phải giá khớp lệnh trong pool. ' +
+    'Gói của bạn không mở được endpoint nến OHLCV (<span class="mono">ohlcv/historical</span> trả 403), nên hệ thống dùng chuỗi giá ngày thay thế.</p>';
+}
+function loadPrice(){
+  const el = document.getElementById('priceCard');
+  if (!el || el.getAttribute('data-done')) return;
+  el.setAttribute('data-done', '1');
+  const head = el.querySelector('.card-h').outerHTML;
+  fetch(API.base + '/api/evidence?kind=price&cid=' + encodeURIComponent(el.getAttribute('data-cid')) + '&days=30',
+    { headers: API.headers(), cache: 'no-store' }).then(r => r.json()).catch(() => null).then(d => {
+      if (!d || !d.ok || !(d.points || []).length){
+        el.innerHTML = head + '<div class="note-box info"><span class="ic">◇</span><div>Chưa lấy được chuỗi giá' +
+          (d && d.error ? ': ' + esc(String(d.error)) : (d && d.status ? ' (mã ' + esc(String(d.status)) + ')' : '')) +
+          '. Endpoint <span class="mono">cryptocurrency/quotes/historical</span> cần key CMC Pro.</div></div>';
+        return;
+      }
+      el.innerHTML = head + priceChart(d.points, d.endpoint, d.status);
+    });
+}
+function loadRwa(){
+  const el = document.getElementById('rwaStrip');
+  if (!el || el.getAttribute('data-done')) return;
+  el.setAttribute('data-done', '1');
+  fetch(API.base + '/api/evidence?kind=rwa&limit=16', { headers: API.headers(), cache: 'no-store' })
+    .then(r => r.json()).catch(() => null).then(d => {
+      const ts = (d && d.tokens) || [];
+      if (!ts.length){
+        el.innerHTML = '<div class="mkt-h">Nhóm RWA · tài sản thực trên chuỗi</div>' +
+          '<p class="caveat">Chưa lấy được danh sách RWA' + (d && d.status ? ' (mã ' + esc(String(d.status)) + ')' : '') +
+          '. CMC có nhóm <b>Real World Assets Protocols</b> (ID 6400b58c1701313dc2e853a9) nhưng cần key CMC Pro ở máy chủ.</p>';
+        return;
+      }
+      el.innerHTML = '<div class="mkt-h">Nhóm RWA · tài sản thực trên chuỗi · ' + ts.length + ' mã đầu</div>' +
+        '<div class="filterbar"><input type="search" id="rwaQ" placeholder="Lọc token RWA…" aria-label="Lọc token RWA">' +
+        '<select id="rwaSort" aria-label="Sắp xếp RWA"><option value="mcap">Vốn hoá cao nhất</option>' +
+        '<option value="chg">Tăng 24h mạnh nhất</option><option value="sym">Ký hiệu A→Z</option></select>' +
+        '<span class="cnt" id="rwaCnt"></span></div><div class="chips" id="rwaList">' +
+        ts.map(t => '<button class="chip rwa-t" type="button" data-mk="' + esc(t.symbol) + '" data-nm="' +
+          esc(stripVN(String(t.symbol) + ' ' + String(t.name || ''))) + '" data-mcap="' + (t.mcap == null ? '' : t.mcap) +
+          '" data-chg="' + (t.chg24h == null ? '' : t.chg24h) + '" title="Bấm để quét ' + esc(String(t.name || '')) + '">' +
+          esc(t.symbol) + (t.chg24h == null ? '' : ' <b class="' + (t.chg24h >= 0 ? 'up' : 'down') + '">' +
+          (t.chg24h >= 0 ? '▲' : '▼') + Math.abs(t.chg24h).toFixed(2) + '%</b>') + '</button>').join('') + '</div>' +
+        '<p class="caveat">Bấm một mã để quét token đó. Danh sách theo nhóm <b>' + esc(String(d.category || 'Real World Assets Protocols')) +
+        '</b> của CMC — đây là cách nhận ra <b>ký hiệu token RWA</b> trong kết quả.</p>';
+      const list = document.getElementById('rwaList'), q = document.getElementById('rwaQ'),
+            srt = document.getElementById('rwaSort'), cnt = document.getElementById('rwaCnt');
+      const rows = Array.prototype.slice.call(list.querySelectorAll('button'));
+      const nv = (b, k) => { const v = parseFloat(b.getAttribute(k)); return isNaN(v) ? -Infinity : v; };
+      function applyR(){
+        const qq = stripVN(q ? q.value : '');
+        rows.forEach(b => { b.style.display = (!qq || (b.getAttribute('data-nm') || '').indexOf(qq) >= 0) ? '' : 'none'; });
+        const vis = rows.filter(b => b.style.display !== 'none');
+        const key = srt ? srt.value : 'mcap';
+        vis.sort((a, b) => key === 'sym' ? (a.getAttribute('data-mk') || '').localeCompare(b.getAttribute('data-mk') || '')
+          : key === 'chg' ? nv(b, 'data-chg') - nv(a, 'data-chg') : nv(b, 'data-mcap') - nv(a, 'data-mcap'));
+        vis.forEach(b => list.appendChild(b));
+        if (cnt) cnt.textContent = vis.length + '/' + rows.length + ' mã';
+      }
+      if (q) q.addEventListener('input', applyR);
+      if (srt) srt.addEventListener('change', applyR);
+      applyR();
+      rows.forEach(b => b.addEventListener('click', () => {
+        const inp = document.getElementById('q'); if (inp) inp.value = b.getAttribute('data-mk');
+        const f = document.getElementById('searchForm');
+        if (f) f.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      }));
+    });
+}
+function enhanceDom(){
+  try {
+    moveActions();
+    enhanceTables(document);
+    enhanceAmb();
+    loadPrice();
+    loadRwa();
+    document.querySelectorAll('[data-ev]').forEach(el => {
+      if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+      if (!el.hasAttribute('role')) el.setAttribute('role', 'button');
+    });
+  } catch (e) {}
+}
+const _render0 = render;
+render = function(){ _render0.apply(this, arguments); enhanceDom(); };
+const _showEv0 = showEv;
+showEv = function(){ _showEv0.apply(this, arguments); enhanceTables(document.getElementById('evModal') || document); };
 </script>
 </body>
 </html>

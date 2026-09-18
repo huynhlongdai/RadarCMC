@@ -2884,11 +2884,15 @@ def tg_scan(platform, address, key=None):
     # cac chieu CHAM DUOC. Chieu khong cham duoc bi loai han - neu tinh no la 0
     # thi mot token thieu du lieu se trong nhu "an toan", dung sai ve nghia.
     usable = [d for d in seq if d.get('applicable') and isinstance(d.get('score'), (int, float))]
-    sc = max(0, min(100, sum(d['score'] for d in usable))) if usable else None
+    # Cung cong thuc voi giao dien: diem = rawSum / maxSum * 100, lam tron, san 0.
+    # (Truoc do toi lay tong tho nen tin nhan ghi 6 trong khi web ghi 10 - da sua.)
+    raw = sum(d['score'] for d in usable) if usable else None
+    mx = sum((d.get('max') or 0) for d in usable) if usable else 0
     liq = tok.get('liquidityUsd')
     if liq is not None and float(liq or 0) <= 0:
         liq = None   # 0 o day la "khong co so", khong phai "thanh khoan bang 0"
-    return {'ok': True, 'score': sc, 'scoreMax': (sum((d.get('max') or 0) for d in usable) or None),
+    return {'ok': True, 'score': (max(0, int(round(raw / mx * 100))) if (raw is not None and mx) else None),
+            'scoreRaw': raw, 'scoreMax': (mx or None),
             'dimsScored': len(usable), 'dimsTotal': len(seq),
             'symbol': tok.get('symbol'), 'name': tok.get('name'),
             'cid': tok.get('cid'), 'liq': liq,

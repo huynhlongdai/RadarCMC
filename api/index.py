@@ -1,5 +1,5 @@
-"""Exit Radar — bundle serverless cho Vercel (sinh tu dong, dung sua tay).
-Nguon: exit_radar_server.py + exit-radar-app.html — 152913 byte HTML.
+"""Exit Radar - bundle serverless cho Vercel (sinh tu dong, dung sua tay).
+Nguon: exit_radar_server.py + exit-radar-app.html - 152913 byte HTML.
 """
 import base64
 APP_HTML_B64 = (
@@ -2035,10 +2035,11 @@ class handler(BaseHTTPRequestHandler):
         u = urllib.parse.urlparse(self.path)
         q = urllib.parse.parse_qs(u.query)
         g = lambda k, d='': (q.get(k, [d])[0] or d)
-        path = OPMAP.get(g('op'), u.path)
+        path = OPMAP.get((g('op') or '').strip().lower(), u.path)
         try:
-            if u.path in ('/', '/index.html'):
+                        if path in ('/', '/index.html', '/api/index'):
                 # Vercel khong phat hanh tep tinh o che do backend: HTML nhung thang.
+                # '/api/index' la dich cua rewrite '/', '?op=app' duoc OPMAP doi ve '/'.
                 return self._send(200, base64.b64decode(APP_HTML_B64), 'text/html; charset=utf-8')
             if path == '/api/health':
                 k = self._key()

@@ -554,13 +554,14 @@ def _flow(key=None, count=8):
 
 
 ALLOWED_RAW = ['/v1/dex/token', '/v1/dex/liquidity-change/list', '/v1/dex/holders/count',
+               '/v1/cryptocurrency/quotes/historical', '/v1/cryptocurrency/category',
                '/v1/dex/holders/list', '/v1/dex/tokens/transactions', '/v1/dex/search',
                '/v1/cryptocurrency/info', '/v1/cryptocurrency/quotes/latest',
                '/v1/global-metrics/quotes/latest', '/v3/fear-and-greed/latest',
                '/v1/altcoin-season-index/latest']
 
 
-def evidence(kind, platform='', address='', cid=None, key=None, path=None):
+def evidence(kind, platform='', address='', cid=None, key=None, path=None, days=30, limit=16):
     """Danh sach dung sau mot con so. Tra ve DUNG nhung gi CMC tra loi, kem ma
     HTTP va thong bao loi nguyen van — de nguoi doc tu kiem chung, va de cho
     thay ro cho nao CMC khong tra duoc thi giao dien noi that."""
@@ -581,6 +582,44 @@ def evidence(kind, platform='', address='', cid=None, key=None, path=None):
             rows = lst[:25] if isinstance(lst, list) else None
         out['list'] = {'endpoint': 'v1/dex/holders/list', 'status': r.get('status'),
                        'ms': r.get('ms'), 'error': r.get('error'), 'rows': rows}
+    elif kind == 'price':
+        # Chuoi gia theo ngay. Da do thuc te tren goi cua nguoi dung: endpoint nen
+        # OHLCV (ohlcv/historical) bi tu choi 403 error_code 1006 "plan does not
+        # support", con quotes/historical tra 200 voi du lieu that => dung chuoi
+        # gia ngay va noi ro trong giao dien la khong phai nen OHLCV.
+        if not cid:
+            return {'ok': False, 'error': 'thieu cid — token chua co ho so CMC nen khong co chuoi gia'}
+        r = retry('/v1/cryptocurrency/quotes/historical',
+                  {'id': cid, 'count': days, 'interval': 'daily', 'convert': 'USD'}, key)
+        d = r.get('data')
+        obj = d[0] if (isinstance(d, list) and d) else (d if isinstance(d, dict) else {})
+        pts = []
+        for q_ in ((obj.get('quotes') if isinstance(obj, dict) else None) or []):
+            usd = ((q_.get('quote') or {}).get('USD') or {})
+            if usd.get('price') is not None:
+                pts.append({'t': q_.get('timestamp'), 'price': usd.get('price')})
+        out['points'] = pts
+        out['cid'] = cid
+        out['endpoint'] = 'v1/cryptocurrency/quotes/historical'
+        out['status'] = r.get('status'); out['ms'] = r.get('ms'); out['error'] = r.get('error')
+    elif kind == 'rwa':
+        RWA_ID = '6400b58c1701313dc2e853a9'   # Real World Assets Protocols (CMC)
+        r = retry('/v1/cryptocurrency/category',
+                  {'id': RWA_ID, 'limit': limit, 'convert': 'USD'}, key)
+        d = r.get('data') or {}
+        coins = []
+        for c_ in ((d.get('coins') if isinstance(d, dict) else None) or []):
+            usd = ((c_.get('quote') or {}).get('USD') or {})
+            coins.append({
+                'symbol': c_.get('symbol'), 'name': c_.get('name'), 'cid': c_.get('id'),
+                'price': usd.get('price') if usd.get('price') is not None else c_.get('price'),
+                'chg24h': usd.get('percent_change_24h') if usd.get('percent_change_24h') is not None else c_.get('percent_change_24h'),
+                'mcap': usd.get('market_cap') if usd.get('market_cap') is not None else c_.get('market_cap'),
+            })
+        out['tokens'] = coins
+        out['category'] = (d.get('title') or d.get('name')) if isinstance(d, dict) else None
+        out['endpoint'] = 'v1/cryptocurrency/category'
+        out['status'] = r.get('status'); out['ms'] = r.get('ms'); out['error'] = r.get('error')
     elif kind == 'raw':
         if path not in ALLOWED_RAW:
             return {'ok': False, 'error': 'duong dan khong nam trong danh sach cho phep',
@@ -1035,7 +1074,9 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, market_context(self._key()))
             if path == '/api/evidence':
                 return self._send(200, evidence(g('kind'), g('platform'), g('address'),
-                                                g('cid') or None, self._key(), g('path') or None))
+                                                g('cid') or None, self._key(), g('path') or None,
+                                                (int(g('days')) if g('days').isdigit() else 30),
+                                                (int(g('limit')) if g('limit').isdigit() else 16)))
             if path == '/api/scan':
                 pl, ad = g('platform'), g('address')
                 if not pl or not ad:

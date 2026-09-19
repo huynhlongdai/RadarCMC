@@ -4071,6 +4071,11 @@ const I18N_PAT = [
 ];
 
 /* ------------------------------------------------ lõi */
+let I18N_lang = I18N_DEFAULT;
+try {
+  const _sv = Store.get('er.lang', I18N_DEFAULT);
+  if (_sv === 'vi' || _sv === 'zh' || _sv === 'en') I18N_lang = _sv;
+} catch (e) {}
 function I18N_norm(s){ return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
 function I18N_extra(){ return (window.ER_I18N_EXTRA || {}); }
 function I18N_dict(lang){ return Object.assign({}, (lang === 'vi' ? {} : (I18N[lang] || {})), (I18N_extra()[lang] || {})); }
@@ -4185,13 +4190,16 @@ function I18N_unwrap(){
 /* ------------------------------------------------ giao diện chọn ngôn ngữ */
 function I18N_switcher(){
   if (document.getElementById('i18nSw')) return;
-  const host = document.querySelector('.nav') || document.querySelector('nav') || document.querySelector('header');
+  const host = document.querySelector('.topright') || document.querySelector('.nav') ||
+    document.querySelector('header .wrap') || document.querySelector('nav') || document.body;
   const wrap = document.createElement('div');
   wrap.id = 'i18nSw'; wrap.className = 'i18n-sw';
+  wrap.style.cssText = 'display:flex;gap:6px;align-items:center;margin-left:6px';
   wrap.innerHTML = I18N_LANGS.map(l => '<button type="button" class="chip f' + (l.k === I18N_lang ? ' on' : '') +
     '" data-lang="' + l.k + '" title="' + l.name + '">' + l.label + '</button>').join('') +
     '<button type="button" class="chip f" data-lang="info" title="Coverage">?</button>';
-  (host || document.body).appendChild(wrap);
+  if (host.insertBefore && host.firstChild) host.insertBefore(wrap, host.firstChild);
+  else host.appendChild(wrap);
   wrap.addEventListener('click', ev => {
     const b = ev.target.closest ? ev.target.closest('[data-lang]') : null;
     if (!b) return;
@@ -4267,11 +4275,11 @@ function I18N_keyChip_fill(){
   });
 }
 function I18N_boot(){
-  I18N_intl();
-  I18N_switcher();
-  I18N_apply();
-  I18N_watch();
-  I18N_keyChip();
+  try { I18N_intl(); } catch (e) {}
+  try { I18N_switcher(); } catch (e) {}
+  try { I18N_apply(); } catch (e) {}
+  try { I18N_watch(); } catch (e) {}
+  try { I18N_keyChip(); } catch (e) {}
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(I18N_boot, 60));
 else setTimeout(I18N_boot, 60);

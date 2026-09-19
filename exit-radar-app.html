@@ -4078,7 +4078,10 @@ try {
 } catch (e) {}
 function I18N_norm(s){ return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
 function I18N_extra(){ return (window.ER_I18N_EXTRA || {}); }
-function I18N_dict(lang){ return Object.assign({}, (lang === 'vi' ? {} : (I18N[lang] || {})), (I18N_extra()[lang] || {})); }
+function I18N_dict(lang){
+  const base = (lang === 'en' ? I18N_EN : (lang === 'zh' ? I18N_ZH : {}));
+  return Object.assign({}, base, (I18N_extra()[lang] || {}));
+}
 function I18N_lookup(key, lang){
   lang = lang || I18N_lang;
   if (lang === 'vi' || !key) return key;

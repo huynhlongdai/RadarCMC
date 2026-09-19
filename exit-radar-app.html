@@ -4195,27 +4195,51 @@ function I18N_switcher(){
   if (document.getElementById('i18nSw')) return;
   const host = document.querySelector('.topright') || document.querySelector('.nav') ||
     document.querySelector('header .wrap') || document.querySelector('nav') || document.body;
+  const cur = (I18N_LANGS.filter(function(l){ return l.k === I18N_lang; })[0] || I18N_LANGS[0]);
   const wrap = document.createElement('div');
   wrap.id = 'i18nSw'; wrap.className = 'i18n-sw';
-  wrap.style.cssText = 'display:flex;gap:6px;align-items:center;margin-left:6px';
-  wrap.innerHTML = I18N_LANGS.map(l => '<button type="button" class="chip f' + (l.k === I18N_lang ? ' on' : '') +
-    '" data-lang="' + l.k + '" title="' + l.name + '">' + l.label + '</button>').join('') +
-    '<button type="button" class="chip f" data-lang="info" title="Coverage">?</button>';
+  wrap.style.cssText = 'position:relative;display:inline-flex;align-items:center';
+  wrap.innerHTML =
+    '<button type="button" id="i18nBtn" aria-haspopup="true" aria-expanded="false" title="' + cur.name +
+      '" style="font:inherit;font-size:11px;letter-spacing:.04em;padding:4px 8px;border:1px solid var(--border);' +
+      'background:transparent;color:var(--muted);border-radius:8px;cursor:pointer;line-height:1.2">' + cur.label + '</button>' +
+    '<div id="i18nMenu" hidden style="position:absolute;top:120%;right:0;z-index:60;min-width:170px;padding:6px;' +
+      'background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.3)">' +
+      I18N_LANGS.map(function(l){
+        return '<button type="button" data-lang="' + l.k + '" style="display:flex;width:100%;gap:10px;' +
+          'justify-content:space-between;font:inherit;font-size:12px;padding:6px 8px;border:0;border-radius:7px;' +
+          'background:transparent;color:' + (l.k === I18N_lang ? 'var(--text)' : 'var(--muted)') +
+          ';cursor:pointer;text-align:left"><span>' + l.name + '</span>' +
+          '<span style="font-family:var(--mono);opacity:.7">' + l.label + '</span></button>';
+      }).join('') +
+      '<div style="border-top:1px solid var(--border);margin-top:5px;padding:6px 8px 2px;font-size:11px;color:var(--faint)">' +
+        '<a href="#" id="i18nInfo" style="color:inherit;text-decoration:none">' + t('Chuỗi chưa dịch') + '</a></div>' +
+    '</div>';
   if (host.insertBefore && host.firstChild) host.insertBefore(wrap, host.firstChild);
   else host.appendChild(wrap);
-  wrap.addEventListener('click', ev => {
-    const b = ev.target.closest ? ev.target.closest('[data-lang]') : null;
+  const btn = document.getElementById('i18nBtn'), menu = document.getElementById('i18nMenu');
+  if (btn && menu) btn.addEventListener('click', function(ev){
+    ev.stopPropagation();
+    menu.hidden = !menu.hidden;
+    btn.setAttribute('aria-expanded', String(!menu.hidden));
+  });
+  wrap.addEventListener('click', function(ev){
+    const b = (ev.target && ev.target.closest) ? ev.target.closest('[data-lang]') : null;
     if (!b) return;
     const k = b.getAttribute('data-lang');
-    if (k === 'info') return I18N_modal();
+    if (menu) menu.hidden = true;
     if (k === I18N_lang) return;
-    try { Store.set('er.lang', k); } catch (e){}
-    const msg = (k === 'vi') ? 'Đã đổi ngôn ngữ sang Tiếng Việt' : t('Đã đổi ngôn ngữ sang') + ' ' +
-      ((I18N_LANGS.filter(x => x.k === k)[0] || {}).name || k);
-    try { toast(msg, 'ok', ''); } catch (e){}
-    setTimeout(() => location.reload(), 350);
+    try { Store.set('er.lang', k); } catch (e) {}
+    setTimeout(function(){ location.reload(); }, 120);
+  });
+  const info = document.getElementById('i18nInfo');
+  if (info) info.addEventListener('click', function(ev){ ev.preventDefault(); I18N_modal(); });
+  document.addEventListener('click', function(){
+    const m = document.getElementById('i18nMenu');
+    if (m) m.hidden = true;
   });
 }
+
 function I18N_coverage(){
   const total = Object.keys(I18N_SEEN).length;
   const miss = Object.keys(I18N_MISS).length;
@@ -4269,10 +4293,12 @@ function I18N_keyChip_fill(){
     const p = pl.credit_limit_monthly || null;
     const left = us.current_month ? us.current_month.credits_left : null;
     if (d.keyProvided && d.keyValid){
-      el.textContent = 'CMC ✓ ' + (p ? I18N_num(p, 0) : 'key') + (left != null ? ' · ' + I18N_num(left, 0) + ' left' : '');
-      el.title = 'Key: ' + (d.keySource || '?') + ' · ' + (p ? I18N_num(p, 0) + ' credit/tháng' : '');
+      el.textContent = 'CMC ✓';
+      el.title = 'Key: ' + (d.keySource || '?') + (p ? ' · ' + I18N_num(p, 0) + ' credit/tháng' : '') +
+        (left != null ? ' · còn ' + I18N_num(left, 0) : '');
     } else {
-      el.textContent = 'CMC ✕ ' + t('chưa có key');
+      el.textContent = 'CMC ✕';
+      el.title = t('chưa có key') + (d.keyError ? ' · ' + d.keyError : '');
       el.title = (d.keyError || '') + '';
     }
   });

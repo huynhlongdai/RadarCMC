@@ -1323,6 +1323,51 @@ def usd_txt(v):
     return nf_txt(v, 0) + ' USD'
 
 
+# --- Don vi tien + muc rui ro theo ngon ngu tin nhan (en/zh) ---
+TG_USD_SUF = {
+    'vi': (' tỷ USD', ' triệu USD', ' nghìn USD', ' USD'),
+    'en': ('B USD', 'M USD', 'K USD', ' USD'),
+    'zh': ('十亿美元', '百万美元', '千美元', ' 美元'),
+}
+
+
+def usd_txt_lang(v, lang='vi'):
+    lang = lang if lang in TG_USD_SUF else 'vi'
+    u = TG_USD_SUF[lang]
+    v = float(v or 0)
+    if v >= 1e9:
+        return nf_txt(v / 1e9, 2) + u[0]
+    if v >= 1e6:
+        return nf_txt(v / 1e6, 2) + u[1]
+    if v >= 1e3:
+        return nf_txt(v / 1e3, 1) + u[2]
+    return nf_txt(v, 0) + u[3]
+
+
+TG_UNIT_FIX = {
+    'en': [(' nghìn USD', 'K USD'), (' triệu USD', 'M USD'), (' tỷ USD', 'B USD'),
+           (' USD', ' USD'), ('không rõ ví', 'unknown wallet'),
+           ('ví cá mập', 'whale wallet')],
+    'zh': [(' nghìn USD', '千美元'), (' triệu USD', '百万美元'),
+           (' tỷ USD', '十亿美元'), (' USD', ' 美元'),
+           ('không rõ ví', '未知钱包'), ('ví cá mập', '巨鲸钱包')],
+}
+
+TG_LVL = {
+    'en': {'THẤP': 'LOW', 'ĐỂ MẮT': 'WATCH', 'CAO': 'HIGH', 'NGHIÊM TRỌNG': 'CRITICAL'},
+    'zh': {'THẤP': '低', 'ĐỂ MẮT': '留意', 'CAO': '高', 'NGHIÊM TRỌNG': '严重'},
+}
+
+
+def tg_fix_units(s, lang):
+    """Doi don vi tien trong cau da lap san (giu nguyen con so)."""
+    if not lang or lang == 'vi':
+        return s
+    for a, b in TG_UNIT_FIX.get(lang, []):
+        s = s.replace(a, b)
+    return s
+
+
 def usd_short(v):
     v = float(v or 0)
     if v >= 1e9:
@@ -1365,14 +1410,15 @@ def tg_alert_text(a, lang):
     L = TGL.get(lang or 'vi') or TGL['vi']
     tpl = L.get(rk) or TGL['vi'].get(rk) or ''
     if rk in ('whale_buy', 'whale_sell'):
-        return tpl % (a.get('to') or '', a.get('walletShort') or '')
-    return tpl % (a.get('pct') or a.get('delta') or '', a.get('from') or '', a.get('to') or '')
+        return tg_fix_units(tpl % (a.get('to') or '', a.get('walletShort') or ''), lang)
+    return tg_fix_units(tpl % (a.get('pct') or a.get('delta') or '', a.get('from') or '', a.get('to') or ''), lang)
 
 
 def tg_message(tok, alerts, snap, note=None, lang=None):
     """Mot tin nhan cho mot token. HTML (parse_mode=HTML)."""
     L = TGL.get(lang or 'vi') or TGL['vi']
     ch = ((snap or {}).get('level') or '')
+    ch = TG_LVL.get(lang or 'vi', {}).get(ch, ch)
     head = '<b>' + esc_tg(tok.get('symbol') or '?') + '</b> · ' + esc_tg(tok.get('chain') or '') + \
            (' · <i>' + esc_tg(note) + '</i>' if note else '')
     lines = ['⚠ ' + head]
@@ -1385,7 +1431,7 @@ def tg_message(tok, alerts, snap, note=None, lang=None):
                      ' — ' + (L['dims'] % (str((snap or {}).get('dimsScored') or 0),
                                            str((snap or {}).get('dimsTotal') or 5))))
     if (snap or {}).get('liq') is not None:
-        lines.append(L['liq'] + ' ' + usd_txt(snap['liq']))
+        lines.append(L['liq'] + ' ' + usd_txt_lang(snap['liq'], lang))
     if (snap or {}).get('holders') is not None:
         lines.append(L['holders'] + ' ' + nf_txt(snap['holders'], 0))
     ca = ((snap or {}).get('calls') or [])
@@ -1427,7 +1473,13 @@ def tg_l(chat, key, *args):
     return (s % args) if args else s
 
 
-def tg_help():
+TG_HELP = {
+    'en': '<b>Exit Radar — alert bot</b>\n/link CODE — link this chat to the watchlist in the web app (code shown under Bot Telegram)\n/status — what you are watching, which rules are on, last scan\n/list — token list + score + rules\n/pause — stop sending (scanning continues)\n/resume — turn alerts back on\n/quiet 23 7 — quiet hours (messages are held and sent when they end)\n/test — send a test message\n/unlink — unlink this chat\n\nNote: the bot only scans while a process runs (your machine with <code>--bot</code>, or cron). Data comes from CMC; each token costs about 8-12 credits per scan.',
+    'zh': '<b>Exit Radar — 预警机器人</b>\n/link 绑定码 — 将本聊天绑定到网页里的自选列表（绑定码见网页的 Telegram 机器人板块）\n/status — 查看正在关注的内容、已开启的规则、最近一次扫描\n/list — 代币列表 + 评分 + 规则\n/pause — 暂停发送（仍会扫描）\n/resume — 恢复发送\n/quiet 23 7 — 安静时段（消息暂存，时段结束后统一发送）\n/test — 发送一条测试消息\n/unlink — 解除本聊天绑定\n\n注意：只有进程在运行时机器人才会扫描（本机运行 <code>--bot</code>，或 cron）。数据来自 CMC，每次扫描每个代币约消耗 8-12 个 credit。',
+}
+
+
+def _tg_help_vi():
     return ('<b>Exit Radar — bot cảnh báo</b>\n'
             '/link MÃ — nối chat này với danh sách theo dõi trong web (mã lấy ở mục Bot Telegram)\n'
             '/status — xem đang theo dõi gì, luật nào đang bật, lần quét gần nhất\n'
@@ -1439,6 +1491,12 @@ def tg_help():
             '/unlink — ngắt chat này khỏi danh sách\n\n'
             'Lưu ý: bot chỉ quét khi tiến trình chạy (máy bạn chạy <code>--bot</code>, hoặc cron). '
             'Số liệu lấy từ CMC, mỗi token tốn khoảng 8-12 credit mỗi lần quét.')
+
+
+def tg_help(lang='vi'):
+    if lang in TG_HELP:
+        return TG_HELP[lang]
+    return _tg_help_vi()
 
 
 def tg_code_new(st, n=6):
@@ -1498,9 +1556,9 @@ def tg_cmd(st, chat, text):
             if got:
                 return ('Đã nối chat này với danh sách theo dõi.\n' + tg_status(st, cid), True)
             return ('Mã liên kết không đúng hoặc đã dùng. Mở web, mục Bot Telegram, tạo mã mới.', True)
-        return (tg_help(), False)
+        return (tg_help((chat.get('conf') or {}).get('lang')), False)
     if low.startswith('/help'):
-        return (tg_help(), False)
+        return (tg_help((chat.get('conf') or {}).get('lang')), False)
     if low.startswith('/link'):
         parts = t.split()
         if len(parts) < 2:

@@ -3692,7 +3692,13 @@ def tg_l(chat, key, *args):
     return (s % args) if args else s
 
 
-def tg_help():
+TG_HELP = {
+    'en': '<b>Exit Radar — alert bot</b>\n/link CODE — link this chat to the watchlist in the web app (code shown under Bot Telegram)\n/status — what you are watching, which rules are on, last scan\n/list — token list + score + rules\n/pause — stop sending (scanning continues)\n/resume — turn alerts back on\n/quiet 23 7 — quiet hours (messages are held and sent when they end)\n/test — send a test message\n/unlink — unlink this chat\n\nNote: the bot only scans while a process runs (your machine with <code>--bot</code>, or cron). Data comes from CMC; each token costs about 8-12 credits per scan.',
+    'zh': '<b>Exit Radar — 预警机器人</b>\n/link 绑定码 — 将本聊天绑定到网页里的自选列表（绑定码见网页的 Telegram 机器人板块）\n/status — 查看正在关注的内容、已开启的规则、最近一次扫描\n/list — 代币列表 + 评分 + 规则\n/pause — 暂停发送（仍会扫描）\n/resume — 恢复发送\n/quiet 23 7 — 安静时段（消息暂存，时段结束后统一发送）\n/test — 发送一条测试消息\n/unlink — 解除本聊天绑定\n\n注意：只有进程在运行时机器人才会扫描（本机运行 <code>--bot</code>，或 cron）。数据来自 CMC，每次扫描每个代币约消耗 8-12 个 credit。',
+}
+
+
+def _tg_help_vi():
     return ('<b>Exit Radar — bot cảnh báo</b>\n'
             '/link MÃ — nối chat này với danh sách theo dõi trong web (mã lấy ở mục Bot Telegram)\n'
             '/status — xem đang theo dõi gì, luật nào đang bật, lần quét gần nhất\n'
@@ -3704,6 +3710,12 @@ def tg_help():
             '/unlink — ngắt chat này khỏi danh sách\n\n'
             'Lưu ý: bot chỉ quét khi tiến trình chạy (máy bạn chạy <code>--bot</code>, hoặc cron). '
             'Số liệu lấy từ CMC, mỗi token tốn khoảng 8-12 credit mỗi lần quét.')
+
+
+def tg_help(lang='vi'):
+    if lang in TG_HELP:
+        return TG_HELP[lang]
+    return _tg_help_vi()
 
 
 def tg_code_new(st, n=6):
@@ -3763,9 +3775,9 @@ def tg_cmd(st, chat, text):
             if got:
                 return ('Đã nối chat này với danh sách theo dõi.\n' + tg_status(st, cid), True)
             return ('Mã liên kết không đúng hoặc đã dùng. Mở web, mục Bot Telegram, tạo mã mới.', True)
-        return (tg_help(), False)
+        return (tg_help((chat.get('conf') or {}).get('lang')), False)
     if low.startswith('/help'):
-        return (tg_help(), False)
+        return (tg_help((chat.get('conf') or {}).get('lang')), False)
     if low.startswith('/link'):
         parts = t.split()
         if len(parts) < 2:

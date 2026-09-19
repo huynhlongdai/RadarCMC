@@ -1,10 +1,16 @@
 {
   "rewrites": [
-    { "source": "/",            "destination": "/api/index?op=app" },
-    { "source": "/api/health",  "destination": "/api/index?op=health" },
-    { "source": "/api/search",  "destination": "/api/index?op=search" },
-    { "source": "/api/scan",    "destination": "/api/index?op=scan" },
-    { "source": "/api/markets", "destination": "/api/index?op=markets" }
+    { "source": "/",              "destination": "/api/index?op=app" },
+    { "source": "/api/health",    "destination": "/api/index?op=health" },
+    { "source": "/api/search",    "destination": "/api/index?op=search" },
+    { "source": "/api/scan",      "destination": "/api/index?op=scan" },
+    { "source": "/api/markets",   "destination": "/api/index?op=markets" },
+    { "source": "/api/marketctx", "destination": "/api/index?op=marketctx" },
+    { "source": "/api/evidence",  "destination": "/api/index?op=" },
+    { "source": "/api/calls",     "destination": "/api/index?op=calls" },
+    { "source": "/api/tg",        "destination": "/api/index" },
+    { "source": "/api/cron/tick", "destination": "/api/index?op=tick" },
+    { "source": "/api/telegram",  "destination": "/api/index" }
   ],
   "functions": { "api/index.py": { "maxDuration": 60 } }
 }

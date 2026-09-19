@@ -84,6 +84,15 @@ Credit budget: one token scan costs roughly **8-14 credits**. On a 450,000-credi
 about 5 tokens every 10 minutes - a 5-minute cadence for 5 tokens exceeds the month. Always surface the
 per-scan cost to the user and prefer longer intervals over silent overage.
 
+## 4b. Exit Radar's own MCP server (complement, do not rebuild CMC's)
+
+Exit Radar ships `exit_radar_mcp.py` - a stdio MCP server exposing the CONCLUSION layer:
+`er_health`, `er_search`, `er_scan`, `er_evidence`, `er_marketctx`, `er_calls`, `er_mcp_vs_cmc`.
+Use it when the agent needs a verdict with evidence; use CMC MCP / CLI / REST / x402 when it needs raw data
+(quotes, candles, listings, pairs, derivatives). Config sample: `mcp.json`; full guide: `docs/huong-dan-mcp.md`.
+A system default CMC key is written to `.data/cmc_key` on first run (gitignored) - prefer a private repo or
+an env-var key so the credit budget cannot be drained by strangers.
+
 ## 5. Telegram alerting (optional surface)
 
 - `GET /api/tg?action=status|code|push|test|preview|unlink` - status/code/test/unlink per chat
@@ -107,7 +116,7 @@ per-scan cost to the user and prefer longer intervals over silent overage.
 
 ## 7. Anti-patterns
 
-- Do not rebuild an MCP server around CMC - official MCP/CLI/Agent-Skills already exist; extend, do not duplicate.
+- Do not rebuild CMC's own MCP/CLI/Agent-Skills - they already exist. Extend at the missing layer (Exit Radar's MCP is the conclusion layer).
 - Do not present a score without its applicability counters and data provenance.
 - Do not retry a `403/1006` endpoint with the same parameters; switch endpoint.
 - Do not print or commit keys, and do not send a key to any third-party proxy.

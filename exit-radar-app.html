@@ -531,7 +531,12 @@ details.logbox[open] > summary{border-bottom:1px solid var(--border)}
     <nav class="nav" id="nav" aria-label="Điều hướng chính"></nav>
     <div class="topright">
       <a class="badge" id="modeBadge" href="#/settings" title="Đổi chế độ dữ liệu"></a>
-      <button class="icon-btn" id="themeBtn" aria-label="Đổi giao diện sáng hoặc tối"></button>
+      <div id="i18nSw" class="i18n-sw">
+        <button type="button" id="i18nBtn" aria-haspopup="true" aria-expanded="false" title="Ngôn ngữ / Language">EN</button>
+        <div id="i18nMenu" hidden></div>
+      </div>
+      <button class="icon-btn" id="themeBtn" type="button" aria-label="Đổi giao diện sáng hoặc tối"
+        aria-pressed="false" title="Chuyển giao diện sáng hoặc tối"></button>
       <a class="icon-btn" href="#/settings" aria-label="Cài đặt" id="settingsLink"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.2M12 19.2v2.2M4.6 12H2.4M21.6 12h-2.2M6.8 6.8 5.2 5.2M18.8 18.8l-1.6-1.6M6.8 17.2l-1.6 1.6M18.8 5.2l-1.6 1.6"/></svg></a>
     </div>
   </div>
@@ -2272,11 +2277,8 @@ function viewSettings(){
     '</div>' +
 
     '<div class="card pad"><div class="card-h">Giao diện</div>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-        ['dark','light','system'].map(x =>
-          '<button class="btn' + (State.themePref === x ? ' pri' : '') + '" data-theme-set="' + x + '" type="button">' +
-          (x === 'dark' ? 'Tối' : x === 'light' ? 'Sáng' : 'Theo hệ thống') + '</button>').join('') +
-      '</div></div>' +
+      '<p class="field-help" style="margin:0 0 4px">Công tắc sáng tối nằm ở góc phải trên, cạnh nút chọn ngôn ngữ.</p>' +
+      '<p class="field-help" style="margin:0">Bật là giao diện sáng, tắt là giao diện tối.</p></div>' +
 
     '<div class="card pad"><div class="card-h">Máy chủ dữ liệu</div>' +
       '<div class="row"><span class="k">Địa chỉ máy chủ</span><span class="lead"></span>' +
@@ -2523,12 +2525,22 @@ function paint(){
     requestAnimationFrame(() => { el.style.width = w + '%'; });
   });
 }
+function themeIcon(t){
+  const moon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" '
+    + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.6A8.6 8.6 0 1 1 9.4 3.5a7 7 0 0 0 11.1 11.1Z"/></svg>';
+  const sun = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" '
+    + 'stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.6v2.2M12 19.2v2.2M4.6 12H2.4M21.6 12h-2.2M6.8 6.8 5.2 5.2M18.8 18.8l-1.6-1.6M6.8 17.2l-1.6 1.6M18.8 5.2l-1.6 1.6"/></svg>';
+  return t === 'dark' ? moon : sun;
+}
 function applyTheme(){
-  const pref = State.themePref || 'system';
-  const sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  const t = pref === 'system' ? sysDark : pref;
+  const t = (State.themePref === 'light') ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', t);
-  if (themeBtn) themeBtn.textContent = t === 'dark' ? '☾' : '☀';
+  const _tb = document.getElementById('themeBtn');
+  if (_tb){
+    _tb.innerHTML = themeIcon(t);
+    _tb.setAttribute('aria-pressed', t === 'light' ? 'true' : 'false');
+    _tb.setAttribute('aria-label', t === 'dark' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối');
+  }
 }
 /* ==========================================================================
    ĐIỀU PHỐI
@@ -2537,7 +2549,7 @@ const $ = id => document.getElementById(id);
 const nav = $('nav'), bottombar = $('bottombar'), modeBadge = $('modeBadge'),
       themeBtn = $('themeBtn'), toasts = $('toasts'), modalHost = $('modalHost'), main = $('main');
 
-State.themePref = Store.get('er.themePref', 'system');
+State.themePref = Store.get('er.themePref', 'dark');
 
 /* ---------- định tuyến ---------- */
 function parseRoute(){
@@ -2899,7 +2911,7 @@ function bind(p){
     ok:'Xoá tất cả', danger:true,
     onOk(){
       ['er.watch','er.key','er.mode','er.themePref'].forEach(k => Store.del(k));
-      State.watch = []; State.mode = 'public'; State.themePref = 'system';
+      State.watch = []; State.mode = 'public'; State.themePref = 'dark';
       toast('Đã xoá toàn bộ dữ liệu cục bộ.', 'ok'); render();
     }
   });
@@ -2931,11 +2943,10 @@ function bind(p){
 window.addEventListener('hashchange', render);
 if (window.matchMedia) window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyTheme);
 themeBtn.onclick = () => {
-  const order = ['dark','light','system'];
-  State.themePref = order[(order.indexOf(State.themePref) + 1) % 3];
+  const dang_sang = document.documentElement.getAttribute('data-theme') === 'light';
+  State.themePref = dang_sang ? 'dark' : 'light';
   Store.set('er.themePref', State.themePref);
   applyTheme();
-  toast('Giao diện: ' + (State.themePref === 'dark' ? 'tối' : State.themePref === 'light' ? 'sáng' : 'theo hệ thống'), 'info');
 };
 
 applyTheme();
@@ -4191,13 +4202,24 @@ function I18N_unwrap(){
   window.price = I18N_RAW.price; window.signed = I18N_RAW.signed; window.usdExact = I18N_RAW.usdExact;
 }
 /* ------------------------------------------------ giao diện chọn ngôn ngữ */
+function I18N_langList(){
+  return (typeof I18N_LANGS !== 'undefined' && I18N_LANGS && I18N_LANGS.length)
+    ? I18N_LANGS
+    : [{ k:'en', name:'English', label:'EN' }, { k:'vi', name:'Tiếng Việt', label:'VI' },
+       { k:'zh', name:'中文', label:'ZH' }];
+}
 function I18N_switcher(){
-  if (document.getElementById('i18nSw')) return;
-  const host = document.querySelector('.topright') || document.querySelector('.nav') ||
-    document.querySelector('header .wrap') || document.querySelector('nav') || document.body;
-  const cur = (I18N_LANGS.filter(function(l){ return l.k === I18N_lang; })[0] || I18N_LANGS[0]);
-  const wrap = document.createElement('div');
-  wrap.id = 'i18nSw'; wrap.className = 'i18n-sw';
+  const LANGS = I18N_langList();
+  const cur = (LANGS.filter(function(l){ return l.k === I18N_lang; })[0] || LANGS[0]);
+  let wrap = document.getElementById('i18nSw');
+  if (!wrap){
+    const host = document.querySelector('.topright') || document.querySelector('.nav') ||
+      document.querySelector('header .wrap') || document.querySelector('nav') || document.body;
+    wrap = document.createElement('div'); wrap.id = 'i18nSw';
+    if (host.insertBefore && host.firstChild) host.insertBefore(wrap, host.firstChild);
+    else host.appendChild(wrap);
+  }
+  wrap.className = 'i18n-sw';
   wrap.style.cssText = 'position:relative;display:inline-flex;align-items:center';
   wrap.innerHTML =
     '<button type="button" id="i18nBtn" aria-haspopup="true" aria-expanded="false" title="' + cur.name +
@@ -4205,7 +4227,7 @@ function I18N_switcher(){
       'background:transparent;color:var(--muted);border-radius:8px;cursor:pointer;line-height:1.2">' + cur.label + '</button>' +
     '<div id="i18nMenu" hidden style="position:absolute;top:120%;right:0;z-index:60;min-width:170px;padding:6px;' +
       'background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.3)">' +
-      I18N_LANGS.map(function(l){
+      LANGS.map(function(l){
         return '<button type="button" data-lang="' + l.k + '" style="display:flex;width:100%;gap:10px;' +
           'justify-content:space-between;font:inherit;font-size:12px;padding:6px 8px;border:0;border-radius:7px;' +
           'background:transparent;color:' + (l.k === I18N_lang ? 'var(--text)' : 'var(--muted)') +
@@ -4215,8 +4237,6 @@ function I18N_switcher(){
       '<div style="border-top:1px solid var(--border);margin-top:5px;padding:6px 8px 2px;font-size:11px;color:var(--faint)">' +
         '<a href="#" id="i18nInfo" style="color:inherit;text-decoration:none">' + t('Chuỗi chưa dịch') + '</a></div>' +
     '</div>';
-  if (host.insertBefore && host.firstChild) host.insertBefore(wrap, host.firstChild);
-  else host.appendChild(wrap);
   const btn = document.getElementById('i18nBtn'), menu = document.getElementById('i18nMenu');
   if (btn && menu) btn.addEventListener('click', function(ev){
     ev.stopPropagation();
@@ -4234,10 +4254,18 @@ function I18N_switcher(){
   });
   const info = document.getElementById('i18nInfo');
   if (info) info.addEventListener('click', function(ev){ ev.preventDefault(); I18N_modal(); });
-  document.addEventListener('click', function(){
-    const m = document.getElementById('i18nMenu');
-    if (m) m.hidden = true;
-  });
+  if (!window.__i18nDocBound){
+    window.__i18nDocBound = true;
+    document.addEventListener('click', function(ev){
+      const m = document.getElementById('i18nMenu');
+      if (!m) return;
+      const w = document.getElementById('i18nSw');
+      if (w && ev.target && w.contains && w.contains(ev.target)) return;
+      m.hidden = true;
+      const b = document.getElementById('i18nBtn');
+      if (b) b.setAttribute('aria-expanded', 'false');
+    });
+  }
 }
 
 function I18N_coverage(){
@@ -4248,9 +4276,9 @@ function I18N_coverage(){
 }
 function I18N_modal(){
   const c = I18N_coverage();
-  const src = 'Trang ngôn ngữ · ' + (I18N_LANGS.filter(x => x.k === I18N_lang)[0] || {}).name;
+  const src = 'Trang ngôn ngữ · ' + (I18N_langList().filter(x => x.k === I18N_lang)[0] || {}).name;
   const body = '<div class="row"><span class="k">' + t('Ngôn ngữ giao diện') + '</span><span class="lead"></span><span class="v">' +
-      I18N_LANGS.map(l => l.name).join(' · ') + '</span></div>' +
+      I18N_langList().map(l => l.name).join(' · ') + '</span></div>' +
     '<div class="row"><span class="k">' + t('Độ phủ bản dịch') + '</span><span class="lead"></span><span class="v">' +
       'EN ' + c.en.rate.toFixed(0) + '% (' + c.en.done + ' chuỗi) · ZH ' + c.zh.rate.toFixed(0) + '% (' + c.zh.done + ' chuỗi)</span></div>' +
     '<div class="row"><span class="k">' + t('Chuỗi chưa dịch') + '</span><span class="lead"></span><span class="v">' +
@@ -4316,7 +4344,453 @@ window.addEventListener('load', () => setTimeout(() => { I18N_apply(); I18N_swit
 window.I18N = { t:t, apply:I18N_apply, set:function(k){ try{Store.set('er.lang', k);}catch(e){} location.reload(); },
   cov:I18N_coverage, miss:I18N_MISS, langs:I18N_LANGS };
 
+/* ==========================================================================
+   BỔ SUNG BẢN DỊCH — đợt 2. Không sửa lõi i18n, chỉ nạp thêm qua ER_I18N_EXTRA
+   (đúng cơ chế mở rộng đã thiết kế) và thêm một lượt dịch theo CỤM TỪ cho những
+   câu bị ghép số ở giữa (ví dụ "Chỉ chấm được 3/5 chiều (60% trọng số)").
+   ========================================================================== */
+(function(){
+  const EN = {
+    'lời gọi ·':'calls ·', 'holder giảm ≥':'holders down ≥', 'Mã giao dịch':'Transaction id',
+    'không đặt':'not set', 'Tỷ trọng':'Share',
+    'Độ sâu của pool và tốc độ rút thanh khoản theo thời gian. Đây là chiều nặng nhất — thanh khoản rút đi là dấu hiệu sớm nhất của một cú rug.':
+      'Pool depth and how fast liquidity is pulled over time. This is the heaviest dimension — pulled liquidity is the earliest rug signal.',
+    'Mức cô đặc quyền nắm giữ và số lượng holder. Một token bị vài ví nắm gần hết thì giá phụ thuộc vào quyết định của họ.':
+      'Ownership concentration and holder count. When a few wallets hold almost everything, price depends on their decisions.',
+    'đòn bẩy phái sinh và dòng tiền ví lớn — rồi gộp thành một điểm 0–100 kèm ba lý do đóng góp nhiều nhất và bằng chứng thô đứng sau mỗi lý do.':
+      'derivatives leverage and whale flow — then merged into a 0–100 score with the three biggest contributors and the raw evidence behind each.',
+    'Mức đòn bẩy phái sinh quanh token. Chỉ áp dụng cho token có thị trường phái sinh — token nhỏ thường không có.':
+      'Derivatives leverage around the token. Only applies to tokens with derivatives markets — small tokens usually have none.',
+    'Cắm key CMC Pro là bảng này hiện đủ: địa chỉ ví, % tổng cung, số dư, USD đã mua/bán, lãi/lỗ đã thực hiện.':
+      'With a CMC Pro key this table is complete: wallet addresses, % of supply, balances, USD bought/sold, realised P&L.',
+    'Quay vòng cao nghĩa là tiền đổi chủ nhiều so với vốn hoá — thanh khoản tốt hơn, nhưng cũng là dấu hiệu churn của bot.':
+      'High turnover means money changes hands a lot relative to market cap — better liquidity, but also a sign of bot churn.',
+    '. Kiểm tra: key còn hiệu lực, là key CMC Pro, và chưa cạn hạn mức. Key chỉ đi từ máy này tới CMC.':
+      '. Check: the key is valid, is a CMC Pro key, and has quota left. The key only travels from this machine to CMC.',
+    'trả 403 đòi key. Bộ ẩn danh cũng có hạn mức riêng — vượt thì CMC trả 429 và sản phẩm chuyển sang':
+      'returns 403 asking for a key. The anonymous tier has its own quota — exceed it and CMC returns 429 and the product switches to',
+    'không phải mức rủi ro — thang rủi ro bốn bậc chỉ dùng ở màn kết quả quét.':
+      'is not a risk level — the four-step risk scale is only used on the scan result screen.',
+    'pool ở bảng trên. Điểm A dùng con số thứ nhất, bảng dùng con số thứ hai —':
+      'pools in the table above. Dimension A uses the first number, the table uses the second —',
+    'Một ví mua từ ngưỡng USD trở lên — bot chấm được, trình duyệt thì không':
+      'A single wallet buying at or above a USD threshold — the bot can score this, the browser cannot',
+    'Không xác định được mã token trên CMC nên chưa tra được hồ sơ liên hệ.':
+      'Could not resolve the CMC token id, so the contact profile is not available yet.',
+    'Chạy: python3 exit_radar_server.py — hoặc dùng chế độ dữ liệu mẫu.':
+      'Run: python3 exit_radar_server.py — or use sample data mode.',
+    'Chưa kết nối được máy chủ dữ liệu nên chỉ tra được chỉ mục cục bộ.':
+      'The data server is not reachable, so only the local index is available.',
+    'Hợp đồng không có quyền mint thêm và không có phí chuyển nhượng':
+      'The contract cannot mint more and has no transfer fee',
+    'Token này sẽ bị xoá khỏi danh sách cục bộ. Không thể hoàn tác.':
+      'This token will be removed from the local list. This cannot be undone.',
+    '. Đây thường là hạn mức tạm thời — chờ vài giây rồi thử lại.':
+      '. This is usually a temporary limit — wait a few seconds and try again.',
+    'Hai ví mang nhãn đáng ngờ nắm 9% tổng cung, một ví đang rút':
+      'Two wallets flagged as suspicious hold 9% of supply, one is exiting',
+    'token đầu theo vốn hoá. Mũi tên ▲▼ là chiều biến động,':
+      'tokens by market cap. The ▲▼ arrows show the direction,',
+    'Thanh khoản giảm 34% trong 24h và 58% trong 7 ngày':'Liquidity down 34% in 24h and 58% in 7 days',
+    'Thanh khoản tăng 6% trong 24h, pool khoá 12 tháng':'Liquidity up 6% in 24h, pool locked for 12 months',
+    'Top 10 holder nắm 31% tổng cung — mức bình thường':'Top 10 holders own 31% of supply — a normal level',
+    'Ví dụ: chờ xem thanh khoản có bị rút tiếp không':'Example: waiting to see if liquidity keeps being pulled',
+    'Từng kênh liên hệ và hợp đồng trên mỗi chain.':'Every contact channel and contract on each chain.',
+    'Thanh khoản mỏng: trượt giá 6,4% ở lệnh $10K':'Thin liquidity: 6.4% slippage on a $10K order',
+    'Sáu ví lớn tăng vị thế, dòng ròng vào $1,4M':'Six large wallets added, net inflow $1.4M',
+    'Thanh khoản sâu, trượt giá 0,4% ở lệnh $50K':'Deep liquidity, 0.4% slippage on a $50K order',
+    'Bốn ví lớn vừa tăng vị thế trong 6 giờ qua':'Four large wallets added in the last 6 hours',
+    'trang. Cửa sổ thời gian thực tế của mẫu là':'pages. The actual time window of the sample is',
+    'Chỉ 3.140 holder, top 10 nắm 78% tổng cung':'Only 3,140 holders, top 10 own 78% of supply',
+    'Không gọi mạng. Đọc lại fixtures đã chụp.':'No network calls. Replays captured fixtures.',
+    'Pool, sự kiện thêm/rút và hai định nghĩa.':'Pools, add/remove events and the two definitions.',
+    'chưa đặt TELEGRAM_BOT_TOKEN trên máy chủ':'TELEGRAM_BOT_TOKEN is not set on the server',
+    'Ba ví lớn rút ra tổng $2,1M trong 24h':'Three large wallets pulled $2.1M in 24h',
+    'Top 10 holder chỉ nắm 22% tổng cung':'Top 10 holders own only 22% of supply',
+    'Một ví bán ra từ ngưỡng USD trở lên':'A single wallet selling at or above a USD threshold',
+    'Tỷ trọng altcoin gần như không đổi':'Altcoin share is almost unchanged',
+    'Biểu đồ điểm rủi ro theo thời gian':'Risk score over time',
+    'Holder trên mỗi triệu USD vốn hoá':'Holders per $1M market cap',
+    'Tỷ trọng vốn hoá toàn thị trường':'Share of total market cap',
+    'Không cần mạng, đọc từ fixtures.':'No network needed, read from fixtures.',
+    'dòng tiền ví lớn chuyển sang rút':'whale flow flips to exiting',
+    'Top 10 holder nắm 61% tổng cung':'Top 10 holders own 61% of supply',
+    'Top 10 holder nắm 44% tổng cung':'Top 10 holders own 44% of supply',
+    'Đường này lùi từ mức hiện tại':'This line is drawn back from the current level',
+    '” không khớp token nào trên':'” did not match any token on',
+    '% vốn hoá đổi chủ trong 24h':'% of market cap changing hands in 24h',
+    'sự kiện thêm/rút · hiện tại':'add/remove events · current',
+    'Xoá toàn bộ dữ liệu cục bộ?':'Clear all local data?',
+    'Tiền đang xoay vào altcoin':'Money is rotating into altcoins',
+    '4 · Thiếu một phần dữ liệu':'4 · Partial data missing',
+    'Quay vòng toàn thị trường':'Market turnover',
+    '· dạng tham số chạy được:':'· working parameter shape:',
+    'Tổng bán / mua trong mẫu':'Total sell / buy in the sample',
+    '1 · Không tìm thấy token':'1 · Token not found',
+    'pool · tổng thanh khoản':'pool · total liquidity',
+    'token bằng một lời gọi…':'tokens in one call…',
+    'không gọi được máy chủ:':'could not reach the server:',
+    'khớp chính xác ký hiệu':'exact symbol match',
+    'Ví bán ròng / mua ròng':'Wallets net sell / net buy',
+    'Lệnh gắn cờ bundle/bot':'Trades flagged bundle/bot',
+    'Tiền đang quay về BTC':'Money is rotating back to BTC',
+    '3 · Chạm giới hạn 429':'3 · Hit the 429 limit',
+    'Khối lượng CEX / DEX':'CEX / DEX volume',
+    'Vốn hoá dùng để chia':'Market cap used for division',
+    'Pool lớn nhất chiếm':'Largest pool holds',
+    '5 · Độ phủ dưới 50%':'5 · Coverage below 50%',
+    'Vốn hoá stablecoin':'Stablecoin market cap',
+    '/5 chiều chấm được':'/5 dimensions scored',
+    'Tổng cộng các pool':'Total across pools',
+    'không kết nối được':'not reachable',
+    'thanh khoản giảm ≥':'liquidity down ≥',
+    'Đã tạo mã liên kết':'Link code created',
+    'Gửi cho bot: /link':'Send the bot: /link',
+    'Đổi chế độ dữ liệu':'Change data mode',
+    'lần cung lưu hành':'times circulating supply',
+    'Sợ hãi & Tham lam':'Fear & Greed',
+    'KL phái sinh 24h':'24h derivatives volume',
+    '8 · Chưa có pool':'8 · No pool yet',
+    'Trang ngôn ngữ ·':'Language page ·',
+    'công khai · 3/5':'public · 3/5',
+    'Định danh token':'Token identity',
+    'Tham lam cực độ':'Extreme greed',
+    'Nghiêng altcoin':'Altcoin-leaning',
+    'Thanh khoản USD':'Liquidity USD',
+    '· tổng cung gấp':'· total supply is',
+    '✓ Đang theo dõi':'✓ Watching',
+    'Dẫn chứng chiều':'Evidence for dimension',
+    'Endpoint đã thử':'Endpoints tried',
+    '6 · Chưa có key':'6 · No key yet',
+    'Chế độ dữ liệu:':'Data mode:',
+    'credit, làm mới':'credits, resets',
+    'Nhập xong: thêm':'Import done: added',
+    'Đã cập nhật giá':'Prices updated',
+    'Không gửi được:':'Could not send:',
+    'Điều hướng dưới':'Bottom navigation',
+    'Sắp xếp kết quả':'Sort results',
+    'dán key vào đây':'paste your key here',
+    'Lọc trong bảng…':'Filter table…',
+    'Coin hoạt động':'Active coins',
+    'Đang quét lại…':'Re-scanning…',
+    'khỏi theo dõi?':'from your watchlist?',
+    'đang kiểm tra…':'checking…',
+    'Không đẩy được':'Push failed',
+    'không lấy được':'could not fetch',
+    'Lọc trong bảng':'Filter table',
+    'phút gần nhất':'last minutes',
+    'Sợ hãi cực độ':'Extreme fear',
+    'Sàn hoạt động':'Active exchanges',
+    'chưa xác định':'undetermined',
+    'Chỉ chấm được':'Only scored',
+    'Thân phản hồi':'Response body',
+    'lần quét · từ':'scans · from',
+    'Theo hệ thống':'By system',
+    '2 · Trùng tên':'2 · Name collision',
+    'vào theo dõi.':'to the watchlist.',
+    'tốt · CMC trả':'ok · CMC returned',
+    'theo hệ thống':'by the system',
+    'token lên bot':'tokens to the bot',
+    'đầy đủ · 5/5':'full · 5/5',
+    'CMC cập nhật':'CMC updated',
+    'Tổng vốn hoá':'Total market cap',
+    'BTC chi phối':'BTC dominance',
+    'ETH chi phối':'ETH dominance',
+    'Vốn hoá DeFi':'DeFi market cap',
+    'Địa chỉ pool':'Pool address',
+    'Tạo cách đây':'Created',
+    'ví trong mẫu':'wallets in sample',
+    'Ngày lên sàn':'Listed on',
+    '7 · Mất mạng':'7 · Offline',
+    'Cảnh báo cho':'Alerts for',
+    'Đang tra giá':'Fetching prices',
+    'dữ liệu mẫu':'sample data',
+    'Phương pháp':'Methods',
+    'Bấm để đổi.':'Click to change.',
+    'đang rút ra':'is exiting',
+    'Giá trị USD':'USD value',
+    '· đang dùng':'· in use',
+    'Đã quét lại':'Re-scanned',
+    'Đã sao chép':'Copied',
+    'thanh khoản':'liquidity',
+    'Ghi chú cho':'Note for',
+    'điểm tăng ≥':'score up ≥',
+    'chưa có key':'no key',
+    'giây trước':'seconds ago', 'phút trước':'minutes ago', 'giờ trước':'hours ago', 'ngày trước':'days ago',
+    '— trong đó':'— of which', 'Trung tính':'Neutral', '· đỉnh năm':'· yearly high', '· cao nhất':'· highest',
+    '/5 chiều ·':'/5 dimensions ·', 'Xoá tất cả':'Clear all', 'Giao diện:':'Theme:',
+    'ví lớn rút':'whale exit', 'vì lớn mua':'whale buy', 'ví lớn mua':'whale buy', 'ví lớn bán':'whale sell',
+    'giá tăng ≥':'price up ≥', 'giá giảm ≥':'price down ≥', 'Số holder':'Holders',
+    'Tổng điểm':'Total score', 'LK giảm ≥':'liq down ≥', 'điểm vượt':'score crossed',
+    'Hợp đồng':'Contract', 'bán · đỏ':'sell · red', 'thêm vào':'added', 'Lần cuối':'Last',
+    'Số token':'Tokens', 'Dấu hiệu':'Signals', 'đầy đủ ·':'full ·', '· độ phủ':'· coverage',
+    '· ra mắt':'· launched', 'trong kỳ':'this period', 'không rõ':'unknown',
+    'Mùa BTC':'Bitcoin season', 'Chỉ BTC':'Bitcoin only', 'Giá trị':'Value', 'Số pool':'Pools',
+    'Đã thêm':'Added', 'cuối kỳ':'end of period', 'ví · −':'wallets · −', 'Sợ hãi':'Fear',
+    'rút ra':'exit', 'Đã mua':'Bought', 'Đã bán':'Sold', 'Mã CMC':'CMC id',
+    'đầu kỳ':'start of period', 'điểm ≥':'score ≥', 'tăng ≥':'up ≥', 'Đã tải':'Loaded',
+    'đã nối':'linked', 'Đã đẩy':'Pushed', 'độ phủ':'coverage',
+    'Tổng vốn hoá thị trường':'Total market cap', 'Quay vòng':'Turnover',
+    'Nguồn':'Source', 'Ghi chú':'Note', 'Số dư':'Balance', 'Lãi/lỗ':'P&L', 'Đã thực hiện':'Realised',
+    'Khối lượng':'Volume', 'Bán ròng':'Net sell', 'Mua ròng':'Net buy', 'Thêm':'Add', 'Đang dùng':'In use',
+    'Ví dụ':'Example', 'Ví dụ:':'Examples:', 'Kiểm tra':'Check', 'Kiểm tra token trước khi bạn mua':'Check a token before you buy',
+    'Cấu trúc thanh khoản, phân bổ holder và dòng tiền ví lớn — gộp thành một điểm 0–100 kèm ba lý do rõ ràng.':
+      'Liquidity structure, holder distribution and whale flow — merged into a 0–100 score with three clear reasons.',
+    'dán địa chỉ contract hoặc gõ symbol':'paste a contract address or type a symbol',
+    'BỐI CẢNH THỊ TRƯỜNG':'MARKET CONTEXT',
+    'Chưa lấy được chuỗi dòng tiền theo ngày — cần key CMC Pro.':'Daily flow series not available — CMC Pro key required.'
+  };
+  const ZH = {
+    'lời gọi ·':'调用 ·', 'holder giảm ≥':'持币人数下降 ≥', 'Mã giao dịch':'交易编号',
+    'không đặt':'未设置', 'Tỷ trọng':'占比',
+    'Độ sâu của pool và tốc độ rút thanh khoản theo thời gian. Đây là chiều nặng nhất — thanh khoản rút đi là dấu hiệu sớm nhất của một cú rug.':
+      '资金池深度与流动性被抽走的速度。这是权重最高的维度 —— 抽走流动性是拉地毯最早的信号。',
+    'Mức cô đặc quyền nắm giữ và số lượng holder. Một token bị vài ví nắm gần hết thì giá phụ thuộc vào quyết định của họ.':
+      '持仓集中度与持币人数。若少数钱包几乎持有全部代币，价格就取决于他们的决定。',
+    'đòn bẩy phái sinh và dòng tiền ví lớn — rồi gộp thành một điểm 0–100 kèm ba lý do đóng góp nhiều nhất và bằng chứng thô đứng sau mỗi lý do.':
+      '衍生品杠杆与巨鲸资金流 —— 再合并为 0–100 的评分，并列出贡献最大的三项原因及每项背后的原始证据。',
+    'Mức đòn bẩy phái sinh quanh token. Chỉ áp dụng cho token có thị trường phái sinh — token nhỏ thường không có.':
+      '该代币的衍生品杠杆水平。仅适用于有衍生品市场的代币 —— 小币通常没有。',
+    'Cắm key CMC Pro là bảng này hiện đủ: địa chỉ ví, % tổng cung, số dư, USD đã mua/bán, lãi/lỗ đã thực hiện.':
+      '接入 CMC Pro 密钥后该表完整显示：钱包地址、占总供应量比例、余额、买卖美元金额、已实现盈亏。',
+    'Quay vòng cao nghĩa là tiền đổi chủ nhiều so với vốn hoá — thanh khoản tốt hơn, nhưng cũng là dấu hiệu churn của bot.':
+      '换手率高说明相对市值的换手频繁 —— 流动性更好，但也是机器人刷量的信号。',
+    '. Kiểm tra: key còn hiệu lực, là key CMC Pro, và chưa cạn hạn mức. Key chỉ đi từ máy này tới CMC.':
+      '。请检查：密钥有效、是 CMC Pro 密钥、且额度未用尽。密钥只从本机发往 CMC。',
+    'trả 403 đòi key. Bộ ẩn danh cũng có hạn mức riêng — vượt thì CMC trả 429 và sản phẩm chuyển sang':
+      '返回 403 要求密钥。匿名档也有独立额度 —— 超出后 CMC 返回 429，产品将切换到',
+    'không phải mức rủi ro — thang rủi ro bốn bậc chỉ dùng ở màn kết quả quét.':
+      '并不是风险等级 —— 四级风险刻度只用于扫描结果页面。',
+    'pool ở bảng trên. Điểm A dùng con số thứ nhất, bảng dùng con số thứ hai —':
+      '资金池（见上表）。维度 A 用第一个数字，表格用第二个数字 ——',
+    'Một ví mua từ ngưỡng USD trở lên — bot chấm được, trình duyệt thì không':
+      '单个钱包买入达到某美元阈值 —— 机器人可以评估，浏览器不行',
+    'Không xác định được mã token trên CMC nên chưa tra được hồ sơ liên hệ.':
+      '无法确定该代币在 CMC 的编号，因此暂无联系资料。',
+    'Chạy: python3 exit_radar_server.py — hoặc dùng chế độ dữ liệu mẫu.':
+      '运行：python3 exit_radar_server.py —— 或使用示例数据模式。',
+    'Chưa kết nối được máy chủ dữ liệu nên chỉ tra được chỉ mục cục bộ。':
+      '无法连接数据服务器，只能查询本地索引。',
+    'Chưa kết nối được máy chủ dữ liệu nên chỉ tra được chỉ mục cục bộ.':
+      '无法连接数据服务器，只能查询本地索引。',
+    'Hợp đồng không có quyền mint thêm và không có phí chuyển nhượng':
+      '合约不可增发，且没有转账手续费',
+    'Token này sẽ bị xoá khỏi danh sách cục bộ. Không thể hoàn tác.':
+      '该代币将从本地列表中删除，无法撤销。',
+    '. Đây thường là hạn mức tạm thời — chờ vài giây rồi thử lại.':
+      '。这通常是临时限额 —— 请等几秒后重试。',
+    'Hai ví mang nhãn đáng ngờ nắm 9% tổng cung, một ví đang rút':
+      '两个被标记为可疑的钱包持有 9% 供应量，其中一个正在撤出',
+    'token đầu theo vốn hoá. Mũi tên ▲▼ là chiều biến động,':
+      '按市值的代币。▲▼ 箭头表示变动方向，',
+    'Thanh khoản giảm 34% trong 24h và 58% trong 7 ngày':'流动性 24 小时下降 34%、7 天下降 58%',
+    'Thanh khoản tăng 6% trong 24h, pool khoá 12 tháng':'流动性 24 小时上升 6%，资金池锁定 12 个月',
+    'Top 10 holder nắm 31% tổng cung — mức bình thường':'前 10 持币者占 31% 供应量 —— 属正常水平',
+    'Ví dụ: chờ xem thanh khoản có bị rút tiếp không':'例如：观察流动性是否继续被抽走',
+    'Từng kênh liên hệ và hợp đồng trên mỗi chain.':'每条链上的联系方式与合约。',
+    'Thanh khoản mỏng: trượt giá 6,4% ở lệnh $10K':'流动性薄：1 万美元订单滑点 6.4%',
+    'Sáu ví lớn tăng vị thế, dòng ròng vào $1,4M':'六个大钱包加仓，净流入 140 万美元',
+    'Thanh khoản sâu, trượt giá 0,4% ở lệnh $50K':'流动性充足，5 万美元订单滑点 0.4%',
+    'Bốn ví lớn vừa tăng vị thế trong 6 giờ qua':'过去 6 小时有四个大钱包加仓',
+    'trang. Cửa sổ thời gian thực tế của mẫu là':'页。样本的实际时间窗口为',
+    'Chỉ 3.140 holder, top 10 nắm 78% tổng cung':'仅 3,140 个持币地址，前 10 占 78% 供应量',
+    'Không gọi mạng. Đọc lại fixtures đã chụp.':'不发起网络请求，回放已抓取的 fixtures。',
+    'Pool, sự kiện thêm/rút và hai định nghĩa.':'资金池、添加/撤出事件与两种定义。',
+    'chưa đặt TELEGRAM_BOT_TOKEN trên máy chủ':'服务器未设置 TELEGRAM_BOT_TOKEN',
+    'Ba ví lớn rút ra tổng $2,1M trong 24h':'三个大钱包 24 小时共撤出 210 万美元',
+    'Top 10 holder chỉ nắm 22% tổng cung':'前 10 持币者仅占 22% 供应量',
+    'Một ví bán ra từ ngưỡng USD trở lên':'单个钱包卖出达到某美元阈值',
+    'Tỷ trọng altcoin gần như không đổi':'山寨币占比几乎不变',
+    'Biểu đồ điểm rủi ro theo thời gian':'风险评分随时间变化',
+    'Holder trên mỗi triệu USD vốn hoá':'每 100 万美元市值的持币人数',
+    'Tỷ trọng vốn hoá toàn thị trường':'占全市场市值比例',
+    'Không cần mạng, đọc từ fixtures.':'无需网络，读取 fixtures。',
+    'dòng tiền ví lớn chuyển sang rút':'巨鲸资金流转为流出',
+    'Top 10 holder nắm 61% tổng cung':'前 10 持币者占 61% 供应量',
+    'Top 10 holder nắm 44% tổng cung':'前 10 持币者占 44% 供应量',
+    'Đường này lùi từ mức hiện tại':'该曲线由当前水平回溯绘制',
+    '” không khớp token nào trên':'” 未匹配到任何代币，链范围：',
+    '% vốn hoá đổi chủ trong 24h':'24 小时内换手的市值占比',
+    'sự kiện thêm/rút · hiện tại':'添加/撤出事件 · 当前',
+    'Xoá toàn bộ dữ liệu cục bộ?':'清除全部本地数据？',
+    'Tiền đang xoay vào altcoin':'资金正轮动进山寨币',
+    '4 · Thiếu một phần dữ liệu':'4 · 部分数据缺失',
+    'Quay vòng toàn thị trường':'全市场换手率',
+    '· dạng tham số chạy được:':'· 可用参数形式：',
+    'Tổng bán / mua trong mẫu':'样本中的总卖出 / 买入',
+    '1 · Không tìm thấy token':'1 · 未找到代币',
+    'pool · tổng thanh khoản':'资金池 · 总流动性',
+    'token bằng một lời gọi…':'个代币（单次调用）…',
+    'không gọi được máy chủ:':'无法连接服务器：',
+    'khớp chính xác ký hiệu':'精确匹配代码',
+    'Ví bán ròng / mua ròng':'净卖出 / 净买入钱包',
+    'Lệnh gắn cờ bundle/bot':'被标记 bundle/bot 的交易',
+    'Tiền đang quay về BTC':'资金正轮动回 BTC',
+    '3 · Chạm giới hạn 429':'3 · 触及 429 限额',
+    'Khối lượng CEX / DEX':'CEX / DEX 成交量',
+    'Vốn hoá dùng để chia':'用于相除的市值',
+    'Pool lớn nhất chiếm':'最大资金池占',
+    '5 · Độ phủ dưới 50%':'5 · 覆盖率低于 50%',
+    'Vốn hoá stablecoin':'稳定币市值',
+    '/5 chiều chấm được':'/5 个维度已评估',
+    'Tổng cộng các pool':'各资金池合计',
+    'không kết nối được':'无法连接',
+    'thanh khoản giảm ≥':'流动性下降 ≥',
+    'Đã tạo mã liên kết':'已生成绑定码',
+    'Gửi cho bot: /link':'发送给机器人：/link',
+    'Đổi chế độ dữ liệu':'切换数据模式',
+    'lần cung lưu hành':'倍流通量',
+    'Sợ hãi & Tham lam':'恐惧与贪婪',
+    'KL phái sinh 24h':'24 小时衍生品成交',
+    '8 · Chưa có pool':'8 · 暂无资金池',
+    'Trang ngôn ngữ ·':'语言页面 ·',
+    'công khai · 3/5':'公开 · 3/5',
+    'Định danh token':'代币标识',
+    'Tham lam cực độ':'极度贪婪',
+    'Nghiêng altcoin':'偏山寨币',
+    'Thanh khoản USD':'流动性（美元）',
+    '· tổng cung gấp':'· 总供应量为',
+    '✓ Đang theo dõi':'✓ 已关注',
+    'Dẫn chứng chiều':'维度证据',
+    'Endpoint đã thử':'已尝试的接口',
+    '6 · Chưa có key':'6 · 暂无密钥',
+    'Chế độ dữ liệu:':'数据模式：',
+    'credit, làm mới':'额度，重置时间',
+    'Nhập xong: thêm':'导入完成：新增',
+    'Đã cập nhật giá':'价格已更新',
+    'Không gửi được:':'发送失败：',
+    'Điều hướng dưới':'底部导航',
+    'Sắp xếp kết quả':'排序结果',
+    'dán key vào đây':'在此粘贴密钥',
+    'Lọc trong bảng…':'表格内筛选…',
+    'Coin hoạt động':'活跃币种',
+    'Đang quét lại…':'正在重新扫描…',
+    'khỏi theo dõi?':'移出自选？',
+    'đang kiểm tra…':'正在检查…',
+    'Không đẩy được':'推送失败',
+    'không lấy được':'无法获取',
+    'Lọc trong bảng':'表格内筛选',
+    'phút gần nhất':'最近分钟',
+    'Sợ hãi cực độ':'极度恐惧',
+    'Sàn hoạt động':'活跃交易所',
+    'chưa xác định':'未确定',
+    'Chỉ chấm được':'仅评估',
+    'Thân phản hồi':'响应正文',
+    'lần quét · từ':'次扫描 · 从',
+    'Theo hệ thống':'按系统',
+    '2 · Trùng tên':'2 · 名称重复',
+    'vào theo dõi.':'加入自选。',
+    'tốt · CMC trả':'正常 · CMC 返回',
+    'theo hệ thống':'按系统',
+    'token lên bot':'个代币推送到机器人',
+    'đầy đủ · 5/5':'完整 · 5/5',
+    'CMC cập nhật':'CMC 更新',
+    'Tổng vốn hoá':'总市值',
+    'BTC chi phối':'BTC 占比',
+    'ETH chi phối':'ETH 占比',
+    'Vốn hoá DeFi':'DeFi 市值',
+    'Địa chỉ pool':'资金池地址',
+    'Tạo cách đây':'创建于',
+    'ví trong mẫu':'个钱包（样本）',
+    'Ngày lên sàn':'上线日期',
+    '7 · Mất mạng':'7 · 断网',
+    'Cảnh báo cho':'提醒设置：',
+    'Đang tra giá':'正在查询价格',
+    'dữ liệu mẫu':'示例数据',
+    'Phương pháp':'方法',
+    'Bấm để đổi.':'点击切换。',
+    'đang rút ra':'正在撤出',
+    'Giá trị USD':'美元价值',
+    '· đang dùng':'· 使用中',
+    'Đã quét lại':'已重新扫描',
+    'Đã sao chép':'已复制',
+    'thanh khoản':'流动性',
+    'Ghi chú cho':'备注：',
+    'điểm tăng ≥':'评分上升 ≥',
+    'chưa có key':'暂无密钥',
+    'giây trước':'秒前', 'phút trước':'分钟前', 'giờ trước':'小时前', 'ngày trước':'天前',
+    '— trong đó':'—— 其中', 'Trung tính':'中性', '· đỉnh năm':'· 年内高点', '· cao nhất':'· 最高',
+    '/5 chiều ·':'/5 个维度 ·', 'Xoá tất cả':'全部清除', 'Giao diện:':'主题：',
+    'ví lớn rút':'巨鲸撤出', 'ví lớn mua':'巨鲸买入', 'ví lớn bán':'巨鲸卖出',
+    'giá tăng ≥':'涨幅 ≥', 'giá giảm ≥':'跌幅 ≥', 'Số holder':'持币人数',
+    'Tổng điểm':'总评分', 'LK giảm ≥':'流动性下降 ≥', 'điểm vượt':'评分超过',
+    'Hợp đồng':'合约', 'bán · đỏ':'卖出 · 红', 'thêm vào':'新增', 'Lần cuối':'最近',
+    'Số token':'代币数', 'Dấu hiệu':'信号', 'đầy đủ ·':'完整 ·', '· độ phủ':'· 覆盖率',
+    '· ra mắt':'· 上线', 'trong kỳ':'本期', 'không rõ':'未知',
+    'Mùa BTC':'比特币季节', 'Chỉ BTC':'仅比特币', 'Giá trị':'价值', 'Số pool':'资金池数',
+    'Đã thêm':'已添加', 'cuối kỳ':'期末', 'ví · −':'钱包 · −', 'Sợ hãi':'恐惧',
+    'rút ra':'撤出', 'Đã mua':'已买入', 'Đã bán':'已卖出', 'Mã CMC':'CMC 编号',
+    'đầu kỳ':'期初', 'điểm ≥':'评分 ≥', 'tăng ≥':'上升 ≥', 'Đã tải':'已加载',
+    'đã nối':'已绑定', 'Đã đẩy':'已推送', 'độ phủ':'覆盖率',
+    'Quay vòng':'换手率', 'Nguồn':'来源', 'Số dư':'余额', 'Lãi/lỗ':'盈亏',
+    'Đã thực hiện':'已实现', 'Khối lượng':'成交量', 'Bán ròng':'净卖出', 'Mua ròng':'净买入',
+    'Thêm':'添加', 'Đang dùng':'使用中', 'Ví dụ':'示例', 'Ví dụ:':'示例：',
+    'Kiểm tra':'检查', 'Kiểm tra token trước khi bạn mua':'买之前先检查代币',
+    'Cấu trúc thanh khoản, phân bổ holder và dòng tiền ví lớn — gộp thành một điểm 0–100 kèm ba lý do rõ ràng.':
+      '流动性结构、持币分布与巨鲸资金流 —— 合并为 0–100 的评分，并列出三条清晰理由。',
+    'dán địa chỉ contract hoặc gõ symbol':'粘贴合约地址或输入代币代码',
+    'BỐI CẢNH THỊ TRƯỜNG':'市场背景',
+    'Chưa lấy được chuỗi dòng tiền theo ngày — cần key CMC Pro.':'暂无法获取每日资金流序列 —— 需要 CMC Pro 密钥。'
+  };
+  window.ER_I18N_EXTRA = window.ER_I18N_EXTRA || { en:{}, zh:{} };
+  Object.assign(window.ER_I18N_EXTRA.en, EN);
+  Object.assign(window.ER_I18N_EXTRA.zh, ZH);
+
+  function isLetter(c){ return !!c && /[A-Za-zÀ-ỹ0-9_]/.test(c); }
+  function esc(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  function phrasePass(root){
+    if (typeof I18N_lang === 'undefined' || I18N_lang === 'vi') return 0;
+    const host = root || document.body;
+    if (!host) return 0;
+    let d = {};
+    try { d = I18N_dict(I18N_lang); } catch (e) { return 0; }
+    const keys = Object.keys(d).filter(function(k){ return k.length >= 4 && /[A-Za-zÀ-ỹ]/.test(k); });
+    if (!keys.length) return 0;
+    keys.sort(function(a, b){ return b.length - a.length; });
+    let re = null;
+    try { re = new RegExp('(?:' + keys.map(esc).join('|') + ')', 'g'); } catch (e) { re = null; }
+    if (!re) return 0;
+    const tw = document.createTreeWalker(host, NodeFilter.SHOW_TEXT, null);
+    const jobs = []; let node;
+    while ((node = tw.nextNode())){
+      const raw = node.nodeValue;
+      if (!raw || !/[ăâđêôơưàáảãạằắẳẵặầấẩẫậèéẻẽẹềếểễệìíỉĩịòóỏõọồốổỗộờớởỡợùúủũụừứửữựỳýỷỹỵ]/i.test(raw)) continue;
+      let changed = false;
+      const out = raw.replace(re, function(m, off, whole){
+        if (off > 0 && isLetter(whole.charAt(off - 1))) return m;
+        if (isLetter(whole.charAt(off + m.length))) return m;
+        const tr = d[m];
+        if (!tr || tr === m) return m;
+        changed = true;
+        return tr;
+      });
+      if (changed && out !== raw) jobs.push([node, out]);
+    }
+    if (!jobs.length) return 0;
+    if (typeof I18N_busy !== 'undefined') I18N_busy = true;
+    jobs.forEach(function(j){ j[0].nodeValue = j[1]; });
+    if (typeof I18N_busy !== 'undefined') setTimeout(function(){ I18N_busy = false; }, 0);
+    return jobs.length;
+  }
+  const _base = I18N_apply;
+  I18N_apply = function(root){ return _base.apply(this, arguments) + phrasePass(root); };
+  try { window.I18N_apply = I18N_apply; if (window.I18N) window.I18N.apply = I18N_apply; } catch (e) {}
+  window.I18N_extra = { en:EN, zh:ZH, phrasePass:phrasePass };
+})();
+
+/* --- noi tu dien dot 2 vao lop phu --- */
+try { const _x = Object.assign({}, window.ER_I18N_EXTRA || {}); _x.en = Object.assign({}, _x.en || {}, ((window.I18N_extra||{}).en)||{}, {'Chuyển giao diện sáng hoặc tối':'Switch light or dark theme','Chuyển sang giao diện sáng':'Switch to light theme','Chuyển sang giao diện tối':'Switch to dark theme','Ngôn ngữ / Language':'Language','Công tắc sáng tối nằm ở góc phải trên, cạnh nút chọn ngôn ngữ.':'The light/dark switch is in the top-right corner, next to the language picker.','Bật là giao diện sáng, tắt là giao diện tối.':'On means light, off means dark.'}); _x.zh = Object.assign({}, _x.zh || {}, ((window.I18N_extra||{}).zh)||{}, {'Chuyển giao diện sáng hoặc tối':'切换浅色或深色主题','Chuyển sang giao diện sáng':'切换为浅色主题','Chuyển sang giao diện tối':'切换为深色主题','Ngôn ngữ / Language':'语言','Công tắc sáng tối nằm ở góc phải trên, cạnh nút chọn ngôn ngữ.':'明暗开关在右上角，紧挨语言按钮。','Bật là giao diện sáng, tắt là giao diện tối.':'开启为浅色，关闭为深色。'}); window.ER_I18N_EXTRA = _x; } catch (e) {}
 </script>
-<style id="i18nCss">.i18n-sw{display:flex;gap:6px;align-items:center;margin-left:auto}.i18n-sw .chip.f{font-size:11px;padding:4px 8px}#cmcKeyChip{font-size:11px;padding:4px 8px;white-space:nowrap}</style>
+<style id="i18nCss">.i18n-sw{position:relative;display:inline-flex;align-items:center}
+#i18nBtn{font:inherit;font-size:11px;letter-spacing:.04em;padding:4px 8px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:8px;cursor:pointer;line-height:1.2;min-width:34px}
+#i18nBtn:hover{color:var(--text);border-color:var(--accent-2)}
+#i18nMenu{position:absolute;top:120%;right:0;z-index:90;min-width:176px;padding:6px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 26px rgba(0,0,0,.28)}
+#i18nMenu button{display:flex;width:100%;gap:10px;justify-content:space-between;font:inherit;font-size:12px;padding:6px 8px;border:0;border-radius:7px;background:transparent;color:var(--muted);cursor:pointer;text-align:left}
+#i18nMenu button:hover{color:var(--text);background:var(--surface-2, rgba(127,127,127,.14))}
+#i18nMenu button[aria-current="true"]{color:var(--text);background:var(--surface-2, rgba(127,127,127,.14))}
+#i18nMenu .i18n-foot{border-top:1px solid var(--border);margin-top:5px;padding:6px 8px 2px;font-size:11px;color:var(--faint)}
+#i18nMenu .i18n-foot a{color:inherit;text-decoration:none}
+#themeBtn svg,#settingsLink svg{display:block}
+</style>
 </body>
 </html>

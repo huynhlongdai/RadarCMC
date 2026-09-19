@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "exit-radar": {
+      "command": "python3",
+      "args": [
+        "/duong/dan/tuyet-doi/exit_radar_mcp.py"
+      ],
+      "env": {
+        "EXIT_RADAR_URL": "http://127.0.0.1:8787",
+        "EXIT_RADAR_TIMEOUT": "90"
+      }
+    }
+  }
+}

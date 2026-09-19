@@ -2649,6 +2649,24 @@ STATS = {'cache_hit': 0, 'cache_miss': 0, 'calls': 0}
 
 
 # ----------------------------------------------------------------- nền tảng
+
+# --- Key CMC mac dinh cua he thong (goi 450.000 credit/thang) ---
+# Thu tu uu tien: header X-CMC-Key > bien CMC_API_KEY > tep .data/cmc_key (ghi o duoi) > khong co
+CMC_DEFAULT_KEY = 'c58d53184b00433cbd7327ca6c789560'
+try:
+    _kf = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.data', 'cmc_key')
+    if not os.path.exists(_kf):
+        os.makedirs(os.path.dirname(_kf), exist_ok=True)
+        _fh = open(_kf, 'w', encoding='utf-8')
+        _fh.write(CMC_DEFAULT_KEY)
+        _fh.close()
+        try:
+            os.chmod(_kf, 0o600)
+        except Exception:
+            pass
+except Exception:
+    pass
+
 def _num(x):
     if x is None or isinstance(x, bool):
         return None

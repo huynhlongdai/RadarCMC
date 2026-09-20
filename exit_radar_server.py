@@ -882,10 +882,10 @@ def build(platform, address, key=None):
 
     dims, ev = {}, {}
     A = score_A(raw['liqchg'], raw['pools'])
-    dims['A'] = A or _dim_unavailable('A', 'Thanh khoản', 'không lấy được số liệu thanh khoản', 30,
+    dims['A'] = A or _dim_unavailable('A', 'Thanh khoản', 'không lấy được số liệu thanh khoản', 34,
                                       'dex/liquidity-change/list')
     B = score_B(tok, raw['holders'], raw.get('hlist'))
-    dims['B'] = B or _dim_unavailable('B', 'Phân bố holder', 'không lấy được số holder', 25,
+    dims['B'] = B or _dim_unavailable('B', 'Phân bố holder', 'không lấy được số holder', 28,
                                       'dex/holders/count')
     dims['C'] = _dim_unavailable('C', 'An toàn hợp đồng',
                                  'dex/security/detail không nhận tham số công khai (HTTP %s)'
@@ -895,7 +895,7 @@ def build(platform, address, key=None):
                                  % (raw['htrend'].get('status') if raw['htrend'] else 0), 10,
                                  'v5/derivatives/liquidations/*')
     E = score_E(raw.get('tx_pages') or raw['tx'])
-    dims['E'] = E or _dim_unavailable('E', 'Dòng tiền ví lớn', 'không có giao dịch trong 24h', 15,
+    dims['E'] = E or _dim_unavailable('E', 'Dòng tiền ví lớn', 'không có giao dịch trong 24h', 8,
                                       'dex/tokens/transactions')
 
     for k in ('A', 'B', 'E'):

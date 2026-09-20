@@ -1212,6 +1212,44 @@ def tg_chart_png(snap, tok):
         return None
 
 
+def tg_quickchart_url(snap, tok):
+    """Bieu do bang URL cua dich vu ve bieu do (QuickChart - mien phi, khong can key).
+
+    Telegram tu tai anh tu URL nay, nen may chay khong can matplotlib va khong ton credit CMC.
+    Tat/doi nguon bang bien moi truong TG_CHART = auto | quickchart | local | none.
+    """
+    try:
+        rows = [x for x in ((snap or {}).get('rows') or []) if isinstance(x, dict) and x.get('ts')]
+        if len(rows) < 3:
+            return None
+        t0 = min(float(x['ts']) for x in rows)
+        labels, buys, sells = [], [], []
+        for x in rows:
+            labels.append('%.1f' % ((float(x['ts']) - t0) / 60000.0))
+            u = round(float(x.get('usd') or 0) / 1000.0, 2)
+            if (x.get('side') or '') == 'sell':
+                buys.append(0); sells.append(-u)
+            else:
+                buys.append(u); sells.append(0)
+        cfg = {'type': 'bar',
+               'data': {'labels': labels, 'datasets': [
+                   {'label': 'BUY', 'data': buys, 'backgroundColor': '#16C784'},
+                   {'label': 'SELL', 'data': sells, 'backgroundColor': '#EA3943'}]},
+               'options': {
+                   'legend': {'labels': {'fontColor': '#E5E7EB', 'fontSize': 10}},
+                   'title': {'display': True, 'text': 'Whale flow (K USD) | ' + str((tok or {}).get('symbol') or ''),
+                             'fontColor': '#E5E7EB', 'fontSize': 13},
+                   'scales': {'xAxes': [{'ticks': {'fontColor': '#9CA3AF', 'fontSize': 8},
+                                          'gridLines': {'color': '#1F2937'}}],
+                              'yAxes': [{'ticks': {'fontColor': '#9CA3AF', 'fontSize': 8},
+                                         'gridLines': {'color': '#1F2937'}}]}}}
+        q = urllib.parse.urlencode({'w': '660', 'h': '330', 'bkg': '#0B1220',
+                                    'c': json.dumps(cfg, separators=(',', ':'))})
+        return 'https://quickchart.io/chart?' + q
+    except Exception:
+        return None
+
+
 def tg_multipart(fields, fname, content):
     """Dung than yeu cau multipart/form-data de gui anh cho Telegram."""
     b = '----ExitRadarBoundary7f3a'
@@ -1260,7 +1298,18 @@ def tg_send(chat_id, text, markup=None, st=None, ch=None, dry=False):
     r = None
     try:
         if not dry and _TG_LAST_CARD.get('text') == text:
-            _png = tg_chart_png(_TG_LAST_CARD.get('snap') or {}, _TG_LAST_CARD.get('tok') or {})
+            _mode = (os.environ.get('TG_CHART') or 'auto').lower()
+            _card_snap, _card_tok = _TG_LAST_CARD.get('snap') or {}, _TG_LAST_CARD.get('tok') or {}
+            if _mode in ('auto', 'quickchart'):
+                _u = tg_quickchart_url(_card_snap, _card_tok)
+                if _u:
+                    _pf = {'chat_id': chat_id, 'photo': _u, 'caption': text[:1000], 'parse_mode': 'HTML'}
+                    if markup:
+                        _pf['reply_markup'] = markup
+                    r = tg_call('sendPhoto', _pf, timeout=45)
+                    if not (r or {}).get('ok'):
+                        r = None
+            _png = None if r else (tg_chart_png(_card_snap, _card_tok) if _mode in ('auto', 'local') else None)
             if _png:
                 _pf = {'chat_id': chat_id, 'caption': text[:1000], 'parse_mode': 'HTML'}
                 if markup:

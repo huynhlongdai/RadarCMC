@@ -1165,6 +1165,83 @@ def tg_min_gap_ok(ch):
     return True, 0
 
 
+_TG_LAST_CARD = {}
+
+
+def tg_chart_png(snap, tok):
+    """Bieu do dong tien vi lon dung tu chinh du lieu vua quet - khong ton them credit."""
+    try:
+        import io
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+    except Exception:
+        return None
+    rows = [x for x in ((snap or {}).get('rows') or []) if isinstance(x, dict) and x.get('ts')]
+    if len(rows) < 3:
+        return None
+    try:
+        t0 = min(float(x['ts']) for x in rows)
+        xb, yb, xs_, ys_ = [], [], [], []
+        for x in rows:
+            t = (float(x['ts']) - t0) / 60000.0
+            u = float(x.get('usd') or 0)
+            if (x.get('side') or '') == 'sell':
+                xs_.append(t); ys_.append(-u)
+            else:
+                xb.append(t); yb.append(u)
+        fig, ax = plt.subplots(figsize=(6.6, 3.3), dpi=140)
+        fig.patch.set_facecolor('#0B1220'); ax.set_facecolor('#0B1220')
+        ax.bar(xb, yb, width=0.6, color='#16C784', label='BUY')
+        ax.bar(xs_, ys_, width=0.6, color='#EA3943', label='SELL')
+        ax.axhline(0, color='#6B7280', linewidth=0.8)
+        ax.set_xlabel('minutes from first trade', color='#9CA3AF', fontsize=8)
+        ax.set_ylabel('USD', color='#9CA3AF', fontsize=8)
+        ax.tick_params(colors='#9CA3AF', labelsize=7)
+        for sp in ax.spines.values():
+            sp.set_color('#374151')
+        ax.set_title('Whale flow | ' + str((tok or {}).get('symbol') or ''),
+                     color='#E5E7EB', fontsize=10)
+        ax.legend(facecolor='#111827', edgecolor='#374151', labelcolor='#E5E7EB', fontsize=7)
+        buf = io.BytesIO()
+        fig.tight_layout()
+        fig.savefig(buf, format='png', facecolor=fig.get_facecolor())
+        plt.close(fig)
+        return buf.getvalue()
+    except Exception:
+        return None
+
+
+def tg_multipart(fields, fname, content):
+    """Dung than yeu cau multipart/form-data de gui anh cho Telegram."""
+    b = '----ExitRadarBoundary7f3a'
+    out = []
+    for k, v in (fields or {}).items():
+        if v is None:
+            continue
+        out.append(('--' + b + '\r\nContent-Disposition: form-data; name="' + k + '"\r\n\r\n' + str(v) + '\r\n').encode('utf-8'))
+    out.append(('--' + b + '\r\nContent-Disposition: form-data; name="photo"; filename="' + fname + '"\r\n'
+                'Content-Type: image/png\r\n\r\n').encode('utf-8'))
+    out.append(content)
+    out.append(('\r\n--' + b + '--\r\n').encode('utf-8'))
+    return b''.join(out), 'multipart/form-data; boundary=' + b
+
+
+def tg_call_photo(method, fields, fname, content, timeout=45):
+    body, ctype = tg_multipart(fields, fname, content)
+    req = urllib.request.Request(TG_URL % (tg_token(), method), data=body, headers={'Content-Type': ctype})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read().decode('utf-8', 'replace'))
+    except urllib.error.HTTPError as e:
+        try:
+            return json.loads(e.read().decode('utf-8', 'replace'))
+        except Exception:
+            return {'ok': False, 'error': 'HTTP ' + str(e.code)}
+    except Exception as e:
+        return {'ok': False, 'error': str(e)}
+
+
 def tg_send(chat_id, text, markup=None, st=None, ch=None, dry=False):
     """Gui mot tin. dry=True thi KHONG goi Telegram, tra ve dung noi dung se gui."""
     text = text[:TG_MSG_MAX]
@@ -1180,7 +1257,21 @@ def tg_send(chat_id, text, markup=None, st=None, ch=None, dry=False):
             'disable_web_page_preview': True}
     if markup:
         body['reply_markup'] = markup
-    r = tg_call('sendMessage', body)
+    r = None
+    try:
+        if not dry and _TG_LAST_CARD.get('text') == text:
+            _png = tg_chart_png(_TG_LAST_CARD.get('snap') or {}, _TG_LAST_CARD.get('tok') or {})
+            if _png:
+                _pf = {'chat_id': chat_id, 'caption': text[:1000], 'parse_mode': 'HTML'}
+                if markup:
+                    _pf['reply_markup'] = json.dumps(markup)
+                r = tg_call_photo('sendPhoto', _pf, 'exit-radar.png', _png)
+                if not (r or {}).get('ok'):
+                    r = None
+    except Exception:
+        r = None
+    if r is None:
+        r = tg_call('sendMessage', body)
     if r.get('ok') and ch is not None:
         ch['lastSent'] = time.time()
         ch.setdefault('sentHist', []).append(time.time())
@@ -1194,7 +1285,8 @@ def tg_markup(app_url, token_key=None):
     if not app_url:
         return None
     u = app_url.rstrip('/') + '/#' + (('/scan/' + token_key.replace(':', '/')) if token_key else '/watchlist')
-    return {'inline_keyboard': [[{'text': 'Mở trong Exit Radar', 'url': u}]]}
+    return {'inline_keyboard': [[{'text': 'Mở trong Exit Radar', 'url': u}],
+                              [{'text': 'Tuỳ chỉnh cảnh báo', 'url': app_url.rstrip('/') + '/#/settings'}]]}
 
 
 def tg_scan(platform, address, key=None):
@@ -1235,6 +1327,7 @@ def tg_scan(platform, address, key=None):
             'wallets': (evE.get('wallets') or [])[:12],
             'rows': (evE.get('rows') or [])[:40],
             'top10': evB.get('top10_share'), 'swaps': evE.get('swaps_sampled'),
+            'vol24h': _num((tok or {}).get('volume24h')),
             'calls': out.get('calls'), 'at': int(time.time() * 1000)}
 
 
@@ -1455,6 +1548,43 @@ def tg_message(tok, alerts, snap, note=None, lang=None):
     ca = ((snap or {}).get('calls') or [])
     if ca:
         lines.append('<i>' + str(len(ca)) + ' ' + L['calls'] + '</i>')
+    # --- khoi so lieu kieu the canh bao (giong cac kenh whale alert) ---
+    rich = []
+    pr = (snap or {}).get('price')
+    if pr:
+        pct = None
+        for a in (alerts or []):
+            if a.get('rk') in ('price_up', 'price_down'):
+                pct = a.get('pct')
+        rich.append('\U0001F4B0 <b>' + L['price'] + ':</b> ' + price_txt(pr) +
+                    ((' (' + str(pct) + '%)') if pct else ''))
+    big = 0.0
+    for a in (alerts or []):
+        if a.get('rk') in ('whale_buy', 'whale_sell'):
+            big = max(big, float(a.get('usd') or 0))
+    v24 = (snap or {}).get('vol24h')
+    if big:
+        sline = '\U0001F6A8 <b>' + L['order'] + ':</b> ' + usd_short(big) + ' USD'
+        if v24:
+            try:
+                sline += ' (' + nf_txt(100.0 * big / float(v24), 2) + '%)'
+            except Exception:
+                pass
+        rich.append(sline)
+    rows = [x for x in ((snap or {}).get('rows') or []) if isinstance(x, dict) and x.get('ts')]
+    if len(rows) >= 2:
+        try:
+            ts = [float(x['ts']) for x in rows]
+            rich.append('\u23F3 <b>' + L['dur'] + ':</b> ' + nf_txt((max(ts) - min(ts)) / 60000.0, 0) + ' ' + L['mins'])
+        except Exception:
+            pass
+    if v24:
+        rich.append('\U0001F4CA <b>24h Vol:</b> ' + usd_short(v24) + ' USD')
+    if rich:
+        lines.extend(rich)
+    _TG_LAST_CARD['text'] = '\n'.join(lines)
+    _TG_LAST_CARD['snap'] = snap
+    _TG_LAST_CARD['tok'] = tok
     return '\n'.join(lines)
 
 
@@ -1462,6 +1592,7 @@ def tg_message(tok, alerts, snap, note=None, lang=None):
 # khoá ('rk') chứ không dịch câu đã lắp số, nên không lệch số giữa các ngôn ngữ.
 TGL = {
     'en': {'score':'Score', 'liq':'Liquidity', 'holders':'Holders', 'calls':'CMC calls this scan',
+           'price':'Price', 'order':'Order size', 'dur':'Duration', 'mins':'min',
            'dims':'sum of %s/%s scored dimensions', 'whale_buy':'whale wallet BOUGHT %s — wallet %s',
            'whale_sell':'whale wallet SOLD %s — wallet %s', 'score_above':'score crossed %s (%s to %s)',
            'jump':'score up %s points (%s to %s)', 'liq_drop':'liquidity down %s%% (%s to %s)',
@@ -1469,6 +1600,7 @@ TGL = {
            'price_up':'price up %s%% (%s to %s)', 'price_down':'price down %s%% (%s to %s)',
            'test':'Test message from Exit Radar at %s. If you can read this, the bot is linked.'},
     'vi': {'score':'Điểm', 'liq':'Thanh khoản', 'holders':'Holder', 'calls':'lời gọi CMC cho lần quét này',
+           'price':'Giá', 'order':'Cỡ lệnh', 'dur':'Thời lượng', 'mins':'phút',
            'dims':'tổng của %s/%s chiều chấm được', 'whale_buy':'ví cá mập MUA %s — ví %s',
            'whale_sell':'ví cá mập BÁN %s — ví %s', 'score_above':'điểm vượt %s (%s → %s)',
            'jump':'điểm tăng %s điểm (%s → %s)', 'liq_drop':'thanh khoản giảm %s%% (%s → %s)',
@@ -1476,6 +1608,7 @@ TGL = {
            'price_up':'giá tăng %s%% (%s → %s)', 'price_down':'giá giảm %s%% (%s → %s)',
            'test':'Tin thử từ Exit Radar lúc %s. Nếu bạn thấy tin này, bot đã nối đúng chat.'},
     'zh': {'score':'评分', 'liq':'流动性', 'holders':'持币人数', 'calls':'本次扫描的 CMC 调用次数',
+           'price':'价格', 'order':'订单规模', 'dur':'持续时间', 'mins':'分钟',
            'dims':'已评分 %s/%s 个维度之和', 'whale_buy':'巨鲸买入 %s — 钱包 %s',
            'whale_sell':'巨鲸卖出 %s — 钱包 %s', 'score_above':'评分超过 %s（%s → %s）',
            'jump':'评分上升 %s 分（%s → %s）', 'liq_drop':'流动性下降 %s%%（%s → %s）',

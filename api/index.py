@@ -3867,6 +3867,101 @@ def tg_quickchart_url(snap, tok):
         return None
 
 
+GT_NET = {'solana': 'solana', 'bsc': 'bsc', 'ethereum': 'eth', 'eth': 'eth', 'base': 'base',
+          'arbitrum': 'arbitrum', 'polygon': 'polygon_pos', 'polygon-pos': 'polygon_pos',
+          'avalanche': 'avax', 'optimism': 'optimism', 'tron': 'tron', 'sui': 'sui-network'}
+
+
+def tg_ohlcv(platform, address, aggregate=5, limit=60):
+    """Nen THAT tu GeckoTerminal: mien phi, khong can key, ~30 loi goi/phut.
+
+    Lay pool thanh khoan lon nhat cua token roi xin nen 5 phut. Day la du lieu nen that
+    (o/h/l/c) chu khong phai duong ve lai tu vai diem gia CMC.
+    """
+    net = GT_NET.get(str(platform or '').lower())
+    if not (net and address):
+        return None
+    hdr = {'Accept': 'application/json;version=20230302', 'User-Agent': 'exit-radar/1.1'}
+    try:
+        u1 = ('https://api.geckoterminal.com/api/v2/networks/' + net + '/tokens/' +
+              urllib.parse.quote(str(address)) + '/pools?page=1')
+        with urllib.request.urlopen(urllib.request.Request(u1, headers=hdr), timeout=20) as r:
+            j = json.loads(r.read().decode('utf-8', 'replace'))
+        pools = (j.get('data') or []) if isinstance(j, dict) else []
+        best, br = None, -1.0
+        for pp in pools:
+            a = pp.get('attributes') or {}
+            addr = a.get('address') or (pp.get('id') or '').split('_')[-1]
+            try:
+                rv = float(a.get('reserve_in_usd') or 0)
+            except Exception:
+                rv = 0.0
+            if addr and rv > br:
+                best, br = addr, rv
+        if not best:
+            return None
+        u2 = ('https://api.geckoterminal.com/api/v2/networks/' + net + '/pools/' + str(best) +
+              '/ohlcv/minute?aggregate=' + str(aggregate) + '&limit=' + str(limit))
+        with urllib.request.urlopen(urllib.request.Request(u2, headers=hdr), timeout=20) as r2:
+            j2 = json.loads(r2.read().decode('utf-8', 'replace'))
+        lst = (((j2.get('data') or {}).get('attributes') or {}).get('ohlcv_list')) or []
+        if len(lst) < 5:
+            return None
+        return {'pool': best, 'net': net, 'candles': lst}
+    except Exception:
+        return None
+
+
+def tg_candle_png(data, tok, minutes=5):
+    """Ve nen that (o/h/l/c) kieu san giao dich."""
+    try:
+        import io
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        from matplotlib.patches import Rectangle
+    except Exception:
+        return None
+    c = (data or {}).get('candles') or []
+    if len(c) < 5:
+        return None
+    try:
+        c = sorted(c, key=lambda x: float(x[0]))
+        t0 = float(c[0][0])
+        fig, ax = plt.subplots(figsize=(6.8, 3.4), dpi=140)
+        fig.patch.set_facecolor('#0B1220'); ax.set_facecolor('#0B1220')
+        w = max(0.5, (float(c[-1][0]) - t0) / 60.0 / max(len(c), 1) * 0.7)
+        for row in c:
+            try:
+                ts, o, h, l, cl = (float(row[0]), float(row[1]), float(row[2]),
+                                   float(row[3]), float(row[4]))
+            except Exception:
+                continue
+            x = (ts - t0) / 60.0
+            col = '#16C784' if cl >= o else '#EA3943'
+            ax.plot([x, x], [l, h], color=col, linewidth=0.7, solid_capstyle='butt')
+            hgt = abs(cl - o)
+            if hgt <= 0:
+                hgt = max((h - l) * 0.002, 1e-15)
+            ax.add_patch(Rectangle((x - w / 2.0, min(o, cl)), w, hgt,
+                                   facecolor=col, edgecolor=col, linewidth=0.3))
+        ax.set_xlabel('phut', color='#9CA3AF', fontsize=8)
+        ax.set_ylabel('gia (USD)', color='#9CA3AF', fontsize=8)
+        ax.tick_params(colors='#9CA3AF', labelsize=7)
+        for sp in ax.spines.values():
+            sp.set_color('#374151')
+        ax.set_title('Nen that ' + str(minutes) + 'm | ' + str((tok or {}).get('symbol') or '') +
+                     ' | pool ' + str((data or {}).get('pool') or '')[:12],
+                     color='#E5E7EB', fontsize=9)
+        buf = io.BytesIO()
+        fig.tight_layout()
+        fig.savefig(buf, format='png', facecolor=fig.get_facecolor())
+        plt.close(fig)
+        return buf.getvalue()
+    except Exception:
+        return None
+
+
 def tg_multipart(fields, fname, content):
     """Dung than yeu cau multipart/form-data de gui anh cho Telegram."""
     b = '----ExitRadarBoundary7f3a'
@@ -3917,7 +4012,17 @@ def tg_send(chat_id, text, markup=None, st=None, ch=None, dry=False):
         if not dry and _TG_LAST_CARD.get('text') == text:
             _mode = (os.environ.get('TG_CHART') or 'auto').lower()
             _card_snap, _card_tok = _TG_LAST_CARD.get('snap') or {}, _TG_LAST_CARD.get('tok') or {}
-            if _mode in ('auto', 'quickchart'):
+            if _mode in ('auto', 'real') and (os.environ.get('TG_CHART_DATA') or 'candles').lower() != 'bars':
+                _cand = tg_ohlcv(_card_snap.get('platform'), _card_snap.get('address'))
+                _png0 = tg_candle_png(_cand, _card_tok) if _cand else None
+                if _png0:
+                    _pf0 = {'chat_id': chat_id, 'caption': text[:1000], 'parse_mode': 'HTML'}
+                    if markup:
+                        _pf0['reply_markup'] = json.dumps(markup)
+                    r = tg_call_photo('sendPhoto', _pf0, 'exit-radar-candles.png', _png0)
+                    if not (r or {}).get('ok'):
+                        r = None
+            if r is None and _mode in ('auto', 'quickchart'):
                 _u = tg_quickchart_url(_card_snap, _card_tok)
                 if _u:
                     _pf = {'chat_id': chat_id, 'photo': _u, 'caption': text[:1000], 'parse_mode': 'HTML'}
@@ -3994,6 +4099,7 @@ def tg_scan(platform, address, key=None):
             'rows': (evE.get('rows') or [])[:40],
             'top10': evB.get('top10_share'), 'swaps': evE.get('swaps_sampled'),
             'vol24h': _num((tok or {}).get('volume24h')),
+            'platform': platform, 'address': address,
             'calls': out.get('calls'), 'at': int(time.time() * 1000)}
 
 

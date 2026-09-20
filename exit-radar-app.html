@@ -4811,11 +4811,11 @@ window.I18N = { t:t, apply:I18N_apply, set:function(k){ try{Store.set('er.lang2'
   const _base = I18N_apply;
   I18N_apply = function(root){ return _base.apply(this, arguments) + phrasePass(root); };
   try { window.I18N_apply = I18N_apply; if (window.I18N) window.I18N.apply = I18N_apply; } catch (e) {}
-  window.I18N_extra = { en:EN, zh:ZH, phrasePass:phrasePass };
+  window.ER_I18N_DOT2 = { en:EN, zh:ZH, phrasePass:phrasePass };
 })();
 
 /* --- noi tu dien dot 2 vao lop phu --- */
-try { const _x = Object.assign({}, window.ER_I18N_EXTRA || {}); _x.en = Object.assign({}, _x.en || {}, ((window.I18N_extra||{}).en)||{}, {'Chuyển giao diện sáng hoặc tối':'Switch light or dark theme','Chuyển sang giao diện sáng':'Switch to light theme','Chuyển sang giao diện tối':'Switch to dark theme','Ngôn ngữ / Language':'Language','Công tắc sáng tối nằm ở góc phải trên, cạnh nút chọn ngôn ngữ.':'The light/dark switch is in the top-right corner, next to the language picker.','Bật là giao diện sáng, tắt là giao diện tối.':'On means light, off means dark.'}); _x.zh = Object.assign({}, _x.zh || {}, ((window.I18N_extra||{}).zh)||{}, {'Chuyển giao diện sáng hoặc tối':'切换浅色或深色主题','Chuyển sang giao diện sáng':'切换为浅色主题','Chuyển sang giao diện tối':'切换为深色主题','Ngôn ngữ / Language':'语言','Công tắc sáng tối nằm ở góc phải trên, cạnh nút chọn ngôn ngữ.':'明暗开关在右上角，紧挨语言按钮。','Bật là giao diện sáng, tắt là giao diện tối.':'开启为浅色，关闭为深色。'}); window.ER_I18N_EXTRA = _x; } catch (e) {}
+try { const _x = Object.assign({}, window.ER_I18N_EXTRA || {}); _x.en = Object.assign({}, _x.en || {}, ((window.ER_I18N_DOT2||{}).en)||{}, {'Chuyển giao diện sáng hoặc tối':'Switch light or dark theme','Chuyển sang giao diện sáng':'Switch to light theme','Chuyển sang giao diện tối':'Switch to dark theme','Ngôn ngữ / Language':'Language','Công tắc sáng tối nằm ở góc phải trên, cạnh nút chọn ngôn ngữ.':'The light/dark switch is in the top-right corner, next to the language picker.','Bật là giao diện sáng, tắt là giao diện tối.':'On means light, off means dark.'}); _x.zh = Object.assign({}, _x.zh || {}, ((window.ER_I18N_DOT2||{}).zh)||{}, {'Chuyển giao diện sáng hoặc tối':'切换浅色或深色主题','Chuyển sang giao diện sáng':'切换为浅色主题','Chuyển sang giao diện tối':'切换为深色主题','Ngôn ngữ / Language':'语言','Công tắc sáng tối nằm ở góc phải trên, cạnh nút chọn ngôn ngữ.':'明暗开关在右上角，紧挨语言按钮。','Bật là giao diện sáng, tắt là giao diện tối.':'开启为浅色，关闭为深色。'}); window.ER_I18N_EXTRA = _x; } catch (e) {}
 try {
   document.addEventListener('click', function(ev){
     const b = (ev.target && ev.target.closest) ? ev.target.closest('[data-lang-set]') : null;

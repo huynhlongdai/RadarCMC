@@ -4125,6 +4125,14 @@ function I18N_dict(lang){
   const base = (lang === 'en' ? I18N_EN : (lang === 'zh' ? I18N_ZH : {}));
   return Object.assign({}, base, (I18N_extra()[lang] || {}));
 }
+function I18N_frag(lang){
+  const c = window.__erFragCache = window.__erFragCache || {};
+  if (c[lang]) return c[lang];
+  const d = I18N_dict(lang), ks = [];
+  for (const k in d){ if (k.length >= 10 && k.indexOf(' ') > 0) ks.push(k); }
+  ks.sort((x, y) => y.length - x.length);
+  return (c[lang] = { d: d, ks: ks });
+}
 function I18N_lookup(key, lang){
   lang = lang || I18N_lang;
   if (!key) return key;
@@ -4145,6 +4153,15 @@ function I18N_lookup(key, lang){
       }
       return out;
     }
+  }
+  const fr = (lang === 'vi') ? null : I18N_frag(lang);
+  if (fr){
+    let s = key, hit = 0;
+    for (let i = 0; i < fr.ks.length; i++){
+      const f = fr.ks[i];
+      if (s.indexOf(f) >= 0){ s = s.split(f).join(fr.d[f]); hit++; }
+    }
+    if (hit && !/[ăâđơưàáảãạằắẳẵặầấẩẫậèéẻẽẹềếểễệìíỉĩịòóỏõọồốổỗộờớởỡợùúủũụừứửữựỳýỷỹỵ]/i.test(s)) return s;
   }
   return null;   // chưa có bản dịch: giữ nguyên tiếng Việt, có đếm vào độ phủ
 }

@@ -5059,5 +5059,14 @@ try{ var _x=window.ER_I18N_EXTRA||{}; window.ER_I18N_EXTRA=_x;
   window.I18N_SWEEP13 = sweep;
 })();
 </script>
+
+<script>/* dot 14 — boc ham ve the thi truong de dich ngay sau khi ve */
+(function(){ try{
+  var f = window.renderMarkets; if (typeof f === 'function'){
+    window.renderMarkets = function(){ var r = f.apply(this, arguments);
+      try{ if (window.I18N_SWEEP13) window.I18N_SWEEP13(document.body); if (typeof window.I18N_apply==='function') window.I18N_apply(document.body); }catch(e){}
+      return r; };
+  }
+}catch(e){} })();</script>
 </body>
 </html>
